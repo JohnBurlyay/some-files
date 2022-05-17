@@ -1,4 +1,4 @@
---@name CamPod-v2.4
+--@name CamPod-v2.41
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -21,12 +21,13 @@ if SERVER then
 else
     
     if player() == owner() then
-       
-        Ver = "v2.4"
+        
+        Ver = "v2.41"
         
         print("[ACP][c 255, 100, 100]: successfully loaded " .. Ver)  
         print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
         
+        Show = false
         Show = false
         WH = false
         KH = false
@@ -39,9 +40,12 @@ else
         
         KeyLog = {}
         
+        FileName = "ACP-v2.txt"
+        File = json.decode(file.read(FileName) or "[]")
+        
         Ply = owner()
-        p = Vector(0, 0)
-        p2 = Vector(0, 0)
+        p = File.p or Vector(0, 0)
+        p2 = File.p2 or Vector(250, 0)
         Poser = Vector(0)
         Poser2 = Vector(0)
         CamPos = Ply:getEyePos()
@@ -88,6 +92,11 @@ else
         fontAnother = render.createFont("Roboto", 20, 400, true)
         fontKH = render.createFont("Roboto", 15, 400, true)
         fontScrn = render.createFont("Roboto", 50, 400, true)
+        
+        local function savePoses()
+            local data = {p = p, p2 = p2}
+            file.write(FileName, json.encode(data))
+        end
         
         local function writeKey(data)
             
@@ -279,6 +288,7 @@ else
                     if Hold == 2 then 
                         Hold = 0 
                         Poser = Vector(0)
+                        savePoses()
                     else
                         local x, y = input.getCursorPos()
                         Poser = p - Vector(x, y)
@@ -288,6 +298,7 @@ else
                     if Hold2 == 2 then 
                         Hold2 = 0 
                         Poser2 = Vector(0)
+                        savePoses()
                     else
                         local x, y = input.getCursorPos()
                         Poser2 = p2 - Vector(x, y)
