@@ -21,10 +21,12 @@ if SERVER then
 else
     
     if player() == owner() then
+       
+        Ver = "v2.4"
         
+        print("[ACP][c 255, 100, 100]: successfully loaded " .. Ver)  
         print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
         
-        Ver = "v2.4"
         Show = false
         WH = false
         KH = false
