@@ -1,0 +1,321 @@
+--@name CamPod-v2.4
+--@author JohnBurlyay
+--@shared
+--@model models/jaanus/wiretool/wiretool_input.mdl
+    
+if SERVER then
+    
+    chip():setCollisionGroup(10)    
+    
+    net.receive("sendOnServer", function(str)
+        Data = net.readTable()
+        
+        net.start("sendOnOwner")
+        net.writeTable(Data)
+        net.send(owner())
+        
+        --local clr = team.getColor(Data.ent:getTeam())
+        --print("[b][ACP]: [c " .. clr[1] .. ", " .. clr[2] .. ", " .. clr[3] .. "]" .. Data.ent:getName() .. "[/c] pressed " .. "[/b][c 255, 100, 100]" .. KeyIndex[Data.key]) 
+    end)
+    
+else
+    
+    if player() == owner() then
+        
+        print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
+        
+        Ver = "v2.4"
+        Show = false
+        WH = false
+        KH = false
+        Size = 15
+        Enable = false
+        Hold = 0
+        Hold2 = 0
+        Button = {}
+        ButtonSize = 22
+        
+        KeyLog = {}
+        
+        Ply = owner()
+        p = Vector(0, 0)
+        p2 = Vector(0, 0)
+        Poser = Vector(0)
+        Poser2 = Vector(0)
+        CamPos = Ply:getEyePos()
+        
+        KeyIndex = {
+            _37 = {str = "Pad_0", clr = Color(255, 255, 255)},
+            _38 = {str = "Pad_1", clr = Color(255, 255, 255)},
+            _39 = {str = "Pad_2", clr = Color(255, 255, 255)},
+            _40 = {str = "Pad_3", clr = Color(255, 255, 255)},
+            _41 = {str = "Pad_4", clr = Color(255, 255, 255)},
+            _42 = {str = "Pad_5", clr = Color(255, 255, 255)},
+            _43 = {str = "Pad_6", clr = Color(255, 255, 255)},
+            _44 = {str = "Pad_7", clr = Color(255, 255, 255)},
+            _45 = {str = "Pad_8", clr = Color(255, 255, 255)},
+            _46 = {str = "Pad_9", clr = Color(255, 255, 255)},
+            
+            _68 = {str = "CapsLock", clr = Color(255, 255, 0)},
+            _69 = {str = "NumLock", clr = Color(255, 255, 0)},
+            
+            _71 = {str = "ScrollLock", clr = Color(255, 150, 0)},
+            _72 = {str = "Insert", clr = Color(255, 0, 0)},
+            _73 = {str = "Delete", clr = Color(255, 0, 0)},
+            _74 = {str = "Home", clr = Color(255, 0, 0)},
+            _75 = {str = "End", clr = Color(255, 0, 0)},
+            _76 = {str = "PageUp", clr = Color(255, 0, 0)},
+            _77 = {str = "PageDown", clr = Color(255, 0, 0)},
+            _78 = {str = "Break", clr = Color(255, 0, 0)},
+            
+            _92 = {str = "F1", clr = Color(255, 255, 255)},
+            _93 = {str = "F2", clr = Color(255, 255, 255)},
+            _94 = {str = "F3", clr = Color(255, 255, 255)},
+            _95 = {str = "F4", clr = Color(255, 255, 255)},
+            _96 = {str = "F5", clr = Color(255, 255, 0)},
+            _97 = {str = "F6", clr = Color(255, 255, 0)},
+            _98 = {str = "F7", clr = Color(255, 255, 0)},
+            _99 = {str = "F8", clr = Color(255, 255, 0)},
+            _100 = {str = "F9", clr = Color(255, 255, 0)},
+            _101 = {str = "F10", clr = Color(255, 255, 0)},
+            _102 = {str = "F11", clr = Color(255, 255, 0)},
+            _103 = {str = "F12", clr = Color(255, 255, 0)},
+        }
+        
+        fontMenu = render.createFont("Roboto", 25, 400, true)
+        fontAnother = render.createFont("Roboto", 20, 400, true)
+        fontKH = render.createFont("Roboto", 15, 400, true)
+        fontScrn = render.createFont("Roboto", 50, 400, true)
+        
+        local function writeKey(data)
+            
+            local id = data.ent:getSteamID()
+            
+            --check for player exists in table
+            if KeyLog[id] == nil then
+                KeyLog[id] = {}
+            end
+            --check for specified KEYVALUE exists in table
+            if KeyLog[id][KeyIndex[data.key].str] == nil then
+                KeyLog[id][KeyIndex[data.key].str] = {num = 0, clr = KeyIndex[data.key].clr}
+            end
+            
+            KeyLog[id][KeyIndex[data.key].str].num = KeyLog[id][KeyIndex[data.key].str].num + 1
+
+        end
+            
+        net.receive("sendOnOwner", function(str)
+            Data = net.readTable()
+            --print("[b]Игрок "  .. Data.ent:getName() .. " нажал " .. "[/b][c 255, 100, 0]" .. KeyIndex[Data.key]) 
+            writeKey(Data)
+        end)
+
+        
+        hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
+            if Enable then
+                --check for leaved player
+                if Ply == nil or not Ply:isValid() then
+                    Ply = owner() 
+                end
+                local view = {
+                    origin = Ply:getEyePos() + Ply:getEyeTrace().Normal * (Ply == owner() and 0 or 14),
+                    angles = Ply:getEyeAngles(),
+                    fov = fov,
+                    drawviewer = false   
+                }
+                return view
+            end
+        end)
+        
+        enableHud(nil, true)
+        
+        hook.add("drawhud", "", function() 
+            
+            if Show then
+                
+                local x, y = input.getCursorPos()
+                local panelY = 148 + ButtonSize * #find.allPlayers()
+                
+                if Hold == 1 then
+                    p = Vector(x, y) + Poser
+                end
+                
+                --buttons
+                    --dots
+                    Button[100] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 35), Vector(p.x + 200, p.y + 55))
+                    Button[101] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 70), Vector(p.x + 200, p.y + 90))
+                    Button[103] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 105), Vector(p.x + 200, p.y + 125))
+                    --headers
+                    Button[102] = Vector(x, y):withinAABox(Vector(p.x + 0, p.y + 0), Vector(p.x + 250, p.y + 30))
+                    Button[104] = Vector(x, y):withinAABox(Vector(p2.x + 0, p2.y + 0), Vector(p2.x + 150, p2.y + 44))
+                
+                --base panel
+                render.setFont(fontMenu)
+                render.setColor(Color(55, 55, 55))
+                render.drawRect(p.x, p.y, 250, panelY)
+                render.setColor(Color(0, 125, 255))
+                render.drawRectOutline(p.x, p.y, 250, panelY, 1)
+                render.setColor(Color(155, 255, 155))
+                render.drawText(p.x + 125, p.y + 5, "[AdvancedCamPod] " .. Ver, 1)
+                --cam funcs draw
+                render.setFont(fontAnother)
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 15, p.y + 35, "включить камеру", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 175, p.y + 35, 20, 20)
+                if Enable then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 177, p.y + 37, 16, 16)
+                end
+                --wh funcs draw
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 15, p.y + 70, "включить WallHack", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 175, p.y + 70, 20, 20)
+                if WH then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 177, p.y + 72, 16, 16)
+                end
+                --key hack funcs draw
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 15, p.y + 105, "включить KeyHack", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 175, p.y + 105, 20, 20)
+                if KH then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 177, p.y + 107, 16, 16)
+                end
+                --plys list
+                local plys = find.allPlayers()
+                local pos = Vector(p.x, p.y + 120)
+                render.setFont(fontAnother)
+                for i = 1, #plys do
+                    
+                    Button[i] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + ButtonSize * i), Vector(pos.x + 245, pos.y + ButtonSize * i + ButtonSize - 2))
+                    
+                    render.setColor(Button[i] and Color(200, 200, 200) or Color(100, 100, 100))
+                    render.drawRect(pos.x + 5, pos.y + ButtonSize * i, 240, ButtonSize - 2)
+                    render.setColor(Button[i] and team.getColor(plys[i]:getTeam()) or Color(200, 200, 200))
+                    render.drawText(p.x + 120, pos.y + ButtonSize * i, string.len(plys[i]:getName()) > 20 and (string.sub(plys[i]:getName(), 1, 25) .. "...") or plys[i]:getName(), 1)
+                    
+                end
+            
+            end
+            
+            --wall hack active
+            if WH then
+                local plys = find.allPlayers()
+                for i = 1, #plys do
+                    if plys[i] != owner() then
+                        local pos, ang = (plys[i]:getAttachment(plys[i]:lookupAttachment("chest")) or plys[i]:getAttachment(plys[i]:lookupAttachment("eyes")) or plys[i]:getPos()):toScreen()
+                        if pos.x > 0 and pos.y > 0 then
+                            local dist = plys[i]:getPos():getDistance(owner():getPos())
+                            local size = math.max(Size - dist / 1000, 4)
+                            render.setColor(team.getColor(plys[i]:getTeam()))
+                            render.drawRect(pos.x - size / 2, pos.y - size / 2, size, size)
+                            if dist > 500 then
+                                render.drawText(pos.x - size / 2, pos.y - size * 2, plys[i]:getName(), 1)
+                            end
+                        end
+                    end
+                end
+            end
+            --key hack active
+            if KH then
+                
+                local panelY2 = 50 + (KeyLog[Ply:getSteamID()] != nil and table.count(KeyLog[Ply:getSteamID()]) or 0) * 16
+                if Hold2 == 1 then
+                    local x, y = input.getCursorPos()
+                    p2 = Vector(x, y) + Poser2
+                end
+                
+                render.setFont(fontMenu)
+                render.setColor(Color(55, 55, 55))
+                render.drawRect(p2.x, p2.y, 150, panelY2)
+                render.setColor(Color(0, 125, 255))
+                render.drawRectOutline(p2.x, p2.y, 150, panelY2, 1)
+                render.setColor(Color(155, 255, 155))
+                render.drawText(p2.x + 75, p2.y + 0, "pressed keys", 1)
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p2.x + 75, p2.y + 20, string.sub(Ply:getName(), 1, 20), 1) 
+                
+                local id = Ply:getSteamID()
+                render.setFont(fontAnother)
+                --draw pressed keys if exists
+                if KeyLog[id] != nil then
+                    for i = 1, table.count(KeyLog[id]) do
+                        local str = table.getKeys(KeyLog[id])[i]
+                        local num = KeyLog[id][str].num
+                        local clr = KeyLog[id][str].clr
+                        
+                        render.setColor(clr)
+                        render.drawText(p2.x + 15, p2.y + 28 + i * 16, (str or nil) .. " : ", 0)
+                        render.setColor(Color(255, 255, 100))
+                        render.drawText(p2.x + 115, p2.y + 28 + i * 16, tostring(num), 0)
+                        
+                    end
+                end
+                
+            end
+                
+        end)
+        
+        hook.add("inputPressed", "", function(key)
+            if key == 81 then
+                
+                Show = not Show
+                input.enableCursor(Show)
+                
+            elseif key == 107 and Show then
+                
+                if Button[100] then
+                    Enable = not Enable
+                elseif Button[101] then
+                    WH = not WH
+                elseif Button[102] then
+                    Hold = Hold + 1 
+                    if Hold == 2 then 
+                        Hold = 0 
+                        Poser = Vector(0)
+                    else
+                        local x, y = input.getCursorPos()
+                        Poser = p - Vector(x, y)
+                    end
+                elseif Button[104] then
+                    Hold2 = Hold2 + 1 
+                    if Hold2 == 2 then 
+                        Hold2 = 0 
+                        Poser2 = Vector(0)
+                    else
+                        local x, y = input.getCursorPos()
+                        Poser2 = p2 - Vector(x, y)
+                    end
+                elseif Button[103] then
+                    KH = not KH
+                else
+                    local plys = find.allPlayers()
+                    for i = 1, #plys do
+                        if Button[i] then
+                            Ply = plys[i]
+                        end 
+                    end
+                    
+                end
+            end
+        end)
+    else
+        hook.add("inputPressed", "", function(key)
+            if 
+                (key > 36 and key < 47) or
+                (key > 67 and key < 70) or
+                (key > 70 and key < 79) or
+                (key > 91 and key < 104)
+
+            then
+                net.start("sendOnServer")
+                net.writeTable({ent = player(), key = "_" .. tostring(key)})
+                net.send(owner())
+            end
+        end)
+    end
+end
