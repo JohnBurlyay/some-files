@@ -1,4 +1,4 @@
---@name CamPod-v2.41
+--@name CamPod-v2.42
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -22,7 +22,7 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.41"
+        Ver = "v2.42"
         
         print("[ACP][c 255, 100, 100]: successfully loaded " .. Ver)  
         print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
@@ -31,6 +31,7 @@ else
         Show = false
         WH = false
         KH = false
+        KHprint = false
         Size = 15
         Enable = false
         Hold = 0
@@ -117,8 +118,15 @@ else
             
         net.receive("sendOnOwner", function(str)
             Data = net.readTable()
-            --print("[b]Игрок "  .. Data.ent:getName() .. " нажал " .. "[/b][c 255, 100, 0]" .. KeyIndex[Data.key]) 
+            
+            if KHprint and KeyIndex[Data.key].clr != Color(255, 255, 255) then
+                local clr = team.getColor(Data.ent:getTeam())
+                local keyclr = KeyIndex[Data.key].clr
+                print("[b][ACP]: [c " .. clr[1] .. ", " .. clr[2] .. ", " .. clr[3] .. "]" .. Data.ent:getName() .. "[/c] pressed " .. "[/b][c " .. keyclr[1] .. ", " .. keyclr[2] .. ", " .. keyclr[3] .. "]" .. KeyIndex[Data.key].str) 
+            end
+            
             writeKey(Data)
+            
         end)
 
         
@@ -153,9 +161,10 @@ else
                 
                 --buttons
                     --dots
-                    Button[100] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 35), Vector(p.x + 200, p.y + 55))
-                    Button[101] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 70), Vector(p.x + 200, p.y + 90))
-                    Button[103] = Vector(x, y):withinAABox(Vector(p.x + 175, p.y + 105), Vector(p.x + 200, p.y + 125))
+                    Button[100] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 35), Vector(p.x + 120, p.y + 55))
+                    Button[101] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 70), Vector(p.x + 120, p.y + 90))
+                    Button[103] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 105), Vector(p.x + 120, p.y + 125))
+                    Button[105] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 105), Vector(p.x + 235, p.y + 125))
                     --headers
                     Button[102] = Vector(x, y):withinAABox(Vector(p.x + 0, p.y + 0), Vector(p.x + 250, p.y + 30))
                     Button[104] = Vector(x, y):withinAABox(Vector(p2.x + 0, p2.y + 0), Vector(p2.x + 150, p2.y + 44))
@@ -171,30 +180,39 @@ else
                 --cam funcs draw
                 render.setFont(fontAnother)
                 render.setColor(Color(155, 255, 255))
-                render.drawText(p.x + 15, p.y + 35, "включить камеру", 0)
+                render.drawText(p.x + 15, p.y + 35, "CamHack", 0)
                 render.setColor(Color(200, 200, 200))
-                render.drawRect(p.x + 175, p.y + 35, 20, 20)
+                render.drawRect(p.x + 100, p.y + 35, 20, 20)
                 if Enable then
                     render.setColor(Color(0, 0, 0))
-                    render.drawRect(p.x + 177, p.y + 37, 16, 16)
+                    render.drawRect(p.x + 102, p.y + 37, 16, 16)
                 end
                 --wh funcs draw
                 render.setColor(Color(155, 255, 255))
-                render.drawText(p.x + 15, p.y + 70, "включить WallHack", 0)
+                render.drawText(p.x + 15, p.y + 70, "WallHack", 0)
                 render.setColor(Color(200, 200, 200))
-                render.drawRect(p.x + 175, p.y + 70, 20, 20)
+                render.drawRect(p.x + 100, p.y + 70, 20, 20)
                 if WH then
                     render.setColor(Color(0, 0, 0))
-                    render.drawRect(p.x + 177, p.y + 72, 16, 16)
+                    render.drawRect(p.x + 102, p.y + 72, 16, 16)
                 end
                 --key hack funcs draw
                 render.setColor(Color(155, 255, 255))
-                render.drawText(p.x + 15, p.y + 105, "включить KeyHack", 0)
+                render.drawText(p.x + 15, p.y + 105, "KeyHack", 0)
                 render.setColor(Color(200, 200, 200))
-                render.drawRect(p.x + 175, p.y + 105, 20, 20)
+                render.drawRect(p.x + 100, p.y + 105, 20, 20)
                 if KH then
                     render.setColor(Color(0, 0, 0))
-                    render.drawRect(p.x + 177, p.y + 107, 16, 16)
+                    render.drawRect(p.x + 102, p.y + 107, 16, 16)
+                end
+                --key hack print draw
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 135, p.y + 105, "print Keys", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 215, p.y + 105, 20, 20)
+                if KHprint then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 217, p.y + 107, 16, 16)
                 end
                 --plys list
                 local plys = find.allPlayers()
@@ -305,6 +323,8 @@ else
                     end
                 elseif Button[103] then
                     KH = not KH
+                elseif Button[105] then
+                    KHprint = not KHprint
                 else
                     local plys = find.allPlayers()
                     for i = 1, #plys do
