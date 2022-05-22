@@ -1,4 +1,4 @@
---@name CamPod-v2.42
+--@name CamPod-v2.51
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -22,34 +22,59 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.42"
+        Ver = "v2.51"
         
         print("[ACP][c 255, 100, 100]: successfully loaded " .. Ver)  
         print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
         
-        Show = false
-        Show = false
-        WH = false
-        KH = false
-        KHprint = false
-        Size = 15
-        Enable = false
-        Hold = 0
-        Hold2 = 0
-        Button = {}
-        ButtonSize = 22
+        --other parameters
+            Show = false
+            Show = false
+            WH = false
+            KH = false
+            MH = false
+            KHprint = false
+            Size = 15
+            Enable = false
+            Hold = 0
+            Hold2 = 0
+            Hold3 = 0
+            Button = {}
+            ButtonSize = 22
+            
+            KeyLog = {}
+            
+            FileName = "ACP-v2.txt"
+            File = json.decode(file.read(FileName) or "[]")
+            
+            Ply = owner()
+            
+            p = File.p or Vector(0, 0)
+            p2 = File.p2 or Vector(250, 0)
+            p3 = File.p3 or Vector(400, 0)
+            Poser = Vector(0)
+            Poser2 = Vector(0)
+            Poser3 = Vector(0)
+            
+            CamPos = Ply:getEyePos()
         
-        KeyLog = {}
+        --map hack basics
+            Map = material.create("UnlitGeneric")
+            Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
+                layout(0, 0, 512, 512)
+            end)
+            
+            MapSize = File.mapsize or 300
+            local x, y = render.getResolution()
+            Resolution = Vector(x, y)
+            DrawPos = p3
+            local x, y = render.getResolution()
+            scrnsize = {x = x, y = y}
+            DrawedScale = File.mapzoom or 0.2
+            
+            Str = {"▲", "▼", "◆"}
         
-        FileName = "ACP-v2.txt"
-        File = json.decode(file.read(FileName) or "[]")
         
-        Ply = owner()
-        p = File.p or Vector(0, 0)
-        p2 = File.p2 or Vector(250, 0)
-        Poser = Vector(0)
-        Poser2 = Vector(0)
-        CamPos = Ply:getEyePos()
         
         KeyIndex = {
             _37 = {str = "Pad_0", clr = Color(255, 255, 255)},
@@ -92,11 +117,22 @@ else
         fontMenu = render.createFont("Roboto", 25, 400, true)
         fontAnother = render.createFont("Roboto", 20, 400, true)
         fontKH = render.createFont("Roboto", 15, 400, true)
+        fontMap = render.createFont("Roboto", 15, 400, true)
         fontScrn = render.createFont("Roboto", 50, 400, true)
         
         local function savePoses()
-            local data = {p = p, p2 = p2}
+            local data = {p = p, p2 = p2, p3 = p3, mapsize = MapSize, mapzoom = DrawedScale}
             file.write(FileName, json.encode(data))
+        end
+        
+        local function resetStencil()
+            render.setStencilWriteMask(0xFF)
+            render.setStencilTestMask(0xFF)
+            render.setStencilReferenceValue(0)
+            render.setStencilCompareFunction(STENCIL.ALWAYS)
+            render.setStencilPassOperation(STENCIL.KEEP)
+            render.setStencilFailOperation(STENCIL.KEEP)
+            render.setStencilZFailOperation(STENCIL.KEEP)
         end
         
         local function writeKey(data)
@@ -150,6 +186,9 @@ else
         
         hook.add("drawhud", "", function() 
             
+            render.setFilterMin(1) 
+            render.setFilterMag(1)
+            
             if Show then
                 
                 local x, y = input.getCursorPos()
@@ -161,13 +200,23 @@ else
                 
                 --buttons
                     --dots
-                    Button[100] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 35), Vector(p.x + 120, p.y + 55))
-                    Button[101] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 70), Vector(p.x + 120, p.y + 90))
-                    Button[103] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 105), Vector(p.x + 120, p.y + 125))
-                    Button[105] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 105), Vector(p.x + 235, p.y + 125))
+                        --1
+                        Button[100] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 35), Vector(p.x + 120, p.y + 55))
+                        Button[101] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 70), Vector(p.x + 120, p.y + 90))
+                        Button[103] = Vector(x, y):withinAABox(Vector(p.x + 100, p.y + 105), Vector(p.x + 120, p.y + 125))
+                        --2
+                        Button[105] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 105), Vector(p.x + 235, p.y + 125))
+                        Button[106] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 70), Vector(p.x + 235, p.y + 90))
                     --headers
                     Button[102] = Vector(x, y):withinAABox(Vector(p.x + 0, p.y + 0), Vector(p.x + 250, p.y + 30))
                     Button[104] = Vector(x, y):withinAABox(Vector(p2.x + 0, p2.y + 0), Vector(p2.x + 150, p2.y + 44))
+                    Button[107] = Vector(x, y):withinAABox(Vector(p3.x + 56, p3.y + 0), Vector(p3.x + MapSize - 55, p3.y + 30))
+                    --map buttons   
+                    Button[201] = Vector(x, y):withinAABox(Vector(p3.x + 3, p3.y + 3), Vector(p3.x + 27, p3.y + 27))
+                    Button[202] = Vector(x, y):withinAABox(Vector(p3.x + 29, p3.y + 3), Vector(p3.x + 53, p3.y + 27))
+                    Button[204] = Vector(x, y):withinAABox(Vector(p3.x + MapSize - 53, p3.y + 3), Vector(p3.x + MapSize - 29, p3.y + 27))
+                    Button[203] = Vector(x, y):withinAABox(Vector(p3.x + MapSize - 27, p3.y + 3), Vector(p3.x + MapSize - 3, p3.y + 27))
+                    
                 
                 --base panel
                 render.setFont(fontMenu)
@@ -214,6 +263,16 @@ else
                     render.setColor(Color(0, 0, 0))
                     render.drawRect(p.x + 217, p.y + 107, 16, 16)
                 end
+                --mh funcs draw
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 135, p.y + 70, "MapHack", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 215, p.y + 70, 20, 20)
+                if MH then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 217, p.y + 72, 16, 16)
+                end
+                
                 --plys list
                 local plys = find.allPlayers()
                 local pos = Vector(p.x, p.y + 120)
@@ -252,6 +311,10 @@ else
             --key hack active
             if KH then
                 
+                if Ply == nil or not Ply:isValid() then
+                    Ply = owner() 
+                end
+                
                 local panelY2 = 50 + (KeyLog[Ply:getSteamID()] != nil and table.count(KeyLog[Ply:getSteamID()]) or 0) * 16
                 if Hold2 == 1 then
                     local x, y = input.getCursorPos()
@@ -285,6 +348,121 @@ else
                     end
                 end
                 
+            end
+            
+            --map hack active
+            if MH then
+                
+                    local x, y = input.getCursorPos()
+                    
+                    if Hold3 == 1 then
+                        p3 = Vector(x, y) + Poser3
+                    end
+                    
+                    DrawPos = p3
+                --draw map
+                    --setup stencil
+                    resetStencil()
+                    render.setStencilEnable(true)
+                    render.setStencilReferenceValue(1)
+                    render.setStencilCompareFunction(STENCIL.EQUAL)
+                    render.setStencilFailOperation(STENCIL.REPLACE)
+                    render.clearBuffersObeyStencil(DrawPos.x, DrawPos.y + 30, MapSize, MapSize, false)
+                    render.clearStencil()
+                    
+                    
+                    --draw base frames
+                    render.setColor(Color(50, 50, 50))
+                    render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
+                    render.setColor(Color(50, 50, 50))
+                    render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
+    
+                    local plypos = Vector(scrnsize.x, scrnsize.y) - (owner():getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
+                    
+                    local mtx = Matrix()
+                    mtx:setTranslation(Vector(DrawPos.x+ MapSize / 2, DrawPos.y + MapSize / 2 + 30, 0))
+                    mtx:setAngles(Angle(0, owner():getAngles()[2] - 90, 0))
+                    
+                    local imgposes = {
+                        x1 = 0.25 + plypos.x - DrawedScale / 2,
+                        y1 = 0.25 + plypos.y - DrawedScale / 2,
+                        x2 = 0.25 + plypos.x + DrawedScale / 2,
+                        y2 = 0.25 + plypos.y + DrawedScale / 2,    
+                    }
+                    
+                    render.setColor(Color(255, 255, 255))
+                    render.setMaterial(Map)
+                    render.pushMatrix(mtx)
+                        render.drawTexturedRectUV(-MapSize, -MapSize, MapSize * 2, MapSize * 2, imgposes.x1, imgposes.y1, imgposes.x2, imgposes.y2)
+                    render.popMatrix()
+                    render.setStencilEnable(false)
+                    
+                    render.setColor(Color(50, 200, 255))
+                    render.drawRectOutline(DrawPos.x, DrawPos.y + 30, MapSize, MapSize, 1)
+                    render.setColor(Color(50, 50, 50))
+                    render.drawRect(DrawPos.x, DrawPos.y, MapSize, 30)
+                    render.setColor(Color(50, 200, 255))
+                    render.drawRectOutline(DrawPos.x, DrawPos.y, MapSize, 30, 1)
+                    
+                    render.setFont(fontMenu)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(DrawPos.x + 3, DrawPos.y + 3, 24, 24)
+                    render.drawRect(DrawPos.x + 29, DrawPos.y + 3, 24, 24)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(DrawPos.x + 9, DrawPos.y + 2, "+", 0)
+                    render.drawText(DrawPos.x + 35, DrawPos.y + 2, "-", 0)
+                    render.setColor(Color(155, 255, 155))
+                    render.drawText(DrawPos.x + 56, DrawPos.y + 2, "size", 0)
+                    
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(DrawPos.x + MapSize - 27, DrawPos.y + 3, 24, 24)
+                    render.drawRect(DrawPos.x + MapSize - 53, DrawPos.y + 3, 24, 24)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(DrawPos.x + MapSize - 21, DrawPos.y + 2, "-", 0)
+                    render.drawText(DrawPos.x + MapSize - 47, DrawPos.y + 2, "+", 0)
+                    render.setColor(Color(155, 255, 155))
+                    render.drawText(DrawPos.x + MapSize - 55, DrawPos.y + 2, "zoom", 2)
+                    
+                    --draw Me
+                    render.setFont(fontMap)
+                    render.setColor(Color(255, 255, 255))
+                        local poly = {
+                            {x=DrawPos.x + MapSize / 2 + 0, y=DrawPos.y + MapSize / 2 + 30 - 2},
+                            {x=DrawPos.x + MapSize / 2 + 4, y=DrawPos.y + MapSize / 2 + 30 + 6},
+                            {x=DrawPos.x + MapSize / 2 - 4, y=DrawPos.y + MapSize / 2 + 30 + 6}, 
+                        }
+                    render.drawPoly(poly)
+                    render.setColor(team.getColor(owner():getTeam()))
+                    render.drawText(DrawPos.x + MapSize / 2 + 0, DrawPos.y + MapSize / 2 + 30 + 7, owner():getName(), 1)
+                    
+                    local plys = find.allPlayers()
+                    for i = 1, #plys do
+                        if plys[i] != owner() then 
+                            local dist = owner():getPos():setZ(0):getDistance(plys[i]:getPos():setZ(0)) / 13248 * (MapSize / 2 / DrawedScale)
+                            local ang = (owner():getPos() - plys[i]:getPos()):getAngle().yaw - owner():getAngles().yaw
+                            local pos = Vector(DrawPos.x + MapSize / 2, DrawPos.y + MapSize / 2 + 30) + Vector(math.sin(math.rad(ang)), math.cos(math.rad(ang)), 0) * dist
+                            local z 
+                                if (owner():getPos().z - plys[i]:getPos().z) > 100 then
+                                    z = Str[2]
+                                elseif (owner():getPos().z - plys[i]:getPos().z) < -100 then
+                                    z = Str[1]
+                                else
+                                    z = Str[3]
+                                end
+                            
+                            if pos:withinAABox(Vector(DrawPos.x, DrawPos.y + 28), Vector(DrawPos.x + MapSize, DrawPos.y + MapSize + 30)) then
+                            
+                                render.setColor(team.getColor(plys[i]:getTeam()))
+                                render.setFont(fontMap)
+                                render.drawText(pos.x, pos.y - 2, z .. "\n" .. plys[i]:getName(), 1)
+                                
+                            end
+                        end
+                        
+                    end
+
+                    
+
             end
                 
         end)
@@ -325,6 +503,30 @@ else
                     KH = not KH
                 elseif Button[105] then
                     KHprint = not KHprint
+                elseif Button[106] then
+                    MH = not MH
+                elseif Button[107] then
+                    Hold3 = Hold3 + 1 
+                    if Hold3 == 2 then 
+                        Hold3 = 0 
+                        Poser3 = Vector(0)
+                        savePoses()
+                    else
+                        local x, y = input.getCursorPos()
+                        Poser3 = p3 - Vector(x, y)
+                    end
+                elseif Button[201] and MH then
+                    MapSize = math.min(MapSize + 10, Resolution.y - 30)
+                    savePoses()
+                elseif Button[202] and MH then
+                    MapSize = math.max(MapSize - 10, 250)
+                    savePoses()
+                elseif Button[203] and MH then
+                    DrawedScale = math.min(DrawedScale + 0.01, 0.5)
+                    savePoses()
+                elseif Button[204] and MH then
+                    DrawedScale = math.max(DrawedScale - 0.01, 0.1)
+                    savePoses()
                 else
                     local plys = find.allPlayers()
                     for i = 1, #plys do
@@ -334,7 +536,7 @@ else
                     end
                     
                 end
-            end
+            end   
         end)
     else
         hook.add("inputPressed", "", function(key)
