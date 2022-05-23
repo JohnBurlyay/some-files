@@ -1,4 +1,4 @@
---@name CamPod-v2.51
+--@name CamPod-v2.52
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -22,10 +22,9 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.51"
+        Ver = "v2.52"
         
-        print("[ACP][c 255, 100, 100]: successfully loaded " .. Ver)  
-        print("[ACP][c 255, 100, 100]: press ALT to open/close menu.")    
+        print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu.")  
         
         --other parameters
             Show = false
@@ -74,8 +73,6 @@ else
             
             Str = {"▲", "▼", "◆"}
         
-        
-        
         KeyIndex = {
             _37 = {str = "Pad_0", clr = Color(255, 255, 255)},
             _38 = {str = "Pad_1", clr = Color(255, 255, 255)},
@@ -87,6 +84,29 @@ else
             _44 = {str = "Pad_7", clr = Color(255, 255, 255)},
             _45 = {str = "Pad_8", clr = Color(255, 255, 255)},
             _46 = {str = "Pad_9", clr = Color(255, 255, 255)},
+            
+            _47 = {str = "Pad_Divide", clr = Color(255, 255, 0)},
+            _48 = {str = "Pad_Multiply", clr = Color(255, 255, 0)},
+            _49 = {str = "Pad_Minus", clr = Color(255, 255, 0)},
+            _50 = {str = "Pad_Plus", clr = Color(255, 255, 0)},
+            _51 = {str = "Pad_Enter", clr = Color(255, 255, 0)},
+            _52 = {str = "Pad_Decimal", clr = Color(255, 255, 0)},
+            
+            _53 = {str = "L_Bracket", clr = Color(255, 255, 255)},
+            _54 = {str = "R_Bracket", clr = Color(255, 255, 255)},
+            _55 = {str = "Semicolon", clr = Color(255, 255, 255)},
+            _56 = {str = "Apostrophe", clr = Color(255, 255, 255)},
+            _57 = {str = "BackQuote", clr = Color(255, 255, 255)},
+            _58 = {str = "Key_Comma", clr = Color(255, 255, 255)},
+            _59 = {str = "Key_Period", clr = Color(255, 255, 255)},
+            _60 = {str = "Slash", clr = Color(255, 255, 255)},
+            _61 = {str = "BackSlash", clr = Color(255, 255, 255)},
+            _62 = {str = "Key -", clr = Color(255, 255, 255)},
+            _63 = {str = "Key =", clr = Color(255, 255, 255)},
+            _64 = {str = "Enter", clr = Color(255, 255, 255)},
+            _65 = {str = "Space", clr = Color(255, 255, 255)},
+            _66 = {str = "BackSpace", clr = Color(255, 255, 255)},
+            _67 = {str = "Tab", clr = Color(255, 255, 255)},
             
             _68 = {str = "CapsLock", clr = Color(255, 255, 0)},
             _69 = {str = "NumLock", clr = Color(255, 255, 0)},
@@ -112,6 +132,8 @@ else
             _101 = {str = "F10", clr = Color(255, 255, 0)},
             _102 = {str = "F11", clr = Color(255, 255, 0)},
             _103 = {str = "F12", clr = Color(255, 255, 0)},
+            
+            
         }
         
         fontMenu = render.createFont("Roboto", 25, 400, true)
@@ -343,7 +365,7 @@ else
                         render.setColor(clr)
                         render.drawText(p2.x + 15, p2.y + 28 + i * 16, (str or nil) .. " : ", 0)
                         render.setColor(Color(255, 255, 100))
-                        render.drawText(p2.x + 115, p2.y + 28 + i * 16, tostring(num), 0)
+                        render.drawText(p2.x + 110, p2.y + 28 + i * 16, tostring(num), 0)
                         
                     end
                 end
@@ -541,8 +563,8 @@ else
     else
         hook.add("inputPressed", "", function(key)
             if 
-                (key > 36 and key < 47) or
-                (key > 67 and key < 70) or
+
+                (key > 36 and key < 70) or
                 (key > 70 and key < 79) or
                 (key > 91 and key < 104)
 
