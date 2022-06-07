@@ -1,0 +1,860 @@
+--@name SkinEditor-v1.21
+--@author JohnBurlyay
+--@shared
+
+if SERVER then
+    
+    net.receive("bg", function(str)
+        local tbl = net.readTable()
+        owner():setBodygroup(tbl.id, tbl.param)
+    end)
+    
+    net.receive("sm", function(str)
+        local tbl = net.readTable()
+        if tbl.mat != nil then
+            owner():setSubMaterial(tbl.id, tbl.mat)
+        end
+    end)
+    
+    net.receive("sk", function(str)
+        local tbl = net.readTable()
+        owner():setSkin(tbl.param)
+    end)
+    
+    net.receive("clr", function(str)
+        local tbl = net.readTable()
+        owner():setColor(tbl.clr)
+    end)
+    
+    net.receive("bone", function(str)
+        local tbl = net.readTable()
+        net.start("bone")
+        net.writeTable(tbl)
+        net.send()
+    end)
+    
+    net.receive("load", function(str)
+        local tbl = net.readTable()
+        
+        owner():setSkin(tbl.skin)
+        owner():setColor(tbl.color)
+        
+        for i = 1, 30 do
+            if tbl.submaterial[i] != "" then
+                owner():setSubMaterial(i, tbl.submaterial[i])
+            end
+        end
+        
+        for i = 1, table.count(tbl.bodygroup) do
+            owner():setBodygroup(i, tbl.bodygroup[i])
+        end
+        
+        net.start("boneload")
+        net.writeTable(tbl.bone)
+        net.send()
+    end)
+    
+else
+    
+    net.receive("bone", function(str)
+        local tbl = net.readTable()
+        
+        if tbl.type == "scale" then
+            owner():manipulateBoneScale(tbl.bone - 1, owner():getManipulateBoneScale(tbl.bone - 1) + tbl.value)
+        elseif tbl.type == "pos" then
+            owner():manipulateBonePosition(tbl.bone - 1, owner():getManipulateBonePosition(tbl.bone - 1) + tbl.value)
+        elseif tbl.type == "angle" then
+            owner():manipulateBoneAngles(tbl.bone - 1, owner():getManipulateBoneAngles(tbl.bone - 1) + tbl.value)
+        elseif tbl.type == "reset bone" then
+            owner():manipulateBoneScale(tbl.bone - 1, Vector(1))
+            owner():manipulateBonePosition(tbl.bone - 1, Vector(0, 0, 0))
+            owner():manipulateBoneAngles(tbl.bone - 1, Angle(0, 0, 0))
+        elseif tbl.type == "reset bones" then
+            local count = owner():getBoneCount()
+            for i = 0, count - 1 do
+                owner():manipulateBoneScale(i, Vector(1, 1, 1))
+                owner():manipulateBonePosition(i, Vector(0, 0, 0))
+                owner():manipulateBoneAngles(i, Angle(0, 0, 0))
+            end
+        end
+        
+    end)
+    
+    net.receive("boneload", function(str)
+        local tbl = net.readTable()
+        
+        for i = 1, table.count(tbl) do
+            local dat = tbl[table.getKeys(tbl)[i]] 
+
+            if dat.pos != Vector(0, 0, 0) then
+                owner():manipulateBonePosition(i - 1, dat.pos)
+            end
+            if dat.ang != Angle(0, 0, 0) then
+                owner():manipulateBoneAngles(i - 1, dat.ang)
+            end
+            if dat.scale != Vector(1, 1, 1) then
+                owner():manipulateBoneScale(i - 1, dat.scale)
+            end
+            
+        end
+        
+    end)
+    
+    if player() == owner() then
+        
+        Ver = "1.21"    
+        Enable = false
+        MatList = 0
+        FaceList = 0
+        List = 1
+        ListF = 1
+        Clk = 0
+        local x, y = render.getResolution()
+        scrnsize = {x = x / 2, y = y / 2}
+        Button = {}
+        Type = 1
+        Bone = nil
+        
+        font1 = render.createFont("DebugFixed", 24, 50, true)
+        font2 = render.createFont("DebugFixed", 50, 50, true)
+        font3 = render.createFont("DebugFixed", 18, 50, true)
+        font4 = render.createFont("DebugFixed", 15, 50, true)
+        
+        enableHud(nil, true)
+        print("[b][SkinEditor]: successfully loaded v" .. Ver)
+        
+        Materials = {"", "models/cstrike/ct_sas", "models/dewobedil/ipochan/hair2t", "models/shadertest/vertexlitenvmap", "models/magnusson/eyeball_r", "models/carrot/vocaloid/tei_sukone/shirt2", "models/gibs/computergibs/white", "models/dewobedil/ipochan/hair", "models/props_canal/winch01", "models/chell/gambler_eyeball_r", "models/carrot/vocaloid/luka_classic/glasses2", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_skin3_d", "models/cstrike/t_phoenix", "models/props_pipes/pipesystem01a_skin1", "models/cheeze/buttons2/energy", "models/police/metrocop_sheet", "models/alyx/hairbits", "models/dusty/playermodels/flash/flash_wbtv_eye_d", "models/props_debris/metalwall001a", "models/captainbigbutt/vocaloid/miku_carbon/secondary_body_colorable", "models/magnusson/players_body", "models/chell/chell_rev2_head", "models/dewobedil/ipochan/legs", "models/carrot/vocaloid/butterfly_teto/ribbon", "models/dewobedil/ipochan/plus2", "models/eli/eyeball_r", "models/captainbigbutt/vocaloid/haku_append/wing", "models/captainbigbutt/vocaloid/neru_append/tech", "models/spearmint/vocaloid/ghost_luka/neck", "models/captainbigbutt/vocaloid/miku_append/lights", "models/gman/upper_teeth", "models/xqm/boxfull_diffuse", "models/talos/playerall_cm", "models/carrot/vocaloid/butterfly_teto/hair", "models/carrot/vocaloid/halloween_miku/skirt3", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_d", "models/roller/rollermine_glow", "models/talos/mainframe", "models/carrot/vocaloid/halloween_miku/wings1", "models/shadertest/vertexlitselfillumenvmappedtexdetv2", "models/captainbigbutt/vocaloid/teto_append/body_misc", "models/humans/male/group03m/players_sheet", "effects/tp_eyefx/tp_black", "phoenix_storms/window", "models/breen/players_sheet", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_3_d", "models/dusty/playermodels/flash/flash_wbtv_goldred_d", "maxofs2d/models/gm_painting", "models/captainbigbutt/vocaloid/zatsune_miku/shadow", "models/captainbigbutt/vocaloid/miku_carbon/tertiary_inner", "models/mossman/fmouth", "models/chell/chell_hair", "models/carrot/vocaloid/halloween_miku/band", "phoenix_storms/wood_dome", "models/captainbigbutt/vocaloid/rin_phosphorescent/hair_accessory", "models/mossman/eyeball_r", "models/cstrike/t_arctic", "models/carrot/vocaloid/tei_sukone/shadow", "models/dewobedil/ipochan/hairt", "models/player/lty/eyeball", "models/combine_soldier/combinesoldiersheet_prisonguard", "models/spearmint/vocaloid/ghost_luka/face", "models/darksouls2/characters/blackdragon/body", "models/captainbigbutt/vocaloid/rin_phosphorescent/face_black", "models/player/lty/face_mikuap_f", "models/mossman/players_sheet", "models/props_debris/plasterwall039c", "models/captainbigbutt/vocaloid/kuro_append_shared/wing", "models/eli/mouth", "models/captainbigbutt/vocaloid/miku_append/skin02", "models/combine_soldier/combinesoldiersheet_player", "models/dewobedil/ipochan/plus", "models/eli/eyeball_l", "models/carrot/vocaloid/luka_classic/body", "models/props_combine/combine_interface_disp", "models/captainbigbutt/vocaloid/rin/hair02", "models/props_canal/refinery", "models/captainbigbutt/vocaloid/miku_append/tech02", "models/breen/eyeball_l", "models/kleiner/walter_face", "models/captainbigbutt/vocaloid/kuro_miku_append/lights", "models/carrot/vocaloid/halloween_miku/gem", "models/captainbigbutt/vocaloid/rin/face", "models/gibs/metalgibs/metal_gibs", "models/props_canal/metalwall005b", "models/carrot/vocaloid/butterfly_teto/collar", "models/captainbigbutt/vocaloid/kuro_append_shared/body_misc", "models/captainbigbutt/vocaloid/miku_classic/v3/clothes01b", "models/captainbigbutt/vocaloid/rin_phosphorescent/eyelashes", "models/carrot/vocaloid/luka_classic/clothes3", "models/player/lty/1", "models/captainbigbutt/vocaloid/rin_phosphorescent/hair", "models/carrot/vocaloid/butterfly_teto/hair02", "models/captainbigbutt/vocaloid/miku_append/face02", "models/captainbigbutt/vocaloid/chibi_neru_ap/chibi_body", "models/captainbigbutt/vocaloid/zatsune_miku/clothes02b", "models/captainbigbutt/vocaloid/miku_carbon/secondary_body", "models/cstrike/ct_urban", "models/dewobedil/ipochan/skins", "models/carrot/vocaloid/halloween_miku/bow4", "phoenix_storms/bluemetal", "models/captainbigbutt/vocaloid/zatsune_miku/skin", "models/carrot/vocaloid/halloween_miku/skirt2", "models/carrot/vocaloid/butterfly_teto/fur", "phoenix_storms/t_light", "models/captainbigbutt/vocaloid/miku_carbon/core", "models/captainbigbutt/vocaloid/miku_classic/v3/legs02_pulse", "models/captainbigbutt/vocaloid/rin_phosphorescent/face", "models/captainbigbutt/vocaloid/shadow_miku_append_competitive/body", "models/xqm/cellshadedcamo_diffuse", "models/humans/female/pupil_r", "models/unknownduchess/vocaloid/black_suit_teto/body_misc", "models/eli/player_sheet", "models/dusty/playermodels/zoom/zoom_wbtv_skin2_d", "models/carrot/vocaloid/halloween_miku/clothes2", "models/player/lty/face_mikuap", "models/carrot/vocaloid/tei_sukone/shirt3", "models/unknownduchess/vocaloid/black_suit_teto/lights", "models/captainbigbutt/vocaloid/zatsune_miku/vocastamp", "models/humans/male/group03m/joe_facemap", "models/captainbigbutt/vocaloid/miku_append/tech_small02", "models/captainbigbutt/vocaloid/miku_append/hair02", "models/captainbigbutt/vocaloid/kuro_miku_append/face_misc", "models/xqm/coastertrack/special_station", "models/carrot/vocaloid/luka_classic/face", "models/odessa/players_sheet", "models/player/lty/body00_mikuap_a", "models/player/lty/pangci", "models/monk/grigori_head", "models/dewobedil/ipochan/blue", "models/carrot/vocaloid/butterfly_teto/neck", "models/captainbigbutt/vocaloid/miku_carbon/primary_body_white", "models/unknownduchess/vocaloid/black_suit_teto/body", "models/captainbigbutt/vocaloid/rin_phosphorescent/tertiary_inner", "models/captainbigbutt/vocaloid/miku_classic/v3/legs02", "models/captainbigbutt/vocaloid/miku_classic/clothes02", "models/captainbigbutt/vocaloid/miku_carbon/primary_body_colorable", "maxofs2d/models/camera", "models/humans/female/group01/kim_facemap", "models/error/new light1", "models/alyx/eyeball_l", "models/dewobedil/ipochan/tie", "models/soldier_stripped/soldier_stripped_comp", "models/captainbigbutt/vocaloid/miku_classic/v3/clothes02b", "models/alyx/alyx_faceandhair", "models/sanic/dad/glass", "models/zombie_fast/fast_zombie_sheet", "models/mossman/mossman_face", "models/captainbigbutt/vocaloid/miku_carbon/teeth", "models/chell/chell_rev2_legs", "models/dewobedil/ipochan/hp1", "models/monk/eyeball_l", "models/police/eyeball_r", "models/police/barneyface", "models/player/anon/baton_d", "phoenix_storms/chekers_map", "models/carrot/vocaloid/halloween_miku/sleves", "models/captainbigbutt/vocaloid/rin/clothing01_trans", "models/magnusson/magnusson_hair", "phoenix_storms/metalset_1-2", "models/talos/arms_cm", "models/carrot/vocaloid/butterfly_teto/onion", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_skin_d", "models/combine/emblems/prison_emblem", "models/effects/vol_light001", "models/dusty/playermodels/flash/flash_wbtv_skin_d", "models/humans/male/eyeball_r", "models/humans/male/dark_eyeball_r", "models/mossman/mossman_hair", "maxofs2d/models/logo_gmod", "models/carrot/vocaloid/luka_classic/clothes4", "models/props_pipes/valvewheel001_skin1", "models/captainbigbutt/vocaloid/miku_append/tech_small", "models/captainbigbutt/vocaloid/kuro_miku_append/tech_small", "models/carrot/vocaloid/tei_sukone/face", "models/mossman/eyeball_l", "models/carrot/vocaloid/halloween_miku/bow1", "models/carrot/vocaloid/butterfly_teto/eye", "models/captainbigbutt/vocaloid/miku_append/body02", "models/effects/combal_sphere", "models/chell/gambler_eyeball_l", "models/carrot/vocaloid/tei_sukone/detail", "models/unknownduchess/vocaloid/black_suit_teto/kami", "models/dusty/playermodels/zoom/zoom_wbtv_skin_d", "models/carrot/vocaloid/butterfly_teto/sleves", "maxofs2d/models/hover_plate", "models/cstrike/t_guerilla", "models/captainbigbutt/vocaloid/miku_classic/face", "models/captainbigbutt/vocaloid/rin_phosphorescent/hair_colorable", "models/captainbigbutt/vocaloid/shadow_miku_append_competitive/eye", "models/police/bmouth", "models/xqm/coastertrain_diffuse", "models/carrot/vocaloid/halloween_miku/skirt1", "models/carrot/vocaloid/butterfly_teto/shadow", "models/combine/metrocop/storm_spartan_warrior_lights", "models/carrot/vocaloid/tei_sukone/sleves", "models/humans/female/group01/players_sheet", "models/alyx/plyr_sheet_skin", "models/dewobedil/ipochan/eyeshadow", "models/carrot/vocaloid/luka_classic/black", "models/humans/female/group01/naomi_facemap", "models/spearmint/vocaloid/ghost_luka/hair", "models/breen/breen_face", "models/gman/gman_facehirez", "models/captainbigbutt/vocaloid/miku_carbon/tertiary_inner_boost", "models/carrot/vocaloid/tei_sukone/noseblood2", "phoenix_storms/metalfloor_2-3", "models/carrot/vocaloid/luka_classic/shadow", "models/combine_soldier/combinesoldiersheet_prisonguard_shotgun", "models/props_animated_breakable/smokestack/brickwall002a", "models/gman/plyr_sheet", "models/captainbigbutt/vocaloid/miku_carbon/internal", "models/captainbigbutt/vocaloid/kuro_miku_append/skin", "models/spawn_effect2", "models/captainbigbutt/vocaloid/rin/clothing03", "models/humans/male/dark_eyeball_l", "phoenix_storms/pack2/train_floor", "models/captainbigbutt/vocaloid/neru_classic/ring", "models/dewobedil/ipochan/glasses", "models/unknownduchess/vocaloid/black_suit_teto/hair02", "models/player/anon/disc_d", "models/captainbigbutt/vocaloid/rin_phosphorescent/primary_body", "sprops/sprops_grid_orange_12x12", "models/captainbigbutt/vocaloid/kuro_append_shared/hair02", "models/captainbigbutt/vocaloid/neru_classic/clothes01", "models/shadertest/vertexlitmaskedenvmap", "models/gman/eyeball_l", "models/xqm/2deg360_diffuse", "models/dusty/playermodels/zoom/zoom_wbtv_eye2_d", "models/captainbigbutt/vocaloid/luka_append/skin", "models/props_junk/wheelbarrowo1a", "models/player/lty/body02", "models/shadertest/vertexlitselfillummaskenvmaptex", "models/props_junk/fruit_objects01", "models/darksouls2/characters/blackdragon/lower2", "models/captainbigbutt/vocaloid/rin/skin", "models/kleiner/players_sheet", "models/sanic/dad/kojima_hair", "models/carrot/vocaloid/luka_classic/glasses", "models/sanic/dad/glasses", "models/props_lab/hevcharger_faceplate", "models/cstrike/ct_gign", "models/humans/male/mouth", "models/humans/female/group01/chau_facemap", "models/humans/female/dark_eyeball_r", "models/carrot/vocaloid/luka_classic/eye", "models/humans/female/dark_eyeball_l", "models/captainbigbutt/vocaloid/haku_append/tie", "models/captainbigbutt/vocaloid/luka_append/body_misc", "models/captainbigbutt/vocaloid/kuro_append_shared/tie", "models/captainbigbutt/vocaloid/miku_append/lights02", "models/carrot/vocaloid/halloween_miku/face", "models/police/eyeball_l", "models/captainbigbutt/vocaloid/teto_append/wing", "models/captainbigbutt/vocaloid/luka_append/face", "models/dusty/playermodels/flash/flash_wbtv_d", "models/dewobedil/ipochan/skirt", "models/captainbigbutt/vocaloid/luka_append/lights", "models/props_pipes/pipemetal001a", "models/captainbigbutt/vocaloid/teto_append/tie", "models/carrot/vocaloid/tei_sukone/noseblood1", "models/carrot/vocaloid/halloween_miku/clothes1", "models/captainbigbutt/vocaloid/miku_classic/eye", "models/captainbigbutt/vocaloid/miku_append/tie", "models/humans/male/group03/players_sheet", "models/captainbigbutt/vocaloid/miku_append/body_misc", "models/captainbigbutt/vocaloid/luka_append/face_misc", "models/kleiner/eyeball_r", "models/carrot/vocaloid/butterfly_teto/side", "models/captainbigbutt/vocaloid/neru_classic/hair02", "models/unknownduchess/vocaloid/black_suit_teto/skin", "models/carrot/vocaloid/luka_classic/skirt2", "models/carrot/vocaloid/butterfly_teto/silver", "models/props_c17/oil_drum001h", "models/carrot/vocaloid/halloween_miku/shadow", "models/carrot/vocaloid/larval_rin/brown", "models/weapons/v_toolgun/screen", "models/captainbigbutt/vocaloid/miku_classic/lights_trim_pulse", "models/carrot/vocaloid/butterfly_teto/dress3", "models/chell/chell_rev2_torso", "models/carrot/vocaloid/halloween_miku/skin", "models/humans/male/eyeball_l", "models/carrot/vocaloid/tei_sukone/eye_shadow", "models/cstrike/t_leet_glass", "models/carrot/vocaloid/butterfly_teto/dress1", "models/skeleton/skeleton_bloody", "models/captainbigbutt/vocaloid/miku_carbon/hair", "models/talos/head_cm", "models/carrot/vocaloid/butterfly_teto/side1", "brick/brick_model", "models/captainbigbutt/vocaloid/kuro_miku_append/shadow", "models/gman/eyeball_r", "models/sanic/dad/kojima_face", "models/props_lab/security_screens2", "models/shadertest/shader4", "models/captainbigbutt/vocaloid/rin/vocastamp", "models/alyx/plyr_sheet", "models/carrot/vocaloid/luka_classic/skirt", "models/dewobedil/ipochan/tali", "models/captainbigbutt/vocaloid/luka_append/shadow", "models/carrot/vocaloid/butterfly_teto/kami", "models/captainbigbutt/vocaloid/neru_append/face_misc", "models/props_canal/rock_riverbed01a", "models/alyx/eyeball_r", "models/props_wasteland/wood_fence01a", "models/captainbigbutt/vocaloid/neru_classic/shorts", "models/captainbigbutt/vocaloid/neru_append/skin", "models/props_combine/citadel_cable", "models/captainbigbutt/vocaloid/luka_append/tech_small", "models/carrot/vocaloid/butterfly_teto/backhair", "models/captainbigbutt/vocaloid/miku_append/tech", "models/player/lty/metal", "models/props_lab/chess_sheet", "models/humans/female/group01/citizen_sheet", "models/captainbigbutt/vocaloid/miku_carbon/tertiary_inner_white", "models/humans/female/group01/kanisha_cylmap", "models/captainbigbutt/vocaloid/miku_append/eye", "phoenix_storms/future_vents", "models/captainbigbutt/vocaloid/neru_append/tech_small", "models/carrot/vocaloid/butterfly_teto/skin", "models/odessa/eyeball_l", "models/captainbigbutt/vocaloid/chibi_haku_ap/chibi_body", "models/sanic/dad/kojima_mouth", "models/captainbigbutt/vocaloid/neru_classic/skin", "models/carrot/vocaloid/tei_sukone/glasses", "models/props_combine/tprings_globe", "models/antlion/antlionhigh_sheet4", "models/captainbigbutt/vocaloid/miku_carbon/secondary_body_black", "models/carrot/vocaloid/tei_sukone/skirt2", "models/captainbigbutt/vocaloid/miku_classic/face_misc", "models/carrot/vocaloid/halloween_miku/bow2", "models/shadertest/vertexlitmaskedenvmappedtexture", "models/captainbigbutt/vocaloid/teto_append/tech", "models/dewobedil/ipochan/weq", "models/captainbigbutt/vocaloid/rin_phosphorescent/lights", "models/player/lty/amiku4_selfillum", "models/odessa/players_hat", "models/carrot/vocaloid/tei_sukone/shirt1", "models/carrot/vocaloid/luka_classic/gray", "models/captainbigbutt/vocaloid/miku_classic/clothes02_pulse", "models/carrot/vocaloid/butterfly_teto/diamond", "models/carrot/vocaloid/luka_classic/clothes1", "models/captainbigbutt/vocaloid/kuro_append_shared/hair", "models/captainbigbutt/vocaloid/neru_classic/lights_pulse", "models/police/players_sheet", "maxofs2d/models/button_04", "models/carrot/vocaloid/tei_sukone/afro", "models/carrot/vocaloid/halloween_miku/white", "models/carrot/vocaloid/tei_sukone/boots", "models/captainbigbutt/vocaloid/miku_append/body", "models/dusty/playermodels/flash/flash_wbtv_2_d", "models/captainbigbutt/vocaloid/neru_classic/lights_trim", "models/captainbigbutt/vocaloid/miku_classic/lights", "models/unknownduchess/vocaloid/black_suit_teto/face", "models/captainbigbutt/vocaloid/rin/clothing02", "models/captainbigbutt/vocaloid/miku_classic/vocastamp", "models/cheeze/wires/router_blue_logo", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_skin2_d", "models/captainbigbutt/vocaloid/zatsune_miku/legs", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_eye2_d", "models/captainbigbutt/vocaloid/miku_carbon/internal_boost", "models/captainbigbutt/vocaloid/luka_append/body", "models/skeleton/skeleton_decomp", "models/captainbigbutt/vocaloid/neru_classic/face", "models/dewobedil/ipochan/red", "models/odessa/eyeball_r", "models/props_debris/concretewall019a", "models/unknownduchess/vocaloid/black_suit_teto/shoes", "models/captainbigbutt/vocaloid/chibi_luka_ap/chibi_body", "models/captainbigbutt/vocaloid/miku_append/hair", "models/combine_soldier/combine_elite_player_head", "models/captainbigbutt/vocaloid/miku_classic/legs", "models/unknownduchess/vocaloid/black_suit_teto/glowing parts", "models/mossman/mossman_arctic_sheet", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_eye_d", "models/cstrike/ct_gsg9", "models/vortigaunt/vortigaunt_base", "models/carrot/vocaloid/butterfly_teto/white", "models/captainbigbutt/vocaloid/neru_classic/lights_trim_pulse", "models/captainbigbutt/vocaloid/haku_append/face", "models/captainbigbutt/vocaloid/neru_classic/face_misc", "models/kleiner/mouth", "models/captainbigbutt/vocaloid/rin_phosphorescent/face_colorable", "models/captainbigbutt/vocaloid/zatsune_miku/face", "models/gman/tongue", "models/carrot/vocaloid/larval_rin/yellow", "models/captainbigbutt/vocaloid/rin/glint", "models/carrot/vocaloid/tei_sukone/ears", "models/captainbigbutt/vocaloid/teto_append/skin", "models/captainbigbutt/vocaloid/miku_carbon/core_matte", "models/captainbigbutt/vocaloid/haku_append/body", "models/player/anon/body_d", "models/captainbigbutt/vocaloid/zatsune_miku/clothes01", "models/noesis/donut", "models/XQM//Deg360", "models/gibs/computergibs/blue", "models/carrot/vocaloid/halloween_miku/body", "models/talos/hand_cm", "models/dusty/playermodels/reverseflash/reverseflash_wbtv_eye3_d", "models/captainbigbutt/vocaloid/rin_phosphorescent/internal", "models/dewobedil/ipochan/pin", "models/captainbigbutt/vocaloid/haku_append/hair", "props/clock01", "models/captainbigbutt/vocaloid/miku_classic/v3/clothes01b_pulse", "models/dewobedil/ipochan/check", "models/carrot/vocaloid/halloween_miku/eye", "models/captainbigbutt/vocaloid/miku_carbon/secondary_body_white", "models/magnusson/magnusson_face", "models/humans/male/group01/art_facemap", "models/humans/female/eyeball_r", "models/breen/eyeball_r", "models/xqm/woodtexture_1", "models/cheeze/wires/green_led", "models/cstrike/t_leet", "models/captainbigbutt/vocaloid/miku_classic/clothes01_pulse", "sprops/sprops_grid_12x12", "models/captainbigbutt/vocaloid/haku_append/tech", "models/captainbigbutt/vocaloid/neru_classic/legs", "models/captainbigbutt/vocaloid/chibi_miku_ap/chibi_body02", "models/captainbigbutt/vocaloid/haku_append/tech_small", "models/breen/mouth", "models/captainbigbutt/vocaloid/kuro_miku_append/body02", "models/charple/charple4_sheet", "models/captainbigbutt/vocaloid/haku_append/face_misc", "models/humans/female/eyeball_l", "models/humans/male/group01/erdim_cylmap", "phoenix_storms/black_chrome", "models/carrot/vocaloid/larval_rin/pink", "models/captainbigbutt/vocaloid/miku_append/eye02", "models/captainbigbutt/vocaloid/miku_classic/shadow", "models/captainbigbutt/vocaloid/haku_append/skin", "models/astronauthelmet/astroglass", "models/captainbigbutt/vocaloid/haku_append/lights", "models/captainbigbutt/vocaloid/rin_phosphorescent/secondary_body", "models/combine_dropship/combine_fenceglowb", "models/debug/debugwhite", "models/props_lab/warp_sheet", "models/captainbigbutt/vocaloid/miku_carbon/eye", "models/cstrike/ct_sas_glass", "models/gibs/computergibs/red", "models/skeleton/skeleton_bleached", "models/carrot/vocaloid/halloween_miku/wings2", "models/monk/plyr_sheet", "models/darksouls2/characters/blackdragon/lower", "models/carrot/vocaloid/butterfly_teto/side2", "models/captainbigbutt/vocaloid/neru_append/hair02", "models/captainbigbutt/vocaloid/miku_classic/v3/lights02_pulse", "models/kleiner/glassesfront_walter", "models/captainbigbutt/vocaloid/zatsune_miku/hair", "models/skeleton/skeleton", "models/carrot/vocaloid/halloween_miku/glasses", "models/props_lab/door_klab01", "models/captainbigbutt/vocaloid/luka_append/hair", "models/captainbigbutt/vocaloid/kuro_miku_append/body", "models/player/lty/white/hp_s", "models/carrot/vocaloid/luka_classic/hair", "models/captainbigbutt/vocaloid/teto_append/kami", "models/carrot/vocaloid/luka_classic/clothes2", "models/unknownduchess/vocaloid/black_suit_teto/shadow", "models/carrot/vocaloid/halloween_miku/black", "models/captainbigbutt/vocaloid/miku_carbon/hair_colorable", "models/captainbigbutt/vocaloid/teto_append/shadow", "models/captainbigbutt/vocaloid/zatsune_miku/lights", "models/captainbigbutt/vocaloid/kuro_miku_append/eye", "models/captainbigbutt/vocaloid/neru_classic/vocastamp", "models/kleiner/eyeball_l", "models/humans/female/group01/joey_facemap", "models/carrot/vocaloid/halloween_miku/hp", "models/props_junk/popcan01a", "models/captainbigbutt/vocaloid/haku_append/shadow", "models/sanic/dad/kojima_face_beard", "models/props_combine/combine_citadel001b_opaque", "models/carrot/vocaloid/butterfly_teto/dress2", "models/darksouls2/characters/blackdragon/arm", "models/captainbigbutt/vocaloid/rin/hair01", "models/captainbigbutt/vocaloid/chibi_miku_ap/chibi_body", "models/humans/male/group01/players_sheet", "models/alyx/fmouth", "models/captainbigbutt/vocaloid/miku_classic/legs_pulse", "models/captainbigbutt/vocaloid/teto_append/tech_small", "models/captainbigbutt/vocaloid/neru_classic/eye", "models/gman/lower_teeth", "models/unknownduchess/vocaloid/black_suit_teto/hair", "models/dewobedil/ipochan/toon", "models/carrot/vocaloid/butterfly_teto/jewel", "models/carrot/vocaloid/tei_sukone/shorts", "models/captainbigbutt/vocaloid/chibi_teto_ap/chibi_body", "models/captainbigbutt/vocaloid/luka_append/eye", "models/combine_soldier/combine_elite_player", "models/captainbigbutt/vocaloid/rin/clothing01", "models/captainbigbutt/vocaloid/miku_classic/skin", "models/player/lty/5", "models/captainbigbutt/vocaloid/miku_classic/lights_trim", "models/carrot/vocaloid/tei_sukone/eye", "models/unknownduchess/vocaloid/black_suit_teto/eye", "models/captainbigbutt/vocaloid/luka_append/tie", "models/humans/male/group02/players_sheet", "models/captainbigbutt/vocaloid/neru_append/lights", "models/dewobedil/ipochan/mic", "models/carrot/vocaloid/tei_sukone/hair", "models/captainbigbutt/vocaloid/rin_phosphorescent/eye", "models/captainbigbutt/vocaloid/miku_append/skin", "models/carrot/vocaloid/tei_sukone/skirt1", "models/kleiner/glassesside_walter", "models/sanic/dad/kojima_arms", "models/captainbigbutt/vocaloid/miku_classic/v3/lights02", "models/captainbigbutt/vocaloid/rin/face_misc", "models/captainbigbutt/vocaloid/miku_classic/clothes01", "models/darksouls2/characters/blackdragon/head", "models/captainbigbutt/vocaloid/miku_classic/v3/face02", "models/captainbigbutt/vocaloid/luka_append/hair02", "models/captainbigbutt/vocaloid/kuro_miku_append/tech", "models/dusty/playermodels/zoom/zoom_wbtv_eye_d", "models/captainbigbutt/vocaloid/zatsune_miku/lights_trim", "models/captainbigbutt/vocaloid/neru_classic/hair", "models/carrot/vocaloid/halloween_miku/undie", "models/props_junk/pushcart01a", "models/captainbigbutt/vocaloid/miku_classic/v3/lights_trim02_pulse", "models/player/lty/body00_mikuap_c", "models/props_junk/popcan03a", "models/dusty/playermodels/flash/flash_wbtv_gold_d", "models/captainbigbutt/vocaloid/teto_append/hair", "models/captainbigbutt/vocaloid/zatsune_miku/clothes02", "models/cstrike/ct_gign_glass", "models/combine_soldier/combinesoldiersheet_player_shotgun", "models/captainbigbutt/vocaloid/neru_append/face", "models/player/anon/helmet_d", "models/captainbigbutt/vocaloid/rin_phosphorescent/primary_body_black", "models/humans/female/glint", "models/carrot/vocaloid/halloween_miku/straps", "models/captainbigbutt/vocaloid/zatsune_miku/face_misc", "models/player/lty/glasses", "models/captainbigbutt/vocaloid/teto_append/lights", "models/captainbigbutt/vocaloid/neru_classic/lights", "models/captainbigbutt/vocaloid/haku_append/hair02", "models/humans/male/group02/eric_facemap", "models/carrot/vocaloid/halloween_miku/shoes", "models/XQM/LightLinesGB", "models/dusty/playermodels/zoom/zoom_wbtv_d", "models/carrot/vocaloid/tei_sukone/belt", "models/captainbigbutt/vocaloid/miku_classic/lights_pulse", "models/captainbigbutt/vocaloid/neru_append/body", "models/captainbigbutt/vocaloid/teto_append/body", "models/carrot/vocaloid/tei_sukone/face2", "models/humans/female/fmouth", "models/humans/female/pupil_l", "models/captainbigbutt/vocaloid/miku_classic/v3/clothes02b_pulse", "models/humans/male/group03/van_facemap", "models/captainbigbutt/vocaloid/zatsune_miku/eye", "models/carrot/vocaloid/halloween_miku/hair", "models/carrot/vocaloid/luka_classic/boots", "models/captainbigbutt/vocaloid/rin_phosphorescent/teeth", "models/odessa/odessa_face", "models/captainbigbutt/vocaloid/miku_append/face", "models/captainbigbutt/vocaloid/kuro_miku_append/face", "models/captainbigbutt/vocaloid/luka_append/tech", "models/magnusson/eyeball_l", "models/captainbigbutt/vocaloid/miku_carbon/primary_body", "models/captainbigbutt/vocaloid/neru_append/wing", "models/carrot/vocaloid/larval_rin/blue", "models/captainbigbutt/vocaloid/haku_append/eye", "models/cheeze/buttons2/pwr_red", "models/captainbigbutt/vocaloid/rin_phosphorescent/primary_body_colorable", "models/player/lty/white/hp-1", "models/captainbigbutt/vocaloid/miku_classic/v3/lights_trim02", "models/captainbigbutt/vocaloid/neru_classic/clothes02", "models/captainbigbutt/vocaloid/miku_append/shadow", "models/props_junk/popcan02a", "models/captainbigbutt/vocaloid/miku_append/face_misc", "models/carrot/vocaloid/tei_sukone/body", "models/dewobedil/ipochan/head", "models/kleiner/glass2", "models/carrot/vocaloid/halloween_miku/bow3", "models/sanic/dad/suit_sheet", "models/eli/eli_tex4z", "models/player/lty/2", "models/captainbigbutt/vocaloid/miku_append/hair_default", "models/carrot/vocaloid/butterfly_teto/body", "models/carrot/vocaloid/butterfly_teto/face", "models/captainbigbutt/vocaloid/miku_classic/hair", "models/captainbigbutt/vocaloid/miku_append/wing", "models/captainbigbutt/vocaloid/haku_append/body_misc", "models/carrot/vocaloid/halloween_miku/stockings", "models/captainbigbutt/vocaloid/neru_append/hair", "models/captainbigbutt/vocaloid/zatsune_miku/hair02", "models/captainbigbutt/vocaloid/neru_classic/shadow", "models/captainbigbutt/vocaloid/miku_carbon/lights", "models/items/ammocrate_rockets", "models/captainbigbutt/vocaloid/neru_append/body_misc", "models/captainbigbutt/vocaloid/neru_append/shadow", "models/carrot/vocaloid/tei_sukone/glow", "models/captainbigbutt/vocaloid/neru_append/tie", "models/captainbigbutt/vocaloid/luka_append/wing", "models/captainbigbutt/vocaloid/neru_append/eye", "models/captainbigbutt/vocaloid/teto_append/face", "models/captainbigbutt/vocaloid/teto_append/eye", "models/cstrike/ct_urban_glass", "models/monk/eyeball_r", "models/XQM/LightLinesRed_tool"}
+        Faces = {"models/kleiner/walter_face", "models/humans/male/group02/eric_facemap", "models/alyx/alyx_faceandhair", "models/mossman/mossman_face", "models/police/barneyface", "models/breen/breen_face", "models/humans/male/group01/art_facemap", "models/humans/male/group03m/joe_facemap", "models/sanic/dad/kojima_face", "models/odessa/odessa_face", "models/gman/gman_facehirez", "models/magnusson/magnusson_face", "models/humans/male/group03/van_facemap", "models/chell/chell_rev2_head", "models/monk/grigori_head", "models/humans/female/group01/kanisha_cylmap", "models/eli/eli_tex4z", "models/humans/male/group01/erdim_cylmap", "models/humans/female/group01/joey_facemap", "models/humans/female/group01/kim_facemap", "models/humans/female/group01/chau_facemap", "models/humans/female/group01/naomi_facemap", "models/humans/female/group01/lakeetra_facemap", "models/humans/male/group01/ted_facemap", "models/humans/male/group01/sandro_facemap", "models/humans/male/group01/mike_facemap", "models/humans/male/group01/vance_facemap"}
+        
+        local function save()
+            local model = owner():getModel()
+            local filename = "/skineditor/" .. string.replace(string.replace(model, ".", "["), "/", "]") .. ".txt"
+            local data = {bodygroup = {}, submaterial = {}, skin = nil, color = Color(255, 255, 255), bone = {}}
+            
+            data.skin = owner():getSkin()
+            data.color = owner():getColor()
+            
+            local bd =  owner():getBodygroups()
+            for i = 1, #bd do
+                data.bodygroup[i] = owner():getBodygroup(i)
+            end
+            
+            for i = 1, 30 do
+                data.submaterial[i] = owner():getSubMaterial(i)
+            end
+            
+            local count = owner():getBoneCount()
+            for i = 0, count - 1 do
+                data.bone[i] = {pos = owner():getManipulateBonePosition(i), ang = owner():getManipulateBoneAngles(i), scale = owner():getManipulateBoneScale(i)}
+            end  
+            
+            if !file.exists("/skineditor") then 
+                file.createDir("/skineditor/")
+            end
+            
+            file.write(filename, json.encode(data))
+            
+            print("[b][SkinEditor]: the settings file has been saved successfully")
+        end
+        
+        local function load()
+            local model = owner():getModel()
+            local filename = "/skineditor/" .. string.replace(string.replace(model, ".", "["), "/", "]") .. ".txt"
+            local data = json.decode(file.read(filename) or "[]")
+            
+            if table.count(data) == 0 then
+                print("[b][SkinEditor]: no settings file found for this model")
+            else
+                print("[b][SkinEditor]: the settings file has been uploaded successfully")
+            end
+            
+            net.start("load")
+            net.writeTable(data)
+            net.send(owner())
+        end
+        
+        hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
+            if Enable then
+                local view = {
+                    origin = player():localToWorld(Vector(100, 0, 50)),
+                    angles = player():localToWorldAngles(Angle(math.sin(timer.curtime() / 12) * 2, 180 + math.sin(timer.curtime() / 8) * 4, math.sin(timer.curtime() / 15))),
+                    fov = fov,
+                    drawviewer = true
+                }
+                return view
+            end
+        end)
+        
+        hook.add("drawhud", "", function() 
+            if Enable then
+
+                render.setFilterMin(1) 
+                render.setFilterMag(1)
+                
+                local x, y = input.getCursorPos()
+                local pos = Vector(scrnsize.x + 250, scrnsize.y - 400)
+
+                if MatList == 0 then
+                    Button[1] = Vector(x, y):withinAABox(Vector(pos.x + 4, pos.y + 4), Vector(pos.x + 248, pos.y + 34))
+                    Button[2] = Vector(x, y):withinAABox(Vector(pos.x + 252, pos.y + 4), Vector(pos.x + 496, pos.y + 34))
+                    Button[3] = Vector(x, y):withinAABox(Vector(pos.x + 4, pos.y + 38), Vector(pos.x + 248, pos.y + 68))
+                    Button[4] = Vector(x, y):withinAABox(Vector(pos.x + 252, pos.y + 38), Vector(pos.x + 496, pos.y + 68))
+                end
+                
+                --base panel
+                local baseY = 500
+                if Type == 5 then
+                    local count = owner():getBoneCount() + 1
+                    local int, fr = math.modf(count / 10)
+                    baseY = 240 + (int + 1) * 25
+                end
+                
+                render.setColor(Color(50, 50, 50))
+                render.drawRect(pos.x, pos.y, 500, baseY)
+                render.setColor(Color(155, 155, 155))
+                render.drawRectOutline(pos.x, pos.y, 500, baseY)
+                
+                --base buttons
+                render.setColor(Button[1] == false and Color(50, 50, 50) or Color(50, 100, 50))
+                render.drawRect(pos.x + 4, pos.y + 4, 244, 30)
+                render.setColor(Color(155, 155, 155))
+                render.drawRectOutline(pos.x + 4, pos.y + 4, 244, 30)
+                render.setFont(font1)
+                render.setColor(Button[1] == false and Color(155, 255, 155) or Color(255, 255, 155))
+                render.drawText(pos.x + 125, pos.y + 5, "edit bodyGroups", 1)
+                
+                render.setColor(Button[2] == false and Color(50, 50, 50) or Color(50, 100, 50))
+                render.drawRect(pos.x + 252, pos.y + 4, 244, 30)
+                render.setColor(Color(155, 155, 155))
+                render.drawRectOutline(pos.x + 252, pos.y + 4, 244, 30)
+                render.setColor(Button[2] == false and Color(155, 255, 155) or Color(255, 255, 155))
+                render.drawText(pos.x + 375, pos.y + 5, "edit subMaterials", 1)
+                
+                render.setColor(Button[3] == false and Color(50, 50, 50) or Color(50, 100, 50))
+                render.drawRect(pos.x + 4, pos.y + 38, 244, 30)
+                render.setColor(Color(155, 155, 155))
+                render.drawRectOutline(pos.x + 4, pos.y + 38, 244, 30)
+                render.setFont(font1)
+                render.setColor(Button[3] == false and Color(155, 255, 155) or Color(255, 255, 155))
+                render.drawText(pos.x + 125, pos.y + 39, "edit playerColor", 1)
+                
+                render.setColor(Button[4] == false and Color(50, 50, 50) or Color(50, 100, 50))
+                render.drawRect(pos.x + 252, pos.y + 38, 244, 30)
+                render.setColor(Color(155, 155, 155))
+                render.drawRectOutline(pos.x + 252, pos.y + 38, 244, 30)
+                render.setFont(font1)
+                render.setColor(Button[4] == false and Color(155, 255, 155) or Color(255, 255, 155))
+                render.drawText(pos.x + 375, pos.y + 39, "edit playerBones", 1)
+                
+                if Type == 1 then 
+                
+                    render.setFont(font2)
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(pos.x + 250, pos.y + 125, "SkinEditor", 1)
+                    render.setFont(font1)
+                    render.drawText(pos.x + 250, pos.y + 175, "version " .. Ver, 1)
+                    render.drawText(pos.x + 250, pos.y + 200, "by JohnBurlyay", 1)
+                    
+                    render.setColor(Color(255, 100, 100))
+                    render.setFont(font3)
+                    render.drawText(pos.x + 250, pos.y + 250, "Note: some bones do not have a valid name and physics. \nBut they can be changed, though without effect", 1)
+                    
+                    
+                    Button[5] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 465), Vector(pos.x + 155, pos.y + 495))
+                    render.setColor(Button[5] and Color(100, 100, 255) or Color(200, 200, 200))
+                    render.drawRect(pos.x + 5, pos.y + 465, 150, 30)
+                    render.setFont(font1)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(pos.x + 80, pos.y + 466, "save outfit", 1)
+                    
+                    Button[6] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 465), Vector(pos.x + 310, pos.y + 495))
+                    render.setColor(Button[6] and Color(100, 100, 255) or Color(200, 200, 200))
+                    render.drawRect(pos.x + 160, pos.y + 465, 150, 30)
+                    render.setFont(font1)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(pos.x + 235, pos.y + 466, "load outfit", 1)
+                
+                elseif Type == 2 then 
+                    
+                --draw bodygroups
+                    local bd =  player():getBodygroups()
+                    
+                    render.setFont(font1)
+                    render.setColor(Color(255, 175, 100))
+                    render.drawText(pos.x + 10, pos.y + 75, "Curent bodygroups count : " .. table.count(bd), 0)
+                    
+                    for i = 1, #bd do
+                        render.setColor(Color(100, 175, 255))
+                        render.drawText(pos.x + 5, pos.y + 75 + i * 25, "[id:" .. bd[i].id .. "] " .. bd[i].name, 0)
+                        
+                        for u = 1, bd[i].num do
+                            render.setColor(Color(200, 200, 200))
+                            render.drawRect(pos.x + 250 + u * 34, pos.y + 75 + i * 25, 22, 22)
+                            
+                            local bd_num = player():getBodygroup(bd[i].id)
+                            if bd_num == u - 1 then
+                                render.setColor(Color(50, 50, 50))
+                                render.drawRect(pos.x + 253 + u * 34, pos.y + 78 + i * 25, 16, 16)
+                            end
+                            
+                            but3 = Vector(x, y):withinAABox(Vector(pos.x + 250 + u * 34, pos.y + 75 + i * 25), Vector(pos.x + 272 + u * 34, pos.y + 97 + i * 25))
+                            
+                            if input.isMouseDown(107) == true and Clk == 0 then
+                                if but3 then
+                                    Clk = 1
+                                    net.start("bg")
+                                    net.writeTable({id = bd[i].id, param = u - 1})
+                                    net.send(owner())
+                                end
+                            end
+                            
+                        end
+                        
+                    end
+                    
+                --draw skins
+                
+                    local sk = player():getSkinCount()
+                    
+                    render.setFont(font1)
+                    render.setColor(Color(255, 175, 100))
+                    render.drawText(pos.x + 10, pos.y + 75 + (#bd + 2) * 25, "Curent skins count : " .. sk, 0)
+                    
+                    render.setColor(Color(100, 175, 255))
+                    render.drawText(pos.x + 5, pos.y + 75 + (#bd + 3) * 25, "[skin:] ", 0)
+                    
+                    for u = 1, sk do
+                        render.setColor(Color(200, 200, 200))
+                        render.drawRect(pos.x + 250 + u * 34, pos.y + 75 + (#bd + 3) * 25, 22, 22)
+                        
+                        local sk_num = player():getSkin()
+                        if sk_num == u - 1 then
+                            render.setColor(Color(50, 50, 50))
+                            render.drawRect(pos.x + 253 + u * 34, pos.y + 78 + (#bd + 3) * 25, 16, 16)
+                        end
+                        
+                        but3 = Vector(x, y):withinAABox(Vector(pos.x + 250 + u * 34, pos.y + 75 + (#bd + 3) * 25), Vector(pos.x + 272 + u * 34, pos.y + 97 + (#bd + 3) * 25))
+                        
+                        if input.isMouseDown(107) == true and Clk == 0 then
+                            if but3 then
+                                Clk = 1
+                                net.start("sk")
+                                net.writeTable({param = u - 1})
+                                net.send(owner())
+                            end
+                        end
+                    end
+                    
+                elseif Type == 3 then 
+                    for i = 1, 17 do
+                        render.setFont(font1)
+                        render.setColor(MatList == i and Color(150, 250, 250) or Color(150, 150, 250))
+                        render.drawText(pos.x + 5, pos.y + 50 + i * 25, "subMaterial # " .. i, 0)
+                        render.setColor(Color(50, 50, 100))
+                        render.drawRect(pos.x + 185, pos.y + 54 + i * 25, 300, 20)
+                        render.setColor(Color(150, 150, 150))
+                        render.drawRectOutline(pos.x + 185, pos.y + 52 + i * 25, 300, 20, 1)
+                        render.setFont(font3)
+                        
+                        local getmat = player():getSubMaterial(i)
+                        render.drawText(pos.x + 186, pos.y + 54 + i * 25, getmat, 0)
+                        
+                        if MatList == 0 then
+                            but4 = Vector(x, y):withinAABox(Vector(pos.x + 185, pos.y + 52 + i * 25), Vector(pos.x + 485, pos.y + 72 + i * 25))
+                        end
+                          
+                        if MatList == 0 and FaceList == 0 then
+                            --reset subMaterial
+                            if input.isKeyDown(28) == true and Clk == 0 then
+                                if but4 then
+                                    Clk = 1
+                                    
+                                    net.start("sm")
+                                    net.writeTable({id = i, mat = ""})
+                                    net.send(owner())
+                                end
+                            --open material list
+                            elseif input.isMouseDown(107) == true and Clk == 0 then
+                                if but4 then
+                                    Clk = 1
+                                    MatList = i
+                                end
+                            --open faces list
+                            elseif input.isMouseDown(108) == true and Clk == 0 then
+                                if but4 then
+                                    Clk = 1
+                                    FaceList = i
+                                end
+                            end
+                        end
+                    
+                    end
+                    
+                    if MatList != 0 then
+                        --panel and move buttons
+                        local baseY = pos.y + 53
+                        local count = 20
+                        local panelsize  = {x = 400, y = (count + 2) * 25}
+                        if baseY > scrnsize.y * 2 then baseY = scrnsize.y * 2 - panelsize.y end
+                        
+                        
+                        
+                        render.setColor(Color(50, 100, 100))
+                        render.drawRect(pos.x + panelsize.x / 2, baseY, panelsize.x, panelsize.y)
+                        render.setColor(Color(255, 250, 100))
+                        render.setFont(font3)
+                        render.drawText(pos.x + 400, baseY + 1, "▲  list up  ▲", 1)
+                        render.drawText(pos.x + 400, baseY + 1 + (count + 1) * 25, "▼  list down  ▼", 1)
+                        
+                        --materials
+                        for i = 1, count do
+                            render.drawText(pos.x + 202, baseY + 1 + i * 25, "#" .. i + List - 1 .. " " .. Materials[List + i], 0)
+                            
+                            but5 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1 + i * 25), Vector(pos.x + 600, baseY + 26 + i * 25))
+                            
+                            if but5 then
+                                render.drawRectOutline(pos.x + 200, baseY + 1 + i * 25, 400, 25, 1)
+                            end
+                            
+                            --set new subMaterial
+                            if input.isMouseDown(107) == true and Clk == 0 then
+                                if but5 then    
+                                    Clk = 1
+                        
+                                    net.start("sm")
+                                    net.writeTable({id = MatList, mat = Materials[List + i]})
+                                    net.send(owner())
+                                    
+                                    MatList = 0
+                                end
+                            end
+                        end
+                        
+                        --move list up
+                        but6 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1), Vector(pos.x + 600, baseY + 26))
+                        if but6 then
+                            if List > 1 then
+                                List = List - 1
+                            end
+                        end
+                        --move list down
+                        but7 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1 + (count + 1) * 25), Vector(pos.x + 600, baseY + 26 + (count + 1) * 25))
+                        if but7 then
+                            if List < #Materials - count then
+                                List = List + 1
+                            end
+                        end
+                        --exit from MatList
+                        if input.isMouseDown(107) == true and Clk == 0 then
+                            if Vector(x, y):withinAABox(Vector(pos.x + 200, baseY), Vector(pos.x + panelsize.x, baseY + panelsize.y)) == false then    
+                                Clk = 1
+                                MatList = 0
+                            end
+                        end
+                    elseif FaceList != 0 then
+                        --panel and move buttons
+                        local baseY = pos.y + 53
+                        local count = 20
+                        local panelsize  = {x = 400, y = (count + 2) * 25}
+                        if baseY > scrnsize.y * 2 then baseY = scrnsize.y * 2 - panelsize.y end
+                        
+                        
+                        
+                        render.setColor(Color(50, 100, 100))
+                        render.drawRect(pos.x + panelsize.x / 2, baseY, panelsize.x, panelsize.y)
+                        render.setColor(Color(255, 250, 100))
+                        render.setFont(font3)
+                        render.drawText(pos.x + 400, baseY + 1, "  list up  ", 1)
+                        render.drawText(pos.x + 400, baseY + 1 + (count + 1) * 25, "  list down  ", 1)
+                        
+                        --materials
+                        for i = 1, count do
+                            render.drawText(pos.x + 202, baseY + 1 + i * 25, "#" .. i + ListF - 1 .. " " .. Faces[ListF + i], 0)
+                            
+                            but5 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1 + i * 25), Vector(pos.x + 600, baseY + 26 + i * 25))
+                            
+                            if but5 then
+                                render.drawRectOutline(pos.x + 200, baseY + 1 + i * 25, 400, 25, 1)
+                            end
+                            
+                            --set new subMaterial
+                            if input.isMouseDown(107) == true and Clk == 0 then
+                                if but5 then    
+                                    Clk = 1
+                        
+                                    net.start("sm")
+                                    net.writeTable({id = FaceList, mat = Faces[ListF + i]})
+                                    net.send(owner())
+                                    
+                                    FaceList = 0
+                                end
+                            end
+                        end
+                        
+                        --move list up
+                        but6 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1), Vector(pos.x + 600, baseY + 26))
+                        if but6 then
+                            if ListF > 1 then
+                                ListF = ListF - 1
+                            end
+                        end
+                        --move list down
+                        but7 = Vector(x, y):withinAABox(Vector(pos.x + 200, baseY + 1 + (count + 1) * 25), Vector(pos.x + 600, baseY + 26 + (count + 1) * 25))
+                        if but7 then
+                            if ListF < #Faces - count then
+                                ListF = ListF + 1
+                            end
+                        end
+                        --exit from MatList
+                        if input.isMouseDown(107) == true and Clk == 0 then
+                            if Vector(x, y):withinAABox(Vector(pos.x + 200, baseY), Vector(pos.x + panelsize.x, baseY + panelsize.y)) == false then    
+                                Clk = 1
+                                FaceList = 0
+                            end
+                        end
+                    end
+                    
+                elseif Type == 4 then
+                    
+                    local clr = player():getColor()
+                    local r = clr[1] / 255 * 490
+                    local g = clr[2] / 255 * 490
+                    local b = clr[3] / 255 * 490
+                    
+                    --colored panels
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRectOutline(pos.x + 4, pos.y + 122, 492, 50, 1)
+                    render.setColor(Color(255, 0, 0))
+                    render.drawRect(pos.x + 5, pos.y + 123, r, 48)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRectOutline(pos.x + 4, pos.y + 176, 492, 50, 1)
+                    render.setColor(Color(0, 255, 0))
+                    render.drawRect(pos.x + 5, pos.y + 177, g, 48)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRectOutline(pos.x + 4, pos.y + 230, 492, 50, 1)
+                    render.setColor(Color(0, 0, 255))
+                    render.drawRect(pos.x + 5, pos.y + 231, b, 48)
+                    --numbers
+                    render.setFont(font1)
+                    render.setColor(Color(255, 255, 255))
+                    for i = 1, 3 do
+                        render.drawText(pos.x + 250, pos.y + 82 + i * 54, tostring(clr[i]), 1)
+                    end
+                    --result color box
+                    render.setColor(clr)
+                    render.drawRect(pos.x + 200, pos.y + 325, 100, 100)
+                    --pick color
+                    if input.isMouseDown(107) == true and Clk == 0 then
+                        Clk = 1
+                        
+                        but8 = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 122), Vector(pos.x + 495, pos.y + 172))
+                        but9 = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 176), Vector(pos.x + 495, pos.y + 226))
+                        but10 = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 230), Vector(pos.x + 495, pos.y + 280))
+                        
+                        local dr = 0    
+                        local dg = 0
+                        local db = 0
+                        
+                        if but8 then
+                            dr = (x - scrnsize.x - 250 - 4) / 490 * 255
+                        elseif but9 then
+                            dg = (x - scrnsize.x - 250 - 4) / 490 * 255
+                        elseif but10 then
+                            db = (x - scrnsize.x - 250 - 4) / 490 * 255
+                        end
+                        
+                        local resultColor = Color(dr == 0 and clr[1] or dr, dg == 0 and clr[2] or dg, db == 0 and clr[3] or db)
+                        
+                        if resultColor != clr then
+                            net.start("clr")
+                            net.writeTable({clr = resultColor})
+                            net.send(owner())
+                        end
+                        
+                    end
+                --bones editor 
+                elseif Type == 5 then
+                    
+                    local size = Vector(48, 25)
+                    
+                    local count = owner():getBoneCount()
+                    for i = 1, count do
+                        local int, fr = math.modf(i / 10)    if fr == 0 then int = int - 1 end
+                        local p = Vector(10 + (size.x) * (((i - 1) % 10)), 75 + (size.y) * int)
+                        
+                        local aim = Vector(x, y):withinAABox(Vector(pos.x + p.x, pos.y + p.y), Vector(pos.x + p.x + size.x, pos.y + p.y + size.y))
+                        
+                        if owner():getBoneName(i) != "__INVALIDBONE__" then
+                            render.setColor(Color(200, 200, 200))
+                            render.drawRect(pos.x + p.x, pos.y + p.y, size.x, size.y, 1)
+                            render.setColor(aim == false and (i == Bone and Color(0, 100, 0) or Color(0, 0, 0)) or Color(0, 100, 255))
+                            render.drawRectOutline(pos.x + p.x, pos.y + p.y, size.x, size.y, aim == false and (i == Bone and 3 or 1) or 2)
+                            render.setFont(font4)
+                            render.drawText(pos.x + p.x + size.x / 2, pos.y + p.y + 3, "id: " .. (i - 1), 1)
+                        else
+                            render.setColor(Color(255, 100, 0))
+                            render.drawText(pos.x + p.x + size.x / 2, pos.y + p.y + 3, "invalid", 1)
+                            render.setColor(aim == false and (i == Bone and Color(0, 100, 50) or Color(0, 0, 0)) or Color(255, 0, 0))
+                            render.drawRectOutline(pos.x + p.x, pos.y + p.y, size.x, size.y, aim == false and (i == Bone and 3 or 1) or 2)
+                        end
+                        
+                        if input.isMouseDown(107) == true and Clk == 0 and aim then
+                            Clk = 1
+                            Bone = i
+                        end
+                        
+                    end
+                    
+                    local pos2 = pos + Vector(5, baseY - 150 - 5)
+                    render.setColor(Color(155, 155, 155))
+                    render.drawRectOutline(pos2.x, pos2.y, 490, 150)
+                    
+                    Button[119] = Vector(x, y):withinAABox(Vector(pos2.x + 335, pos2.y + 115), Vector(pos2.x + 485, pos2.y + 145))
+                    render.setColor(Button[119] and Color(100, 100, 255) or Color(200, 200, 200))
+                    render.drawRect(pos2.x + 335, pos2.y + 115, 150, 30)
+                    render.setFont(font1)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(pos2.x + 410, pos2.y + 116, "reset all bones", 1)
+                    
+                    if Bone != nil then
+                       
+                        Button[101] = Vector(x, y):withinAABox(Vector(pos2.x + 40, pos2.y + 54), Vector(pos2.x + 60, pos2.y + 74))
+                        Button[102] = Vector(x, y):withinAABox(Vector(pos2.x + 65, pos2.y + 54), Vector(pos2.x + 85, pos2.y + 74))
+                        Button[103] = Vector(x, y):withinAABox(Vector(pos2.x + 40, pos2.y + 79), Vector(pos2.x + 60, pos2.y + 99))
+                        Button[104] = Vector(x, y):withinAABox(Vector(pos2.x + 65, pos2.y + 79), Vector(pos2.x + 85, pos2.y + 99))
+                        Button[105] = Vector(x, y):withinAABox(Vector(pos2.x + 40, pos2.y + 104), Vector(pos2.x + 60, pos2.y + 124))
+                        Button[106] = Vector(x, y):withinAABox(Vector(pos2.x + 65, pos2.y + 104), Vector(pos2.x + 85, pos2.y + 124))
+                        
+                        Button[107] = Vector(x, y):withinAABox(Vector(pos2.x + 130, pos2.y + 54), Vector(pos2.x + 150, pos2.y + 74))
+                        Button[108] = Vector(x, y):withinAABox(Vector(pos2.x + 155, pos2.y + 54), Vector(pos2.x + 175, pos2.y + 74))
+                        Button[109] = Vector(x, y):withinAABox(Vector(pos2.x + 130, pos2.y + 79), Vector(pos2.x + 150, pos2.y + 99))
+                        Button[110] = Vector(x, y):withinAABox(Vector(pos2.x + 155, pos2.y + 79), Vector(pos2.x + 175, pos2.y + 99))
+                        Button[111] = Vector(x, y):withinAABox(Vector(pos2.x + 130, pos2.y + 104), Vector(pos2.x + 150, pos2.y + 124))
+                        Button[112] = Vector(x, y):withinAABox(Vector(pos2.x + 155, pos2.y + 104), Vector(pos2.x + 175, pos2.y + 124))
+                        
+                        Button[113] = Vector(x, y):withinAABox(Vector(pos2.x + 220, pos2.y + 54), Vector(pos2.x + 240, pos2.y + 74))
+                        Button[114] = Vector(x, y):withinAABox(Vector(pos2.x + 245, pos2.y + 54), Vector(pos2.x + 265, pos2.y + 74))
+                        Button[115] = Vector(x, y):withinAABox(Vector(pos2.x + 220, pos2.y + 79), Vector(pos2.x + 240, pos2.y + 99))
+                        Button[116] = Vector(x, y):withinAABox(Vector(pos2.x + 245, pos2.y + 79), Vector(pos2.x + 265, pos2.y + 99))
+                        Button[117] = Vector(x, y):withinAABox(Vector(pos2.x + 220, pos2.y + 104), Vector(pos2.x + 240, pos2.y + 124))
+                        Button[118] = Vector(x, y):withinAABox(Vector(pos2.x + 245, pos2.y + 104), Vector(pos2.x + 265, pos2.y + 124))
+                    
+                        render.setFont(font1)
+                        render.setColor(Color(155, 155, 155))
+                        render.drawText(pos2.x + 5, pos2.y + 5, "bone[" .. (Bone - 1) .. "] : " .. string.replace(owner():getBoneName(Bone), "ValveBiped.", ""), 0)
+                        render.drawText(pos2.x + 5, pos2.y + 50, "X : ", 0)
+                        render.drawText(pos2.x + 5, pos2.y + 75, "Y : ", 0)
+                        render.drawText(pos2.x + 5, pos2.y + 100, "Z : ", 0)
+                        --1
+                        render.setColor(Color(155, 155, 255))
+                        render.drawText(pos2.x + 63, pos2.y + 28, "[scale]", 1)
+                        render.setColor(Button[101] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 40, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[102] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 65, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[103] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 40, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[104] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 65, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[105] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 40, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Button[106] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 65, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(pos2.x + 50, pos2.y + 50, "+", 1)
+                        render.drawText(pos2.x + 74, pos2.y + 50, "-", 1)
+                        render.drawText(pos2.x + 50, pos2.y + 75, "+", 1)
+                        render.drawText(pos2.x + 74, pos2.y + 75, "-", 1)
+                        render.drawText(pos2.x + 50, pos2.y + 100, "+", 1)
+                        render.drawText(pos2.x + 74, pos2.y + 100, "-", 1)
+                        --2
+                        render.setColor(Color(155, 155, 255))
+                        render.drawText(pos2.x + 153, pos2.y + 28, "[posing]", 1)
+                        render.setColor(Button[107] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 130, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[108] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 155, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[109] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 130, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[110] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 155, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[111] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 130, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Button[112] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 155, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(pos2.x + 140, pos2.y + 50, "+", 1)
+                        render.drawText(pos2.x + 164, pos2.y + 50, "-", 1)
+                        render.drawText(pos2.x + 140, pos2.y + 75, "+", 1)
+                        render.drawText(pos2.x + 164, pos2.y + 75, "-", 1)
+                        render.drawText(pos2.x + 140, pos2.y + 100, "+", 1)
+                        render.drawText(pos2.x + 164, pos2.y + 100, "-", 1)
+                        --3
+                        render.setColor(Color(155, 155, 255))
+                        render.drawText(pos2.x + 243, pos2.y + 28, "[angles]", 1)
+                        render.setColor(Button[113] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 220, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[114] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 245, pos2.y + 54, 20, 20, 1)
+                        render.setColor(Button[115] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 220, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[116] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 245, pos2.y + 79, 20, 20, 1)
+                        render.setColor(Button[117] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 220, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Button[118] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 245, pos2.y + 104, 20, 20, 1)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(pos2.x + 230, pos2.y + 50, "+", 1)
+                        render.drawText(pos2.x + 254, pos2.y + 50, "-", 1)
+                        render.drawText(pos2.x + 230, pos2.y + 75, "+", 1)
+                        render.drawText(pos2.x + 254, pos2.y + 75, "-", 1)
+                        render.drawText(pos2.x + 230, pos2.y + 100, "+", 1)
+                        render.drawText(pos2.x + 254, pos2.y + 100, "-", 1)
+                        
+                        Button[120] = Vector(x, y):withinAABox(Vector(pos2.x + 335, pos2.y + 80), Vector(pos2.x + 485, pos2.y + 110))
+                        render.setColor(Button[120] and Color(100, 100, 255) or Color(200, 200, 200))
+                        render.drawRect(pos2.x + 335, pos2.y + 80, 150, 30)
+                        render.setFont(font1)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(pos2.x + 410, pos2.y + 81, "reset this bone", 1)
+                     
+                    end
+                end
+                
+            end
+        end)
+        
+        --menu navigate funcs
+        hook.add("inputPressed", "", function(key)
+            if key == 15 then
+                Type = 1
+                Enable = not Enable
+                input.enableCursor(Enable)
+            elseif key == 107 then
+                for i = 1, 4 do
+                    if Button[i] then
+                        if Type == i + 1 then
+                            Type = 1
+                            MatList = 0
+                        else
+                            Type = i + 1
+                            MatList = 0
+                        end   
+                    end
+                end
+                
+                if Type == 1 then
+                    if Button[5] then 
+                        save() 
+                    elseif Button[6] then 
+                        load() 
+                    end
+                elseif Type == 5 then
+                --set bone scale
+                    --X
+                    if Button[101] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(0.1, 0, 0)})
+                        net.send(owner())
+                    elseif Button[102] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(-0.1, 0, 0)})
+                        net.send(owner())
+                    --Y
+                    elseif Button[103] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0.1, 0)})
+                        net.send(owner())
+                    elseif Button[104] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, -0.1, 0)})
+                        net.send(owner())
+                    --Z
+                    elseif Button[105] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, 0.1)})
+                        net.send(owner())
+                    elseif Button[106] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, -0.1)})
+                        net.send(owner())
+                --set bone pos
+                    --X
+                    elseif Button[107] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(1, 0, 0)})
+                        net.send(owner())
+                    elseif Button[108] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(-1, 0, 0)})
+                        net.send(owner())
+                    --Y
+                    elseif Button[109] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 1, 0)})
+                        net.send(owner())
+                    elseif Button[110] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, -1, 0)})
+                        net.send(owner())
+                    --Z
+                    elseif Button[111] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, 1)})
+                        net.send(owner())
+                    elseif Button[112] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, -1)})
+                        net.send(owner())
+                --set bone angles
+                    --X
+                    elseif Button[113] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(2, 0, 0)})
+                        net.send(owner())
+                    elseif Button[114] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(-2, 0, 0)})
+                        net.send(owner())
+                    --Y
+                    elseif Button[115] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 2, 0)})
+                        net.send(owner())
+                    elseif Button[116] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, -2, 0)})
+                        net.send(owner())
+                    --Z
+                    elseif Button[117] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2)})
+                        net.send(owner())
+                    elseif Button[118] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2)})
+                        net.send(owner())
+                --reset bones
+                    elseif Button[120] then
+                        net.start("bone")
+                        net.writeTable({bone = Bone, type = "reset bone"})
+                        net.send(owner())
+                    elseif Button[119] then
+                        net.start("bone")
+                        net.writeTable({type = "reset bones"})
+                        net.send(owner())
+                    end
+                end
+            end
+        end)
+        
+        --cooldowns all clicks
+        timer.create("cooldown", 0.4, 0, function() 
+            Clk = 0 
+        end)
+
+    end
+    
+end
+
