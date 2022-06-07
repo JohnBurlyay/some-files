@@ -4,6 +4,8 @@
 
 if SERVER then
     
+    chip():setCollisionGroup(10)    
+    
     net.receive("bg", function(str)
         local tbl = net.readTable()
         owner():setBodygroup(tbl.id, tbl.param)
