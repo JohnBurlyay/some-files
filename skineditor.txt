@@ -297,6 +297,13 @@ else
                     Button[2] = Vector(x, y):withinAABox(Vector(pos.x + 252, pos.y + 4), Vector(pos.x + 496, pos.y + 34))
                     Button[3] = Vector(x, y):withinAABox(Vector(pos.x + 4, pos.y + 38), Vector(pos.x + 248, pos.y + 68))
                     Button[4] = Vector(x, y):withinAABox(Vector(pos.x + 252, pos.y + 38), Vector(pos.x + 496, pos.y + 68))
+                    
+                    Button[5] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 465), Vector(pos.x + 155, pos.y + 495))
+                    Button[6] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 465), Vector(pos.x + 310, pos.y + 495))
+                    Button[7] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 393), Vector(pos.x + 155, pos.y + 423))
+                    Button[8] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 393), Vector(pos.x + 310, pos.y + 423))
+                    Button[9] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 321), Vector(pos.x + 155, pos.y + 351))
+                    Button[10] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 321), Vector(pos.x + 310, pos.y + 351))
                 end
                 
                 --base panel
@@ -382,14 +389,12 @@ else
                     render.setFont(font3)
                     render.drawText(pos.x + 256, pos.y + 291, "Cleaner", 1)
                     
-                    Button[9] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 321), Vector(pos.x + 155, pos.y + 351))
                     render.setColor(Button[9] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 5, pos.y + 321, 150, 30)
                     render.setFont(font1)
                     render.setColor(Color(0, 0, 0))
                     render.drawText(pos.x + 80, pos.y + 322, "clear materials", 1)
                     
-                    Button[10] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 321), Vector(pos.x + 310, pos.y + 351))
                     render.setColor(Button[10] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 160, pos.y + 321, 150, 30)
                     render.setFont(font1)
@@ -401,14 +406,12 @@ else
                     render.setFont(font3)
                     render.drawText(pos.x + 256, pos.y + 363, "Randomizer", 1)
                     
-                    Button[7] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 393), Vector(pos.x + 155, pos.y + 423))
                     render.setColor(Button[7] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 5, pos.y + 393, 150, 30)
                     render.setFont(font1)
                     render.setColor(Color(0, 0, 0))
                     render.drawText(pos.x + 80, pos.y + 394, "full random", 1)
                     
-                    Button[8] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 393), Vector(pos.x + 310, pos.y + 423))
                     render.setColor(Button[8] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 160, pos.y + 393, 150, 30)
                     render.setFont(font1)
@@ -420,14 +423,12 @@ else
                     render.setFont(font3)
                     render.drawText(pos.x + 256, pos.y + 435, "File browser (stores the data of each model separately)", 1)
                     
-                    Button[5] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 465), Vector(pos.x + 155, pos.y + 495))
                     render.setColor(Button[5] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 5, pos.y + 465, 150, 30)
                     render.setFont(font1)
                     render.setColor(Color(0, 0, 0))
                     render.drawText(pos.x + 80, pos.y + 466, "save outfit", 1)
                     
-                    Button[6] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 465), Vector(pos.x + 310, pos.y + 495))
                     render.setColor(Button[6] and Color(100, 100, 255) or Color(200, 200, 200))
                     render.drawRect(pos.x + 160, pos.y + 465, 150, 30)
                     render.setFont(font1)
@@ -908,7 +909,7 @@ else
                     end
                 end
                 
-                if Type == 1 then clearMaterials()
+                if Type == 1 then
                     if Button[5] then 
                         save() 
                     elseif Button[6] then 
