@@ -1,4 +1,4 @@
---@name SkinEditor-v1.22
+--@name SkinEditor-v1.23
 --@author JohnBurlyay
 --@model models/props_lab/huladoll.mdl
 --@shared
@@ -129,7 +129,7 @@ else
     
     if player() == owner() then
         
-        Ver = "1.22"    
+        Ver = "1.23"    
         Enable = false
         MatList = 0
         FaceList = 0
@@ -141,6 +141,15 @@ else
         Button = {}
         Type = 1
         Bone = nil
+        Rotate = nil
+        Cam = {yaw = 180, pitch = 0}
+        baseY = 500
+        
+        ChangeLog = {
+            "v1.0 - added the option to change 'Skins'",
+            "v1.1 - added the option to change 'Bones', fixed some bugs",  
+            "v1.2 - added the option to save presets, also added 'random' buttons. Now you can rotate camera.",   
+        }
         
         font1 = render.createFont("DebugFixed", 24, 50, true)
         font2 = render.createFont("DebugFixed", 50, 50, true)
@@ -271,11 +280,18 @@ else
             net.send(owner())
         end
         
+        local function printLog()
+            for i = 1, #ChangeLog do
+                print(ChangeLog[i])
+            end
+        end
+        
         hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
             if Enable then
                 local view = {
-                    origin = player():localToWorld(Vector(100, 0, 50)),
-                    angles = player():localToWorldAngles(Angle(math.sin(timer.curtime() / 12) * 2, 180 + math.sin(timer.curtime() / 8) * 4, math.sin(timer.curtime() / 15))),
+                    angles = player():localToWorldAngles(Angle(Cam.pitch + math.sin(timer.curtime() / 12) * 2, Cam.yaw + math.sin(timer.curtime() / 8) * 4, math.sin(timer.curtime() / 15))),
+                    origin = player():localToWorld(Vector(100 * math.sin(math.rad(-90 - Cam.yaw)), 100 * math.cos(math.rad(-90 - Cam.yaw)), 50 + Cam.pitch * 2)),
+                    --Vector(25 * math.sin(math.rad(120 * i)), 25 * math.cos(math.rad(120 * i)))
                     fov = fov,
                     drawviewer = true
                 }
@@ -304,10 +320,13 @@ else
                     Button[8] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 393), Vector(pos.x + 310, pos.y + 423))
                     Button[9] = Vector(x, y):withinAABox(Vector(pos.x + 5, pos.y + 321), Vector(pos.x + 155, pos.y + 351))
                     Button[10] = Vector(x, y):withinAABox(Vector(pos.x + 160, pos.y + 321), Vector(pos.x + 310, pos.y + 351))
+                    
+                    --changes button
+                    Button[11] = Vector(x, y):withinAABox(Vector(pos.x + 181, pos.y + 180), Vector(pos.x + 331, pos.y + 210))
                 end
                 
                 --base panel
-                local baseY = 500
+                baseY = 500
                 if Type == 5 then
                     local count = owner():getBoneCount() + 1
                     local int, fr = math.modf(count / 10)
@@ -360,10 +379,10 @@ else
                 
                     render.setFont(font2)
                     render.setColor(Color(155, 255, 255))
-                    render.drawText(pos.x + 250, pos.y + 100, "SkinEditor", 1)
+                    render.drawText(pos.x + 250, pos.y + 75, "SkinEditor", 1)
                     render.setFont(font1)
-                    render.drawText(pos.x + 250, pos.y + 150, "version " .. Ver, 1)
-                    render.drawText(pos.x + 250, pos.y + 175, "by JohnBurlyay", 1)
+                    render.drawText(pos.x + 250, pos.y + 125, "version " .. Ver, 1)
+                    render.drawText(pos.x + 250, pos.y + 150, "by JohnBurlyay", 1)
                     
                     render.setColor(Color(255, 100, 100))
                     render.setFont(font3)
@@ -434,6 +453,13 @@ else
                     render.setFont(font1)
                     render.setColor(Color(0, 0, 0))
                     render.drawText(pos.x + 235, pos.y + 466, "load outfit", 1)
+                    
+                    --changelog button
+                    render.setColor(Button[11] and Color(100, 100, 255) or Color(100, 150, 200))
+                    render.drawRect(pos.x + 181, pos.y + 180, 150, 30)
+                    render.setFont(font1)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(pos.x + 256, pos.y + 180, "print changes", 1)
                 
                 elseif Type == 2 then 
                     
@@ -553,7 +579,7 @@ else
                     
                     if MatList != 0 then
                         --panel and move buttons
-                        local baseY = pos.y + 53
+                        baseY = pos.y + 53
                         local count = 20
                         local panelsize  = {x = 400, y = (count + 2) * 25}
                         if baseY > scrnsize.y * 2 then baseY = scrnsize.y * 2 - panelsize.y end
@@ -614,7 +640,7 @@ else
                         end
                     elseif FaceList != 0 then
                         --panel and move buttons
-                        local baseY = pos.y + 53
+                        baseY = pos.y + 53
                         local count = 20
                         local panelsize  = {x = 400, y = (count + 2) * 25}
                         if baseY > scrnsize.y * 2 then baseY = scrnsize.y * 2 - panelsize.y end
@@ -897,132 +923,157 @@ else
                 Enable = not Enable
                 input.enableCursor(Enable)
             elseif key == 107 and Enable then
-                for i = 1, 4 do
-                    if Button[i] then
-                        if Type == i + 1 then
-                            Type = 1
-                            MatList = 0
-                        else
-                            Type = i + 1
-                            MatList = 0
-                        end   
+                local x, y = input.getCursorPos()
+                if Vector(x, y):withinAABox(Vector(scrnsize.x + 250, scrnsize.y - 400), Vector(scrnsize.x + 250, scrnsize.y - 400) + Vector(500, baseY)) == false then
+                    if Rotate == nil then
+                        Rotate = Vector(x, y)
                     end
-                end
-                
-                if Type == 1 then
-                    if Button[5] then 
-                        save() 
-                    elseif Button[6] then 
-                        load() 
-                    elseif Button[7] then 
-                        fullRandom() 
-                    elseif Button[8] then 
-                        boneRandom() 
-                    elseif Button[9] then 
-                        clearMaterials()
-                    elseif Button[10] then 
-                        clearBones()
+                else
+                    for i = 1, 4 do
+                        if Button[i] then
+                            if Type == i + 1 then
+                                Type = 1
+                                MatList = 0
+                            else
+                                Type = i + 1
+                                MatList = 0
+                            end   
+                        end
                     end
-                elseif Type == 5 then
-                    local Boost = 1
-                    if player():keyDown(131072) then Boost = 5
-                    elseif player():keyDown(262144) then Boost = 10 end
                     
-                --set bone scale
-                    --X
-                    if Button[101] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(0.1 * Boost, 0, 0)})
-                        net.send(owner())
-                    elseif Button[102] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(-0.1 * Boost, 0, 0)})
-                        net.send(owner())
-                    --Y
-                    elseif Button[103] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0.1 * Boost, 0)})
-                        net.send(owner())
-                    elseif Button[104] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, -0.1 * Boost, 0)})
-                        net.send(owner())
-                    --Z
-                    elseif Button[105] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, 0.1 * Boost)})
-                        net.send(owner())
-                    elseif Button[106] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, -0.1 * Boost)})
-                        net.send(owner())
-                --set bone pos
-                    --X
-                    elseif Button[107] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(1 * Boost, 0, 0)})
-                        net.send(owner())
-                    elseif Button[108] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(-1 * Boost, 0, 0)})
-                        net.send(owner())
-                    --Y
-                    elseif Button[109] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 1 * Boost, 0)})
-                        net.send(owner())
-                    elseif Button[110] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, -1 * Boost, 0)})
-                        net.send(owner())
-                    --Z
-                    elseif Button[111] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, 1 * Boost)})
-                        net.send(owner())
-                    elseif Button[112] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, -1 * Boost)})
-                        net.send(owner())
-                --set bone angles
-                    --X
-                    elseif Button[113] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(2 * Boost, 0, 0)})
-                        net.send(owner())
-                    elseif Button[114] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(-2 * Boost, 0, 0)})
-                        net.send(owner())
-                    --Y
-                    elseif Button[115] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 2 * Boost, 0)})
-                        net.send(owner())
-                    elseif Button[116] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, -2 * Boost, 0)})
-                        net.send(owner())
-                    --Z
-                    elseif Button[117] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2 * Boost)})
-                        net.send(owner())
-                    elseif Button[118] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2 * Boost)})
-                        net.send(owner())
-                --reset bones
-                    elseif Button[120] then
-                        net.start("bone")
-                        net.writeTable({bone = Bone, type = "reset bone"})
-                        net.send(owner())
-                    elseif Button[119] then
-                        net.start("bone")
-                        net.writeTable({type = "reset bones"})
-                        net.send(owner())
+                    if Type == 1 then
+                        if Button[5] then 
+                            save() 
+                        elseif Button[6] then 
+                            load() 
+                        elseif Button[7] then 
+                            fullRandom() 
+                        elseif Button[8] then 
+                            boneRandom() 
+                        elseif Button[9] then 
+                            clearMaterials()
+                        elseif Button[10] then 
+                            clearBones()
+                        elseif Button[11] then 
+                            printLog()
+                        end
+                    elseif Type == 5 then
+                        local Boost = 1
+                        if player():keyDown(131072) then Boost = 5
+                        elseif player():keyDown(262144) then Boost = 10 end
+                        
+                    --set bone scale
+                        --X
+                        if Button[101] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(0.1 * Boost, 0, 0)})
+                            net.send(owner())
+                        elseif Button[102] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(-0.1 * Boost, 0, 0)})
+                            net.send(owner())
+                        --Y
+                        elseif Button[103] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0.1 * Boost, 0)})
+                            net.send(owner())
+                        elseif Button[104] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(0, -0.1 * Boost, 0)})
+                            net.send(owner())
+                        --Z
+                        elseif Button[105] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, 0.1 * Boost)})
+                            net.send(owner())
+                        elseif Button[106] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "scale", value = Vector(0, 0, -0.1 * Boost)})
+                            net.send(owner())
+                    --set bone pos
+                        --X
+                        elseif Button[107] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(1 * Boost, 0, 0)})
+                            net.send(owner())
+                        elseif Button[108] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(-1 * Boost, 0, 0)})
+                            net.send(owner())
+                        --Y
+                        elseif Button[109] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(0, 1 * Boost, 0)})
+                            net.send(owner())
+                        elseif Button[110] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(0, -1 * Boost, 0)})
+                            net.send(owner())
+                        --Z
+                        elseif Button[111] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, 1 * Boost)})
+                            net.send(owner())
+                        elseif Button[112] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "pos", value = Vector(0, 0, -1 * Boost)})
+                            net.send(owner())
+                    --set bone angles
+                        --X
+                        elseif Button[113] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(2 * Boost, 0, 0)})
+                            net.send(owner())
+                        elseif Button[114] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(-2 * Boost, 0, 0)})
+                            net.send(owner())
+                        --Y
+                        elseif Button[115] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(0, 2 * Boost, 0)})
+                            net.send(owner())
+                        elseif Button[116] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(0, -2 * Boost, 0)})
+                            net.send(owner())
+                        --Z
+                        elseif Button[117] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2 * Boost)})
+                            net.send(owner())
+                        elseif Button[118] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "angle", value = Angle(0, 0, 2 * Boost)})
+                            net.send(owner())
+                    --reset bones
+                        elseif Button[120] then
+                            net.start("bone")
+                            net.writeTable({bone = Bone, type = "reset bone"})
+                            net.send(owner())
+                        elseif Button[119] then
+                            net.start("bone")
+                            net.writeTable({type = "reset bones"})
+                            net.send(owner())
+                        end
                     end
                 end
+            end
+        end)
+        
+        hook.add("inputReleased", "", function(key)
+            if key == 107 then
+                Rotate = nil
+            end
+        end)
+        
+        hook.add("think", "", function()
+            if Rotate != nil then
+                local x, y = input.getCursorPos()
+                local delta = (Rotate - Vector(x, y)) / 10
+                Rotate = Vector(x, y)
+                Cam.yaw = Cam.yaw + delta[1]
+                Cam.pitch = Cam.pitch - delta[2]
             end
         end)
         
@@ -1034,4 +1085,3 @@ else
     end
     
 end
-
