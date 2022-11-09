@@ -1,4 +1,4 @@
---@name CamPod-v2.55
+--@name CamPod-v2.56
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -6,7 +6,8 @@
 if SERVER then
     
     Armor = 0
-    --Ent = entity(10)
+    Health = 0
+    --Ent = entity(6)
     
     chip():setCollisionGroup(10)    
     
@@ -24,9 +25,10 @@ if SERVER then
     
     if Ent then
         timer.create("armor cheker", 1, 0, function()
-            if Ent:getArmor() != Armor then
+            if Ent:getArmor() != Armor or Ent:getHealth() != Health then
                 Armor = Ent:getArmor()
-                print(Ent:getName() .. ", armor = " .. Ent:getArmor())
+                Health = Ent:getHealth()
+                print(Ent:getName() .. ", armor = " .. Ent:getArmor() .. ", health = " .. Ent:getHealth())
             end
         end)
     end
@@ -35,12 +37,11 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.55"
+        Ver = "v2.56"
         
         print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu.")  
         
         --other parameters
-            Show = false
             Show = false
             WH = false
             KH = false
@@ -412,11 +413,11 @@ else
                     render.setColor(Color(50, 50, 50))
                     render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
     
-                    local plypos = Vector(scrnsize.x, scrnsize.y) - (owner():getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
+                    local plypos = Vector(scrnsize.x, scrnsize.y) - (Ply:getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
                     
                     local mtx = Matrix()
                     mtx:setTranslation(Vector(DrawPos.x+ MapSize / 2, DrawPos.y + MapSize / 2 + 30, 0))
-                    mtx:setAngles(Angle(0, owner():getAngles()[2] - 90, 0))
+                    mtx:setAngles(Angle(0, Ply:getAngles()[2] - 90, 0))
                     
                     local imgposes = {
                         x1 = 0.25 + plypos.x - DrawedScale / 2,
@@ -467,19 +468,19 @@ else
                             {x=DrawPos.x + MapSize / 2 - 4, y=DrawPos.y + MapSize / 2 + 30 + 6}, 
                         }
                     render.drawPoly(poly)
-                    render.setColor(team.getColor(owner():getTeam()))
-                    render.drawText(DrawPos.x + MapSize / 2 + 0, DrawPos.y + MapSize / 2 + 30 + 7, owner():getName(), 1)
+                    render.setColor(team.getColor(Ply:getTeam()))
+                    render.drawText(DrawPos.x + MapSize / 2 + 0, DrawPos.y + MapSize / 2 + 30 + 7, Ply:getName(), 1)
                     
                     local plys = find.allPlayers()
                     for i = 1, #plys do
-                        if plys[i] != owner() then 
-                            local dist = owner():getPos():setZ(0):getDistance(plys[i]:getPos():setZ(0)) / 13248 * (MapSize / 2 / DrawedScale)
-                            local ang = (owner():getPos() - plys[i]:getPos()):getAngle().yaw - owner():getAngles().yaw
+                        if plys[i] != Ply then 
+                            local dist = Ply:getPos():setZ(0):getDistance(plys[i]:getPos():setZ(0)) / 13248 * (MapSize / 2 / DrawedScale)
+                            local ang = (Ply:getPos() - plys[i]:getPos()):getAngle().yaw - Ply:getAngles().yaw
                             local pos = Vector(DrawPos.x + MapSize / 2, DrawPos.y + MapSize / 2 + 30) + Vector(math.sin(math.rad(ang)), math.cos(math.rad(ang)), 0) * dist
                             local z 
-                                if (owner():getPos().z - plys[i]:getPos().z) > 100 then
+                                if (Ply:getPos().z - plys[i]:getPos().z) > 100 then
                                     z = Str[2]
-                                elseif (owner():getPos().z - plys[i]:getPos().z) < -100 then
+                                elseif (Ply:getPos().z - plys[i]:getPos().z) < -100 then
                                     z = Str[1]
                                 else
                                     z = Str[3]
