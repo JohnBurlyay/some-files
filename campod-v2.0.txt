@@ -1,4 +1,4 @@
---@name CamPod-v2.56
+--@name CamPod-v2.57
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -7,7 +7,7 @@ if SERVER then
     
     Armor = 0
     Health = 0
-    --Ent = entity(6)
+    --Ent = entity(8)
     
     chip():setCollisionGroup(10)    
     
@@ -37,7 +37,7 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.56"
+        Ver = "v2.57"
         
         print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu.")  
         
@@ -47,11 +47,13 @@ else
             KH = false
             MH = false
             KHprint = false
+            AH = false
             Size = 15
             Enable = false
             Hold = 0
             Hold2 = 0
             Hold3 = 0
+            Hold4 = 0
             Button = {}
             ButtonSize = 22
             
@@ -65,9 +67,11 @@ else
             p = File.p or Vector(0, 0)
             p2 = File.p2 or Vector(250, 0)
             p3 = File.p3 or Vector(400, 0)
+            p4 = File.p4 or Vector(600, 0)
             Poser = Vector(0)
             Poser2 = Vector(0)
             Poser3 = Vector(0)
+            Poser4 = Vector(0)
             
             CamPos = Ply:getEyePos()
         
@@ -157,7 +161,7 @@ else
         fontScrn = render.createFont("Roboto", 50, 400, true)
         
         local function savePoses()
-            local data = {p = p, p2 = p2, p3 = p3, mapsize = MapSize, mapzoom = DrawedScale}
+            local data = {p = p, p2 = p2, p3 = p3, p4 = p4, mapsize = MapSize, mapzoom = DrawedScale}
             file.write(FileName, json.encode(data))
         end
         
@@ -243,10 +247,12 @@ else
                         --2
                         Button[105] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 105), Vector(p.x + 235, p.y + 125))
                         Button[106] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 70), Vector(p.x + 235, p.y + 90))
+                        Button[108] = Vector(x, y):withinAABox(Vector(p.x + 215, p.y + 35), Vector(p.x + 235, p.y + 55))
                     --headers
                     Button[102] = Vector(x, y):withinAABox(Vector(p.x + 0, p.y + 0), Vector(p.x + 250, p.y + 30))
                     Button[104] = Vector(x, y):withinAABox(Vector(p2.x + 0, p2.y + 0), Vector(p2.x + 150, p2.y + 44))
                     Button[107] = Vector(x, y):withinAABox(Vector(p3.x + 56, p3.y + 0), Vector(p3.x + MapSize - 55, p3.y + 30))
+                    Button[109] = Vector(x, y):withinAABox(Vector(p4.x + 0, p4.y + 0), Vector(p4.x + 250, p4.y + 30))
                     --map buttons   
                     Button[201] = Vector(x, y):withinAABox(Vector(p3.x + 3, p3.y + 3), Vector(p3.x + 27, p3.y + 27))
                     Button[202] = Vector(x, y):withinAABox(Vector(p3.x + 29, p3.y + 3), Vector(p3.x + 53, p3.y + 27))
@@ -307,6 +313,15 @@ else
                 if MH then
                     render.setColor(Color(0, 0, 0))
                     render.drawRect(p.x + 217, p.y + 72, 16, 16)
+                end
+                --armor/health funcs
+                render.setColor(Color(155, 255, 255))
+                render.drawText(p.x + 135, p.y + 35, "Armor", 0)
+                render.setColor(Color(200, 200, 200))
+                render.drawRect(p.x + 215, p.y + 35, 20, 20)
+                if AH then
+                    render.setColor(Color(0, 0, 0))
+                    render.drawRect(p.x + 217, p.y + 37, 16, 16)
                 end
                 
                 --plys list
@@ -500,7 +515,33 @@ else
                     
 
             end
+            
+            --armor/health hack
+            if AH then
                 
+                if Ply == nil or not Ply:isValid() then
+                    Ply = owner() 
+                end
+                
+                if Ply == owner() then return end
+                
+                if Hold4 == 1 then
+                    local x, y = input.getCursorPos()
+                    p4 = Vector(x, y) + Poser4
+                end
+                
+                render.setFont(fontMenu)
+                render.setColor(Color(55, 55, 55))
+                render.drawRect(p4.x, p4.y, 250, 30)
+                render.setColor(Color(0, 125, 255))
+                render.drawRectOutline(p4.x, p4.y, 250, 30, 1)
+                render.setColor(Color(255, 100, 100))
+                render.drawText(p4.x + 2, p4.y + 2, "[HP]: " .. Ply:getHealth(), 0) 
+                render.setColor(Color(100, 100, 255))
+                render.drawText(p4.x + 248, p4.y + 2, " [AR]: " .. Ply:getArmor(), 2) 
+              
+            end
+            
         end)
         
         hook.add("inputPressed", "", function(key)
@@ -533,6 +574,12 @@ else
                     Hold3 = Hold3 + 1
                     local x, y = input.getCursorPos()
                     Poser3 = p3 - Vector(x, y) 
+                elseif Button[108] then
+                    AH = not AH
+                elseif Button[109] then
+                    Hold4 = Hold4 + 1
+                    local x, y = input.getCursorPos()
+                    Poser4 = p4 - Vector(x, y) 
                 elseif Button[201] and MH then
                     MapSize = math.min(MapSize + 10, Resolution.y - 30)
                     savePoses()
@@ -561,6 +608,7 @@ else
                 Hold = 0
                 Hold2 = 0
                 Hold3 = 0
+                Hold4 = 0
                 savePoses()
                 Poser = Vector(0)
             end
