@@ -1,4 +1,4 @@
---@name CamPod-v2.57
+--@name CamPod-v2.58
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -37,9 +37,9 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.57"
+        Ver = "v2.58"
         
-        print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu.")  
+        print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack remake.")  
         
         --other parameters
             Show = false
@@ -74,7 +74,10 @@ else
             Poser4 = Vector(0)
             
             CamPos = Ply:getEyePos()
-        
+            
+            Font1 = render.createFont("Roboto", 256, 400, true)
+            Mat1 = render.createMaterial("sprites/laserbeam")
+                    
         --map hack basics
             Map = material.create("UnlitGeneric")
             Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
@@ -224,6 +227,44 @@ else
         
         enableHud(nil, true)
         
+        hook.add("PostDrawOpaqueRenderables", "", function() 
+            if WH then
+                local plys = find.allPlayers()
+                for i = 1, #plys do
+                    if plys[i] != owner() then
+                        local pos = plys[i]:getPos()
+                        local ang = plys[i]:getAngles()
+                        local dist = plys[i]:getPos():getDistance(owner():getPos())
+                        local obb = plys[i]:obbSize() / 2
+                        
+                        local m = plys[i]:getMatrix()
+                        m:translate(Vector(0, 0, 125))
+                        m:setAngles((eyePos() - m:getTranslation()):getAngle() + Angle(90, 0, 0))
+                        m:rotate(Angle(0, 90, 0))
+                        m:setScale(Vector(0.55, -0.55))
+                        
+                        render.pushMatrix(m)
+                            local clr = team.getColor(plys[i]:getTeam())
+                            render.setColor(Color(clr.r, clr.g, clr.b, -150 + dist / 5 > 255 and 255 or -150 + dist / 5))
+                            render.setFont(Font1)
+                            render.drawSimpleText(0, 0, plys[i]:getName(), 1, 1)
+                        render.popMatrix()
+                            
+                        local m = plys[i]:getMatrix()
+                        m:setAngles(Angle(ang.x, ang.y, 0))
+                        render.pushMatrix(m)
+                            render.setColor(team.getColor(plys[i]:getTeam()))
+                            render.draw3DWireframeBox(Vector(), Angle(), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, obb.z * 2))
+                        render.popMatrix()
+                        
+                        render.setColor(Color(clr.r, clr.g, clr.b, 150))
+                        render.setMaterial(Mat1)
+                        render.draw3DBeam(plys[i]:getAttachment(plys[i]:lookupAttachment("eyes")) or Vector(), plys[i]:getEyeTrace().HitPos or Vector(), 1, -0.5, 0.5)
+                    end
+                end
+            end
+        end)
+        
         hook.add("drawhud", "", function() 
             
             render.setFilterMin(1) 
@@ -341,24 +382,6 @@ else
             
             end
             
-            --wall hack active
-            if WH then
-                local plys = find.allPlayers()
-                for i = 1, #plys do
-                    if plys[i] != owner() then
-                        local pos, ang = (plys[i]:getAttachment(plys[i]:lookupAttachment("chest")) or plys[i]:getAttachment(plys[i]:lookupAttachment("eyes")) or plys[i]:getPos()):toScreen()
-                        if pos.x > 0 and pos.y > 0 then
-                            local dist = plys[i]:getPos():getDistance(owner():getPos())
-                            local size = math.max(Size - dist / 1000, 4)
-                            render.setColor(team.getColor(plys[i]:getTeam()))
-                            render.drawRect(pos.x - size / 2, pos.y - size / 2, size, size)
-                            if dist > 500 then
-                                render.drawText(pos.x - size / 2, pos.y - size * 2, plys[i]:getName(), 1)
-                            end
-                        end
-                    end
-                end
-            end
             --key hack active
             if KH then
                 
@@ -543,7 +566,7 @@ else
             end
             
         end)
-        
+                
         hook.add("inputPressed", "", function(key)
             if key == 81 then
                 
