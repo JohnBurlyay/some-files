@@ -32,7 +32,7 @@ else
             Show = false
             WH = false
             KH = false
-            MH = true
+            MH = false
             KHprint = false
             AH = false
             Size = 15
