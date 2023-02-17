@@ -1,13 +1,9 @@
---@name CamPod-v2.58
+--@name CamPod-v2.59
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
     
 if SERVER then
-    
-    Armor = 0
-    Health = 0
-    --Ent = entity(8)
     
     chip():setCollisionGroup(10)    
     
@@ -22,30 +18,21 @@ if SERVER then
         --print("[b][ACP]: [c " .. clr[1] .. ", " .. clr[2] .. ", " .. clr[3] .. "]" .. Data.ent:getName() .. "[/c] pressed " .. "[/b][c 255, 100, 100]" .. KeyIndex[Data.key]) 
         
     end)
-    
-    if Ent then
-        timer.create("armor cheker", 1, 0, function()
-            if Ent:getArmor() != Armor or Ent:getHealth() != Health then
-                Armor = Ent:getArmor()
-                Health = Ent:getHealth()
-                print(Ent:getName() .. ", armor = " .. Ent:getArmor() .. ", health = " .. Ent:getHealth())
-            end
-        end)
-    end
-    
+        
 else
     
     if player() == owner() then
         
-        Ver = "v2.58"
+        Ver = "v2.59"
         
-        print("[ACP][c 255, 100, 100]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack remake.")  
+        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack remake.")  
+        print("[ACP][c 255, 155, 0]: Also updated map rendering.")  
         
         --other parameters
             Show = false
             WH = false
             KH = false
-            MH = false
+            MH = true
             KHprint = false
             AH = false
             Size = 15
@@ -437,20 +424,27 @@ else
                 --draw map
                     --setup stencil
                     resetStencil()
+                    
+                    render.setColor(Color(50, 200, 255))
+                    render.drawFilledCircle(DrawPos.x + MapSize / 2, DrawPos.y + 30 + MapSize / 2, MapSize / 2)
+                    
+                    if Show then
+                        render.setColor(Color(50, 50, 50))
+                        render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
+                        render.setColor(Color(50, 50, 50))
+                        render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
+                    end
+                    
                     render.setStencilEnable(true)
                     render.setStencilReferenceValue(1)
                     render.setStencilCompareFunction(STENCIL.EQUAL)
                     render.setStencilFailOperation(STENCIL.REPLACE)
-                    render.clearBuffersObeyStencil(DrawPos.x, DrawPos.y + 30, MapSize, MapSize, false)
+                    render.clearBuffersObeyStencil(128, 0, 255, 255, false)
                     render.clearStencil()
                     
+                    --draw base cirlce
+                    render.drawFilledCircle(DrawPos.x + MapSize / 2, DrawPos.y + 30 + MapSize / 2, MapSize / 2 - 2)
                     
-                    --draw base frames
-                    render.setColor(Color(50, 50, 50))
-                    render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
-                    render.setColor(Color(50, 50, 50))
-                    render.drawRect(DrawPos.x, DrawPos.y + 30, MapSize, MapSize)
-    
                     local plypos = Vector(scrnsize.x, scrnsize.y) - (Ply:getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
                     
                     local mtx = Matrix()
@@ -471,32 +465,34 @@ else
                     render.popMatrix()
                     render.setStencilEnable(false)
                     
-                    render.setColor(Color(50, 200, 255))
-                    render.drawRectOutline(DrawPos.x, DrawPos.y + 30, MapSize, MapSize, 1)
-                    render.setColor(Color(50, 50, 50))
-                    render.drawRect(DrawPos.x, DrawPos.y, MapSize, 30)
-                    render.setColor(Color(50, 200, 255))
-                    render.drawRectOutline(DrawPos.x, DrawPos.y, MapSize, 30, 1)
-                    
-                    render.setFont(fontMenu)
-                    render.setColor(Color(200, 200, 200))
-                    render.drawRect(DrawPos.x + 3, DrawPos.y + 3, 24, 24)
-                    render.drawRect(DrawPos.x + 29, DrawPos.y + 3, 24, 24)
-                    render.setColor(Color(0, 0, 0))
-                    render.drawText(DrawPos.x + 9, DrawPos.y + 2, "+", 0)
-                    render.drawText(DrawPos.x + 35, DrawPos.y + 2, "-", 0)
-                    render.setColor(Color(155, 255, 155))
-                    render.drawText(DrawPos.x + 56, DrawPos.y + 2, "size", 0)
-                    
-                    render.setColor(Color(200, 200, 200))
-                    render.drawRect(DrawPos.x + MapSize - 27, DrawPos.y + 3, 24, 24)
-                    render.drawRect(DrawPos.x + MapSize - 53, DrawPos.y + 3, 24, 24)
-                    render.setColor(Color(0, 0, 0))
-                    render.drawText(DrawPos.x + MapSize - 21, DrawPos.y + 2, "-", 0)
-                    render.drawText(DrawPos.x + MapSize - 47, DrawPos.y + 2, "+", 0)
-                    render.setColor(Color(155, 255, 155))
-                    render.drawText(DrawPos.x + MapSize - 55, DrawPos.y + 2, "zoom", 2)
-                    
+                    if Show then
+                        render.setColor(Color(50, 200, 255))
+                        render.drawRectOutline(DrawPos.x, DrawPos.y + 30, MapSize, MapSize, 1)
+                        render.setColor(Color(50, 50, 50))
+                        render.drawRect(DrawPos.x, DrawPos.y, MapSize, 30)
+                        render.setColor(Color(50, 200, 255))
+                        render.drawRectOutline(DrawPos.x, DrawPos.y, MapSize, 30, 1)
+                        
+                        render.setFont(fontMenu)
+                        render.setColor(Color(200, 200, 200))
+                        render.drawRect(DrawPos.x + 3, DrawPos.y + 3, 24, 24)
+                        render.drawRect(DrawPos.x + 29, DrawPos.y + 3, 24, 24)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(DrawPos.x + 9, DrawPos.y + 2, "+", 0)
+                        render.drawText(DrawPos.x + 35, DrawPos.y + 2, "-", 0)
+                        render.setColor(Color(155, 255, 155))
+                        render.drawText(DrawPos.x + 56, DrawPos.y + 2, "size", 0)
+                        
+                        render.setColor(Color(200, 200, 200))
+                        render.drawRect(DrawPos.x + MapSize - 27, DrawPos.y + 3, 24, 24)
+                        render.drawRect(DrawPos.x + MapSize - 53, DrawPos.y + 3, 24, 24)
+                        render.setColor(Color(0, 0, 0))
+                        render.drawText(DrawPos.x + MapSize - 21, DrawPos.y + 2, "-", 0)
+                        render.drawText(DrawPos.x + MapSize - 47, DrawPos.y + 2, "+", 0)
+                        render.setColor(Color(155, 255, 155))
+                        render.drawText(DrawPos.x + MapSize - 55, DrawPos.y + 2, "zoom", 2)
+                    end
+                
                     --draw Me
                     render.setFont(fontMap)
                     render.setColor(Color(255, 255, 255))
