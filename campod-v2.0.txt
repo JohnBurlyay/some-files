@@ -218,7 +218,7 @@ else
             if WH then
                 local plys = find.allPlayers()
                 for i = 1, #plys do
-                    if plys[i] != owner() then
+                    if plys[i] != owner()  and plys[i] != Ply then
                         local pos = plys[i]:getPos()
                         local ang = plys[i]:getAngles()
                         local dist = plys[i]:getPos():getDistance(owner():getPos())
