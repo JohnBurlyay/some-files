@@ -1,4 +1,4 @@
---@name CamPod-v2.59
+--@name CamPod-v2.60
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -23,10 +23,9 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.59"
+        Ver = "v2.60"
         
-        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack remake.")  
-        print("[ACP][c 255, 155, 0]: Also updated map rendering.")  
+        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack & Map improvements.")  
         
         --other parameters
             Show = false
@@ -37,6 +36,7 @@ else
             AH = false
             Size = 15
             Enable = false
+            OpenWHsettings = false
             Hold = 0
             Hold2 = 0
             Hold3 = 0
@@ -59,6 +59,10 @@ else
             Poser2 = Vector(0)
             Poser3 = Vector(0)
             Poser4 = Vector(0)
+            
+            WHname = File.whname or false
+            WHbox = File.whbox or false
+            WHbeam = File.whbeam or false
             
             CamPos = Ply:getEyePos()
             
@@ -157,7 +161,12 @@ else
         fontScrn = render.createFont("Roboto", 50, 400, true)
         
         local function savePoses()
-            local data = {p = p, p2 = p2, p3 = p3, p4 = p4, mapsize = MapSize, mapzoom = DrawedScale}
+            local data = {
+                p = p, p2 = p2, p3 = p3, p4 = p4, 
+                mapsize = MapSize, 
+                mapzoom = DrawedScale,
+                whname = WHname, whbox = WHbox, whbeam = WHbeam,
+            }
             file.write(FileName, json.encode(data))
         end
         
@@ -224,13 +233,19 @@ else
             if WH then
                 local plys = find.allPlayers()
                 for i = 1, #plys do
-                    if plys[i] != owner() and plys[i] != Ply then
+                    if 
+                    
+                        (Enable and plys[i] != Ply)
+                            or
+                        (not Enable and plys[i] != owner())
+                        
+                    then
                         local O = Enable == false and owner() or Ply
                         local pos = plys[i]:getPos()
                         local ang = plys[i]:getAngles()
                         local dist = plys[i]:getPos():getDistance(O:getPos())
                         local obb = plys[i]:obbSize() / 2
-                        
+                        local clr = team.getColor(plys[i]:getTeam())
                         
                         local m = plys[i]:getMatrix()
                         m:translate(Vector(0, 0, 125))
@@ -238,23 +253,26 @@ else
                         m:rotate(Angle(0, 90, 0))
                         m:setScale(Vector(0.55, -0.55))
                         
-                        render.pushMatrix(m)
-                            local clr = team.getColor(plys[i]:getTeam())
-                            render.setColor(Color(clr.r, clr.g, clr.b, -150 + dist / 5 > 255 and 255 or -150 + dist / 5))
-                            render.setFont(Font1)
-                            render.drawSimpleText(0, 0, plys[i]:getName(), 1, 1)
-                        render.popMatrix()
-                            
-                        local m = plys[i]:getMatrix()
-                        m:setAngles(Angle(ang.x, ang.y, 0))
-                        render.pushMatrix(m)
-                            render.setColor(team.getColor(plys[i]:getTeam()))
-                            render.draw3DWireframeBox(Vector(), Angle(), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, obb.z * 2))
-                        render.popMatrix()
-                        
-                        render.setColor(Color(clr.r, clr.g, clr.b, 150))
-                        render.setMaterial(Mat1)
-                        render.draw3DBeam(plys[i]:getAttachment(plys[i]:lookupAttachment("eyes")) or Vector(), plys[i]:getEyeTrace().HitPos or Vector(), 1, -0.5, 0.5)
+                        if WHname then
+                            render.pushMatrix(m)
+                                render.setColor(Color(clr.r, clr.g, clr.b, -150 + dist / 5 > 255 and 255 or -150 + dist / 5))
+                                render.setFont(Font1)
+                                render.drawSimpleText(0, 0, plys[i]:getName(), 1, 1)
+                            render.popMatrix()
+                        end
+                        if WHbox then
+                            local m = plys[i]:getMatrix()
+                            m:setAngles(Angle(ang.x, ang.y, 0))
+                            render.pushMatrix(m)
+                                render.setColor(team.getColor(plys[i]:getTeam()))
+                                render.draw3DWireframeBox(Vector(), Angle(0, Ply:getEyeAngles()[2], 0), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, obb.z * 2))
+                            render.popMatrix()
+                        end
+                        if WHbeam then
+                            render.setColor(Color(clr.r, clr.g, clr.b, 150))
+                            render.setMaterial(Mat1)
+                            render.draw3DBeam(plys[i]:getAttachment(plys[i]:lookupAttachment("eyes")) or Vector(), plys[i]:getEyeTrace().HitPos or Vector(), 1, -0.5, 0.5)
+                        end
                     end
                 end
             end
@@ -273,6 +291,8 @@ else
                 if Hold == 1 then
                     p = Vector(x, y) + Poser
                 end
+                
+                local whpos = Vector(p.x + 250, p.y + 35)
                 
                 --buttons
                     --dots
@@ -294,6 +314,12 @@ else
                         Button[202] = Vector(x, y):withinAABox(Vector(p3.x + 29, p3.y + 3), Vector(p3.x + 53, p3.y + 27))
                         Button[204] = Vector(x, y):withinAABox(Vector(p3.x + MapSize - 53, p3.y + 3), Vector(p3.x + MapSize - 29, p3.y + 27))
                         Button[203] = Vector(x, y):withinAABox(Vector(p3.x + MapSize - 27, p3.y + 3), Vector(p3.x + MapSize - 3, p3.y + 27))
+                    --wall hack settings
+                        Button[300] = Vector(x, y):withinAABox(Vector(p.x + 10, p.y + 70), Vector(p.x + 90, p.y + 90))
+                        Button[301] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 35), Vector(whpos.x + 135, whpos.y + 55))
+                        Button[302] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 70), Vector(whpos.x + 135, whpos.y + 90))
+                        Button[303] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 105), Vector(whpos.x + 135, whpos.y + 125))
+                        
                     
                 
                 --base panel
@@ -317,7 +343,7 @@ else
                     render.drawRect(p.x + 102, p.y + 37, 16, 16)
                 end
                 --wh funcs draw
-                render.setColor(Color(155, 255, 255))
+                render.setColor(Button[300] and Color(0, 150, 255) or Color(155, 255, 255))
                 render.drawText(p.x + 15, p.y + 70, "WallHack", 0)
                 render.setColor(Color(200, 200, 200))
                 render.drawRect(p.x + 100, p.y + 70, 20, 20)
@@ -354,7 +380,7 @@ else
                 end
                 --armor/health funcs
                 render.setColor(Color(155, 255, 255))
-                render.drawText(p.x + 135, p.y + 35, "Armor", 0)
+                render.drawText(p.x + 135, p.y + 35, "HP/Armor", 0)
                 render.setColor(Color(200, 200, 200))
                 render.drawRect(p.x + 215, p.y + 35, 20, 20)
                 if AH then
@@ -376,7 +402,46 @@ else
                     render.drawText(p.x + 120, pos.y + ButtonSize * i, string.len(plys[i]:getName()) > 20 and (string.sub(plys[i]:getName(), 1, 25) .. "...") or plys[i]:getName(), 1)
                     
                 end
-            
+                
+                --WH settings
+                if OpenWHsettings then
+                    render.setFont(fontMenu)
+                    render.setColor(Color(150))
+                    render.setMaterial(MapSkin)
+                    render.drawTexturedRectUV(whpos.x, whpos.y, 150, 140, 0, 0, 0.3, 0.5)
+                    render.setColor(BaseBlueColor)
+                    render.drawRectOutline(whpos.x, whpos.y, 150, 140, 1)
+                    render.setColor(Color(155, 255, 155))
+                    render.drawText(whpos.x + 75, whpos.y, "WH settings", 1)
+                    render.setFont(fontAnother)
+                    
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(whpos.x + 15, whpos.y + 35, "draw name", 0)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(whpos.x + 115, whpos.y + 35, 20, 20)
+                    if WHname then
+                        render.setColor(Color(0, 0, 0))
+                        render.drawRect(whpos.x + 117, whpos.y + 37, 16, 16)
+                    end
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(whpos.x + 15, whpos.y + 70, "draw box", 0)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(whpos.x + 115, whpos.y + 70, 20, 20)
+                    if WHbox then
+                        render.setColor(Color(0, 0, 0))
+                        render.drawRect(whpos.x + 117, whpos.y + 72, 16, 16)
+                    end
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(whpos.x + 15, whpos.y + 105, "draw beam", 0)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(whpos.x + 115, whpos.y + 105, 20, 20)
+                    if WHbeam then
+                        render.setColor(Color(0, 0, 0))
+                        render.drawRect(whpos.x + 117, whpos.y + 107, 16, 16)
+                    end
+                    
+                end
+
             end
             
             --key hack active
@@ -459,7 +524,7 @@ else
                     
                     local mtx = Matrix()
                     mtx:setTranslation(Vector(DrawPos.x+ MapSize / 2, DrawPos.y + MapSize / 2 + 30, 0))
-                    mtx:setAngles(Angle(0, Ply:getAngles()[2] - 90, 0))
+                    mtx:setAngles(Angle(0, Ply:getEyeAngles()[2] - 90, 0))
                     
                     local imgposes = {
                         x1 = 0.25 + plypos.x - DrawedScale / 2,
@@ -519,7 +584,7 @@ else
                     for i = 1, #plys do
                         if plys[i] != Ply then 
                             local dist = Ply:getPos():setZ(0):getDistance(plys[i]:getPos():setZ(0)) / 13248 * (MapSize / 2 / DrawedScale)
-                            local ang = (Ply:getPos() - plys[i]:getPos()):getAngle().yaw - Ply:getAngles().yaw
+                            local ang = (Ply:getPos() - plys[i]:getPos()):getAngle().yaw - Ply:getEyeAngles().yaw
                             local pos = Vector(DrawPos.x + MapSize / 2, DrawPos.y + MapSize / 2 + 30) + Vector(math.sin(math.rad(ang)), math.cos(math.rad(ang)), 0) * dist
                             local z 
                                 if (Ply:getPos().z - plys[i]:getPos().z) > 100 then
@@ -621,6 +686,17 @@ else
                     savePoses()
                 elseif Button[204] and MH then
                     DrawedScale = math.max(DrawedScale - 0.01, 0.1)
+                    savePoses()
+                elseif Button[300] then
+                    OpenWHsettings = not OpenWHsettings
+                elseif Button[301] then
+                    WHname = not WHname
+                    savePoses()
+                elseif Button[302] then
+                    WHbox = not WHbox
+                    savePoses()
+                elseif Button[303] then
+                    WHbeam = not WHbeam
                     savePoses()
                 else
                     local plys = find.allPlayers()
