@@ -1,4 +1,4 @@
---@name CamPod-v2.60
+--@name CamPod-v2.61
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -23,7 +23,7 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.60"
+        Ver = "v2.61"
         
         print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack & Map improvements.")  
         
@@ -234,11 +234,9 @@ else
                 local plys = find.allPlayers()
                 for i = 1, #plys do
                     if 
-                    
-                        (Enable and plys[i] != Ply)
+                        (Enable and plys[i] != Ply and Ply == nil)
                             or
                         (not Enable and plys[i] != owner())
-                        
                     then
                         local O = Enable == false and owner() or Ply
                         local pos = plys[i]:getPos()
@@ -265,7 +263,7 @@ else
                             m:setAngles(Angle(ang.x, ang.y, 0))
                             render.pushMatrix(m)
                                 render.setColor(team.getColor(plys[i]:getTeam()))
-                                render.draw3DWireframeBox(Vector(), Angle(0, Ply:getEyeAngles()[2], 0), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, obb.z * 2))
+                                render.draw3DWireframeBox(Vector(), Angle(0, Ply:getEyeAngles()[2], 0), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, plys[i]:inVehicle() and obb.z or obb.z * 2))
                             render.popMatrix()
                         end
                         if WHbeam then
