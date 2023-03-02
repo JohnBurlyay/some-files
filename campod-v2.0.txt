@@ -1,11 +1,15 @@
---@name CamPod-v2.61
+--@name CamPod-v2.62
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
-    
+
 if SERVER then
     
     chip():setCollisionGroup(10)    
+    
+    Enable = false
+    E = 0
+    Ply = owner()
     
     net.receive("sendOnServer", function(str)
         Data = net.readTable()
@@ -16,16 +20,41 @@ if SERVER then
         
         --local clr = team.getColor(Data.ent:getTeam())
         --print("[b][ACP]: [c " .. clr[1] .. ", " .. clr[2] .. ", " .. clr[3] .. "]" .. Data.ent:getName() .. "[/c] pressed " .. "[/b][c 255, 100, 100]" .. KeyIndex[Data.key]) 
-        
     end)
-        
+    
+    net.receive("enable", function(str)
+        Data = net.readTable()
+        if Data.enable != nil then
+            Enable = Data.enable
+        end
+        if Data.entity != nil then
+            Ply = Data.entity
+        end
+    end)
+    net.receive("e", function(str)
+        Data = net.readTable()
+        E = Data.e
+    end)
+    
+    hook.add("think", "", function()
+        if Enable == true then
+            if Ply != nil and Ply != owner() then
+                if E == 1 then
+                    Ply:setEyeAngles(owner():getEyeAngles())
+                else
+                    owner():setEyeAngles(Ply:getEyeAngles())
+                end  
+            end
+        end
+    end)
+    
 else
     
     if player() == owner() then
         
-        Ver = "v2.61"
+        Ver = "v2.62"
         
-        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack & Map improvements.")  
+        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack improvement. Now you can intercept Camera-control of the Target.")  
         
         --other parameters
             Show = false
@@ -37,6 +66,7 @@ else
             Size = 15
             Enable = false
             OpenWHsettings = false
+            OpenCAMsettings = false
             Hold = 0
             Hold2 = 0
             Hold3 = 0
@@ -63,10 +93,12 @@ else
             WHname = File.whname or false
             WHbox = File.whbox or false
             WHbeam = File.whbeam or false
+            WHbox2D = File.whbox2d or false
             
             CamPos = Ply:getEyePos()
             
             Font1 = render.createFont("Roboto", 256, 400, true)
+            FontName = render.createFont("Roboto", 20, 400, true)
             Mat1 = render.createMaterial("sprites/laserbeam")
             
             BaseBlueColor = Color(25, 140, 220)
@@ -134,8 +166,8 @@ else
             _73 = {str = "Delete", clr = Color(255, 0, 0)},
             _74 = {str = "Home", clr = Color(255, 0, 0)},
             _75 = {str = "End", clr = Color(255, 0, 0)},
-            _76 = {str = "PageUp", clr = Color(255, 0, 0)},
-            _77 = {str = "PageDown", clr = Color(255, 0, 0)},
+            _76 = {str = "PageUp", clr = Color(255, 255, 255)},
+            _77 = {str = "PageDown", clr = Color(255, 255, 255)},
             _78 = {str = "Break", clr = Color(255, 0, 0)},
             
             _92 = {str = "F1", clr = Color(255, 255, 255)},
@@ -165,7 +197,7 @@ else
                 p = p, p2 = p2, p3 = p3, p4 = p4, 
                 mapsize = MapSize, 
                 mapzoom = DrawedScale,
-                whname = WHname, whbox = WHbox, whbeam = WHbeam,
+                whname = WHname, whbox = WHbox, whbeam = WHbeam, whbox2d = WHbox2D
             }
             file.write(FileName, json.encode(data))
         end
@@ -216,7 +248,7 @@ else
                 --check for leaved player
                 if Ply == nil or not Ply:isValid() then
                     Ply = owner() 
-                end
+                end             
                 local view = {
                     origin = Ply:getEyePos() + Ply:getEyeTrace().Normal * (Ply == owner() and 0 or 14),
                     angles = Ply:getEyeAngles(),
@@ -226,15 +258,16 @@ else
                 return view
             end
         end)
-        
+            
         enableHud(nil, true)
         
         hook.add("PostDrawOpaqueRenderables", "", function() 
             if WH then
                 local plys = find.allPlayers()
+                if Ply == nil then Ply = owner() end
                 for i = 1, #plys do
                     if 
-                        (Enable and plys[i] != Ply and Ply == nil)
+                        (Enable and plys[i] != Ply)
                             or
                         (not Enable and plys[i] != owner())
                     then
@@ -251,19 +284,12 @@ else
                         m:rotate(Angle(0, 90, 0))
                         m:setScale(Vector(0.55, -0.55))
                         
-                        if WHname then
-                            render.pushMatrix(m)
-                                render.setColor(Color(clr.r, clr.g, clr.b, -150 + dist / 5 > 255 and 255 or -150 + dist / 5))
-                                render.setFont(Font1)
-                                render.drawSimpleText(0, 0, plys[i]:getName(), 1, 1)
-                            render.popMatrix()
-                        end
                         if WHbox then
                             local m = plys[i]:getMatrix()
                             m:setAngles(Angle(ang.x, ang.y, 0))
                             render.pushMatrix(m)
                                 render.setColor(team.getColor(plys[i]:getTeam()))
-                                render.draw3DWireframeBox(Vector(), Angle(0, Ply:getEyeAngles()[2], 0), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, plys[i]:inVehicle() and obb.z or obb.z * 2))
+                                render.draw3DWireframeBox(Vector(), Angle(0, plys[i]:getEyeAngles()[2], 0), Vector(-obb.x, -obb.y, 0), Vector(obb.x, obb.y, plys[i]:inVehicle() and obb.z or obb.z * 2))
                             render.popMatrix()
                         end
                         if WHbeam then
@@ -290,7 +316,9 @@ else
                     p = Vector(x, y) + Poser
                 end
                 
+                local whsettingsY = 175
                 local whpos = Vector(p.x + 250, p.y + 35)
+                local campos = Vector(p.x + 250, p.y + 35 + whsettingsY)
                 
                 --buttons
                     --dots
@@ -317,6 +345,9 @@ else
                         Button[301] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 35), Vector(whpos.x + 135, whpos.y + 55))
                         Button[302] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 70), Vector(whpos.x + 135, whpos.y + 90))
                         Button[303] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 105), Vector(whpos.x + 135, whpos.y + 125))
+                        Button[304] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 140), Vector(whpos.x + 135, whpos.y + 160))
+                    --cam settings
+                        Button[400] = Vector(x, y):withinAABox(Vector(p.x + 10, p.y + 35), Vector(p.x + 90, p.y + 55))
                         
                     
                 
@@ -332,7 +363,7 @@ else
                 render.drawText(p.x + 125, p.y + 5, "[AdvancedCamPod] " .. Ver, 1)
                 --cam funcs draw
                 render.setFont(fontAnother)
-                render.setColor(Color(155, 255, 255))
+                render.setColor(Button[400] and Color(0, 150, 255) or Color(155, 255, 255))
                 render.drawText(p.x + 15, p.y + 35, "CamHack", 0)
                 render.setColor(Color(200, 200, 200))
                 render.drawRect(p.x + 100, p.y + 35, 20, 20)
@@ -400,21 +431,36 @@ else
                     render.drawText(p.x + 120, pos.y + ButtonSize * i, string.len(plys[i]:getName()) > 20 and (string.sub(plys[i]:getName(), 1, 25) .. "...") or plys[i]:getName(), 1)
                     
                 end
-                
+                --CAM settings
+                if OpenCAMsettings then
+                    render.setFont(fontMenu)
+                    render.setColor(Color(150))
+                    render.setMaterial(MapSkin)
+                    render.drawTexturedRectUV(campos.x, campos.y, 300, 100, 0.1, 0.1, 0.3, 0.2)
+                    render.setColor(BaseBlueColor)
+                    render.drawRectOutline(campos.x, campos.y, 300, 100, 1)
+                    render.setColor(Color(155, 255, 155))
+                    render.drawText(campos.x + 150, campos.y, "CamHack settings", 1)
+                    render.setFont(fontAnother)
+                    render.setColor(Color(255, 200, 100))
+                    render.drawText(campos.x + 5, campos.y + 25, "hold [E] while CamHack is on to \nintercept control of the target's \ncamera", 0)
+                    
+                    
+                end
                 --WH settings
                 if OpenWHsettings then
                     render.setFont(fontMenu)
                     render.setColor(Color(150))
                     render.setMaterial(MapSkin)
-                    render.drawTexturedRectUV(whpos.x, whpos.y, 150, 140, 0, 0, 0.3, 0.5)
+                    render.drawTexturedRectUV(whpos.x, whpos.y, 150, whsettingsY, 0, 0, 0.3, 0.5)
                     render.setColor(BaseBlueColor)
-                    render.drawRectOutline(whpos.x, whpos.y, 150, 140, 1)
+                    render.drawRectOutline(whpos.x, whpos.y, 150, whsettingsY, 1)
                     render.setColor(Color(155, 255, 155))
                     render.drawText(whpos.x + 75, whpos.y, "WH settings", 1)
                     render.setFont(fontAnother)
                     
                     render.setColor(Color(155, 255, 255))
-                    render.drawText(whpos.x + 15, whpos.y + 35, "draw name", 0)
+                    render.drawText(whpos.x + 15, whpos.y + 35, "name", 0)
                     render.setColor(Color(200, 200, 200))
                     render.drawRect(whpos.x + 115, whpos.y + 35, 20, 20)
                     if WHname then
@@ -422,7 +468,7 @@ else
                         render.drawRect(whpos.x + 117, whpos.y + 37, 16, 16)
                     end
                     render.setColor(Color(155, 255, 255))
-                    render.drawText(whpos.x + 15, whpos.y + 70, "draw box", 0)
+                    render.drawText(whpos.x + 15, whpos.y + 70, "3D box", 0)
                     render.setColor(Color(200, 200, 200))
                     render.drawRect(whpos.x + 115, whpos.y + 70, 20, 20)
                     if WHbox then
@@ -430,16 +476,58 @@ else
                         render.drawRect(whpos.x + 117, whpos.y + 72, 16, 16)
                     end
                     render.setColor(Color(155, 255, 255))
-                    render.drawText(whpos.x + 15, whpos.y + 105, "draw beam", 0)
+                    render.drawText(whpos.x + 15, whpos.y + 105, "AimBeam", 0)
                     render.setColor(Color(200, 200, 200))
                     render.drawRect(whpos.x + 115, whpos.y + 105, 20, 20)
                     if WHbeam then
                         render.setColor(Color(0, 0, 0))
                         render.drawRect(whpos.x + 117, whpos.y + 107, 16, 16)
                     end
-                    
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(whpos.x + 15, whpos.y + 140, "2D box", 0)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(whpos.x + 115, whpos.y + 140, 20, 20)
+                    if WHbox2D then
+                        render.setColor(Color(0, 0, 0))
+                        render.drawRect(whpos.x + 117, whpos.y + 142, 16, 16)
+                    end
                 end
 
+            end
+            
+            --WH
+            if WH then
+                render.setFont(FontName)
+                local plys = find.allPlayers()
+                for i = 1, #plys do
+                    local ply = plys[i]
+                    local obb = ply:obbSize()
+                    local dist = Ply:getPos():getDistance(ply:getPos())
+                    
+                    if    
+                        (Ply != ply and Enable)
+                        or
+                        (owner() != ply and not Enable)
+                    
+                    then
+                        --draw name
+                        if WHname and dist > 500 then
+                            local pos = (ply:getPos() + Vector(0, 0, obb[3])):toScreen()
+                            render.setColor(team.getColor(ply:getTeam()))
+                            render.drawSimpleText(pos.x, pos.y - 20, ply:getName(), 1)
+                        end
+                        --draw 2D box
+                        if WHbox2D then
+                            local size = math.max(10, 25 - dist / 500)
+                            local pos = (ply:getAttachment(ply:lookupAttachment("chest")) or ply:getPos()):toScreen()
+                            render.setColor(team.getColor(ply:getTeam()))
+                            render.drawRect(pos.x, pos.y, size, size)
+                        end
+                    end
+                    
+                end
+                
+                
             end
             
             --key hack active
@@ -642,11 +730,22 @@ else
                 
                 Show = not Show
                 input.enableCursor(Show)
-                
+            
+            elseif key == 15 and Enable then
+            
+                net.start("e")
+                net.writeTable({e = 1})
+                net.send(owner())
+            
             elseif key == 107 and Show then
                 
                 if Button[100] then
                     Enable = not Enable
+                    
+                    net.start("enable")
+                    net.writeTable({enable = Enable, entity = Ply})
+                    net.send(owner())
+                    
                 elseif Button[101] then
                     WH = not WH
                 elseif Button[102] then
@@ -687,20 +786,30 @@ else
                     savePoses()
                 elseif Button[300] then
                     OpenWHsettings = not OpenWHsettings
+                elseif Button[400] then
+                    OpenCAMsettings = not OpenCAMsettings
                 elseif Button[301] then
                     WHname = not WHname
                     savePoses()
                 elseif Button[302] then
                     WHbox = not WHbox
+                    if WHbox == true then WHbox2D = false end
                     savePoses()
                 elseif Button[303] then
                     WHbeam = not WHbeam
+                    savePoses()
+                elseif Button[304] then
+                    WHbox2D = not WHbox2D
+                    if WHbox2D == true then WHbox = false end
                     savePoses()
                 else
                     local plys = find.allPlayers()
                     for i = 1, #plys do
                         if Button[i] then
                             Ply = plys[i]
+                            net.start("enable")
+                            net.writeTable({entity = Ply})
+                            net.send(owner())
                         end 
                     end
                     
@@ -709,12 +818,20 @@ else
         end)
         hook.add("inputReleased", "", function(key)
             if key == 107 then
+                
                 Hold = 0
                 Hold2 = 0
                 Hold3 = 0
                 Hold4 = 0
                 savePoses()
                 Poser = Vector(0)
+                
+            elseif key == 15 and Enable then
+            
+                net.start("e")
+                net.writeTable({e = 0})
+                net.send(owner())
+                
             end
         end)
     else
