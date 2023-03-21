@@ -1,4 +1,4 @@
---@name CamPod-v2.62
+--@name CamPod-v2.63
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -10,27 +10,38 @@ if SERVER then
     Enable = false
     E = 0
     Ply = owner()
+    O = owner()
+    Pos = Vector(0, 0, 0)
     
     net.receive("sendOnServer", function(str)
         Data = net.readTable()
-        
         net.start("sendOnOwner")
         net.writeTable(Data)
         net.send(owner())
-        
-        --local clr = team.getColor(Data.ent:getTeam())
-        --print("[b][ACP]: [c " .. clr[1] .. ", " .. clr[2] .. ", " .. clr[3] .. "]" .. Data.ent:getName() .. "[/c] pressed " .. "[/b][c 255, 100, 100]" .. KeyIndex[Data.key]) 
     end)
     
     net.receive("enable", function(str)
         Data = net.readTable()
         if Data.enable != nil then
             Enable = Data.enable
+            
+            if Enable == false then
+                O:setPos(Pos) 
+                if O:isNoclipped() then
+                    concmd("noclip")
+                end
+            elseif Enable == true then
+                Pos = O:getPos() 
+            end
         end
         if Data.entity != nil then
             Ply = Data.entity
+            net.start("setModel")
+            net.writeString(string.replace(Ply:getViewModel():getModel(), "c_", "v_"))
+            net.send(owner())
         end
     end)
+    
     net.receive("e", function(str)
         Data = net.readTable()
         E = Data.e
@@ -38,13 +49,25 @@ if SERVER then
     
     hook.add("think", "", function()
         if Enable == true then
-            if Ply != nil and Ply != owner() then
+            if Ply != nil and Ply != owner() and Ply:isValid() then
                 if E == 1 then
                     Ply:setEyeAngles(owner():getEyeAngles())
                 else
-                    owner():setEyeAngles(Ply:getEyeAngles())
-                end  
+                    owner():setEyeAngles(Ply:getEyeAngles() or Angle())
+                end
+                O:setPos(Vector(0, 0, 0)) 
+                if not O:isNoclipped() then
+                    concmd("noclip")
+                end
             end
+        end
+    end)
+    
+    hook.add("PlayerSwitchWeapon", "", function(ply)
+        if ply == Ply then
+            net.start("setModel")
+            net.writeString(string.replace(Ply:getViewModel():getModel(), "c_", "v_"))
+            net.send(owner())
         end
     end)
     
@@ -52,9 +75,9 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.62"
+        Ver = "v2.63"
         
-        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: WallHack improvement. Now you can intercept Camera-control of the Target.")  
+        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: updated CamHack mode.")  
         
         --other parameters
             Show = false
@@ -95,6 +118,11 @@ else
             WHbeam = File.whbeam or false
             WHbox2D = File.whbox2d or false
             
+            TransparentWeapon = File.transparentweapon or false
+            
+            Range = File.range or 0
+            FOV = File.fov or 90
+            
             CamPos = Ply:getEyePos()
             
             Font1 = render.createFont("Roboto", 256, 400, true)
@@ -102,6 +130,10 @@ else
             Mat1 = render.createMaterial("sprites/laserbeam")
             
             BaseBlueColor = Color(25, 140, 220)
+            
+            BaseView = holograms.create(Vector(), Angle(),"models/holograms/cube.mdl")
+            BaseView:setColor(Color(255, 255, 255, 0))    
+            BaseView:setAnimation("idle", nil, nil)
                     
         --map hack basics
             Map = material.create("UnlitGeneric")
@@ -197,7 +229,10 @@ else
                 p = p, p2 = p2, p3 = p3, p4 = p4, 
                 mapsize = MapSize, 
                 mapzoom = DrawedScale,
-                whname = WHname, whbox = WHbox, whbeam = WHbeam, whbox2d = WHbox2D
+                whname = WHname, whbox = WHbox, whbeam = WHbeam, whbox2d = WHbox2D,
+                transparentweapon = TransparentWeapon,
+                range = Range,
+                fov = FOV,
             }
             file.write(FileName, json.encode(data))
         end
@@ -241,21 +276,43 @@ else
             writeKey(Data)
             
         end)
-
         
+        net.receive("setModel", function(str)
+            BaseView:setModel(net.readString())
+        end)
+            
         hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
             if Enable then
                 --check for leaved player
                 if Ply == nil or not Ply:isValid() then
-                    Ply = owner() 
-                end             
+                    Ply = owner()
+                end
+                if Ply == owner() then return end
+                
+                local EyePos = Ply:getEyePos()
+                local EyeAng = Ply:getEyeAngles()
+                local Weapon = Ply:getActiveWeapon()
+                             
                 local view = {
-                    origin = Ply:getEyePos() + Ply:getEyeTrace().Normal * (Ply == owner() and 0 or 14),
-                    angles = Ply:getEyeAngles(),
-                    fov = fov,
-                    drawviewer = false   
-                }
+                    origin = EyePos + Ply:getEyeTrace().Normal * Range,
+                    angles = EyeAng,
+                    fov = FOV,
+                    drawviewer = true   
+                }        
+                
+                if Weapon:isValid() then Weapon:setColor(Color(255, 255, 255, 0)) end
+                
+                Ply:setColor(Color(0, 0, 0, 0))
+                BaseView:setColor(Color(255, 255, 255, TransparentWeapon == true and 150 or 255)) 
+                
+                BaseView:setPos(EyePos) 
+                BaseView:setAngles(EyeAng)
+                                            
                 return view
+            else
+                BaseView:setColor(Color(255, 255, 255, 0)) 
+                Ply:setColor(Color(255, 255, 255, 255))
+                if Ply:getActiveWeapon():isValid() then Ply:getActiveWeapon():setColor(Color(255, 255, 255, 255)) end
             end
         end)
             
@@ -348,6 +405,7 @@ else
                         Button[304] = Vector(x, y):withinAABox(Vector(whpos.x + 115, whpos.y + 140), Vector(whpos.x + 135, whpos.y + 160))
                     --cam settings
                         Button[400] = Vector(x, y):withinAABox(Vector(p.x + 10, p.y + 35), Vector(p.x + 90, p.y + 55))
+                        Button[401] = Vector(x, y):withinAABox(Vector(campos.x + 175, campos.y + 100), Vector(campos.x + 195, campos.y + 120))
                         
                     
                 
@@ -436,16 +494,30 @@ else
                     render.setFont(fontMenu)
                     render.setColor(Color(150))
                     render.setMaterial(MapSkin)
-                    render.drawTexturedRectUV(campos.x, campos.y, 300, 100, 0.1, 0.1, 0.3, 0.2)
+                    render.drawTexturedRectUV(campos.x, campos.y, 300, 210, 0.0, 0.1, 0.2, 0.3)
                     render.setColor(BaseBlueColor)
-                    render.drawRectOutline(campos.x, campos.y, 300, 100, 1)
+                    render.drawRectOutline(campos.x, campos.y, 300, 210, 1)
                     render.setColor(Color(155, 255, 155))
                     render.drawText(campos.x + 150, campos.y, "CamHack settings", 1)
                     render.setFont(fontAnother)
                     render.setColor(Color(255, 200, 100))
                     render.drawText(campos.x + 5, campos.y + 25, "hold [E] while CamHack is on to \nintercept control of the target's \ncamera", 0)
                     
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(campos.x + 15, campos.y + 100, "transparent weapon", 0)
+                    render.setColor(Color(200, 200, 200))
+                    render.drawRect(campos.x + 175, campos.y + 100, 20, 20)
+                    if TransparentWeapon then
+                        render.setColor(Color(0, 0, 0))
+                        render.drawRect(campos.x + 177, campos.y + 102, 16, 16)
+                    end
                     
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(campos.x + 15, campos.y + 135, "{ mouseWheel } to change zoom [" .. Range .. "]", 0)
+                    
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(campos.x + 15, campos.y + 170, "{ - | + } to change FOV [" .. FOV .. "]", 0)
+                
                 end
                 --WH settings
                 if OpenWHsettings then
@@ -730,7 +802,27 @@ else
                 
                 Show = not Show
                 input.enableCursor(Show)
+                
+            elseif key == 112 and Enable == true  and Show == true then
+                
+                Range = Range + 1
+                savePoses()
+                
+            elseif key == 113 and Enable == true  and Show == true then
+                
+                Range = Range - 1
+                savePoses()
             
+            elseif key == 62 and Enable == true  and Show == true then
+                
+                FOV = FOV - 5
+                savePoses()
+                
+            elseif key == 63 and Enable == true  and Show == true then
+                
+                FOV = FOV + 5
+                savePoses()
+                
             elseif key == 15 and Enable then
             
                 net.start("e")
@@ -788,6 +880,8 @@ else
                     OpenWHsettings = not OpenWHsettings
                 elseif Button[400] then
                     OpenCAMsettings = not OpenCAMsettings
+                elseif Button[401] then
+                    TransparentWeapon = not TransparentWeapon
                 elseif Button[301] then
                     WHname = not WHname
                     savePoses()
