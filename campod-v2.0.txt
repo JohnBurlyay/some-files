@@ -1,4 +1,4 @@
---@name CamPod-v2.63
+--@name CamPod-v2.63a
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -71,11 +71,20 @@ if SERVER then
         end
     end)
     
+    hook.add("Removed", "", function()
+        if Enable then
+            O:setPos(Pos) 
+            if O:isNoclipped() then
+                concmd("noclip")
+            end
+        end
+    end)
+    
 else
     
     if player() == owner() then
         
-        Ver = "v2.63"
+        Ver = "v2.63a"
         
         print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: updated CamHack mode.")  
         
@@ -900,6 +909,7 @@ else
                     local plys = find.allPlayers()
                     for i = 1, #plys do
                         if Button[i] then
+                            Ply:setColor(Color(255, 255, 255, 255))
                             Ply = plys[i]
                             net.start("enable")
                             net.writeTable({entity = Ply})
@@ -926,6 +936,12 @@ else
                 net.writeTable({e = 0})
                 net.send(owner())
                 
+            end
+        end)
+        hook.add("Removed", "", function()
+            local plys = find.allPlayers()
+            for i = 1, #plys do
+                plys[i]:setColor(Color(255, 255, 255, 255))
             end
         end)
     else
