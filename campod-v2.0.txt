@@ -1,4 +1,4 @@
---@name CamPod-v2.63a
+--@name CamPod-v2.64
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -37,14 +37,13 @@ if SERVER then
         if Data.entity != nil then
             Ply = Data.entity
             net.start("setModel")
-            net.writeString(string.replace(Ply:getViewModel():getModel(), "c_", "v_"))
+            net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
             net.send(owner())
         end
     end)
     
     net.receive("e", function(str)
-        Data = net.readTable()
-        E = Data.e
+        E = net.readTable().e
     end)
     
     hook.add("think", "", function()
@@ -65,9 +64,11 @@ if SERVER then
     
     hook.add("PlayerSwitchWeapon", "", function(ply)
         if ply == Ply then
-            net.start("setModel")
-            net.writeString(string.replace(Ply:getViewModel():getModel(), "c_", "v_"))
-            net.send(owner())
+            timer.create("weapon", 0.25, 1, function()
+                net.start("setModel")
+                net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
+                net.send(owner())
+            end)
         end
     end)
     
@@ -84,9 +85,9 @@ else
     
     if player() == owner() then
         
-        Ver = "v2.63a"
+        Ver = "v2.64"
         
-        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: updated CamHack mode.")  
+        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: updated CamHack mode. Some bug fixes.")  
         
         --other parameters
             Show = false
@@ -312,7 +313,11 @@ else
                 if Weapon:isValid() then Weapon:setColor(Color(255, 255, 255, 0)) end
                 
                 Ply:setColor(Color(0, 0, 0, 0))
-                BaseView:setColor(Color(255, 255, 255, TransparentWeapon == true and 150 or 255)) 
+                if Ply:isAlive() then
+                    BaseView:setColor(Color(255, 255, 255, TransparentWeapon == true and 150 or 255)) 
+                else 
+                    BaseView:setColor(Color(255, 255, 255, 0)) 
+                end
                 
                 BaseView:setPos(EyePos) 
                 BaseView:setAngles(EyeAng)
