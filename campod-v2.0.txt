@@ -1,4 +1,4 @@
---@name CamPod-v2.64
+--@name CamPod-v2.65
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -56,7 +56,7 @@ if SERVER then
                 end
                 O:setPos(Vector(0, 0, 0)) 
                 if not O:isNoclipped() then
-                    concmd("noclip")
+                    concmd("ulx noclip")
                 end
             end
         end
@@ -76,7 +76,7 @@ if SERVER then
         if Enable then
             O:setPos(Pos) 
             if O:isNoclipped() then
-                concmd("noclip")
+                concmd("ulx noclip")
             end
         end
     end)
@@ -84,11 +84,7 @@ if SERVER then
 else
     
     if player() == owner() then
-        
-        Ver = "v2.64"
-        
-        print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [ALT] to open/close menu. Last update: updated CamHack mode. Some bug fixes.")  
-        
+                
         --other parameters
             Show = false
             WH = false
@@ -106,6 +102,8 @@ else
             Hold4 = 0
             Button = {}
             ButtonSize = 22
+            OpenGlobalSettings = false
+            ChangeMenuKey = false
             
             KeyLog = {}
             
@@ -133,6 +131,8 @@ else
             Range = File.range or 0
             FOV = File.fov or 90
             
+            MenuKey = File.menukey or 81
+            
             CamPos = Ply:getEyePos()
             
             Font1 = render.createFont("Roboto", 256, 400, true)
@@ -144,7 +144,10 @@ else
             BaseView = holograms.create(Vector(), Angle(),"models/holograms/cube.mdl")
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
-                    
+            
+            Ver = "v2.65"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: Interface changes. Now you can change MenuKey button.")  
+            
         --map hack basics
             Map = material.create("UnlitGeneric")
             Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
@@ -243,6 +246,7 @@ else
                 transparentweapon = TransparentWeapon,
                 range = Range,
                 fov = FOV,
+                menukey = MenuKey,
             }
             file.write(FileName, json.encode(data))
         end
@@ -288,7 +292,7 @@ else
         end)
         
         net.receive("setModel", function(str)
-            BaseView:setModel(net.readString())
+            BaseView:setModel(net.readString() or "models/props_junk/PopCan01a.mdl")
         end)
             
         hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
@@ -381,7 +385,7 @@ else
             if Show then
                 
                 local x, y = input.getCursorPos()
-                local panelY = 148 + ButtonSize * #find.allPlayers()
+                local panelY = 183 + ButtonSize * #find.allPlayers()
                 
                 if Hold == 1 then
                     p = Vector(x, y) + Poser
@@ -390,6 +394,7 @@ else
                 local whsettingsY = 175
                 local whpos = Vector(p.x + 250, p.y + 35)
                 local campos = Vector(p.x + 250, p.y + 35 + whsettingsY)
+                local globalset = Vector(p.x - 150, p.y + 35)
                 
                 --buttons
                     --dots
@@ -420,7 +425,9 @@ else
                     --cam settings
                         Button[400] = Vector(x, y):withinAABox(Vector(p.x + 10, p.y + 35), Vector(p.x + 90, p.y + 55))
                         Button[401] = Vector(x, y):withinAABox(Vector(campos.x + 175, campos.y + 100), Vector(campos.x + 195, campos.y + 120))
-                        
+                    --global settings
+                        Button[402] = Vector(x, y):withinAABox(Vector(p.x + 65, p.y + 140), Vector(p.x + 185, p.y + 160))
+                        Button[403] = Vector(x, y):withinAABox(Vector(globalset.x + 9, globalset.y + 35), Vector(globalset.x + 144, globalset.y + 55))
                     
                 
                 --base panel
@@ -439,6 +446,8 @@ else
                 render.drawText(p.x + 15, p.y + 35, "CamHack", 0)
                 render.setColor(Color(200, 200, 200))
                 render.drawRect(p.x + 100, p.y + 35, 20, 20)
+                render.setColor(Button[400] and Color(200, 150, 75) or Color(100, 75, 25))
+                render.drawRectOutline(p.x + 11, p.y + 35, 82, 20, 2)
                 if Enable then
                     render.setColor(Color(0, 0, 0))
                     render.drawRect(p.x + 102, p.y + 37, 16, 16)
@@ -448,6 +457,8 @@ else
                 render.drawText(p.x + 15, p.y + 70, "WallHack", 0)
                 render.setColor(Color(200, 200, 200))
                 render.drawRect(p.x + 100, p.y + 70, 20, 20)
+                render.setColor(Button[300] and Color(200, 150, 75) or Color(100, 75, 25))
+                render.drawRectOutline(p.x + 11, p.y + 70, 82, 20, 2)
                 if WH then
                     render.setColor(Color(0, 0, 0))
                     render.drawRect(p.x + 102, p.y + 72, 16, 16)
@@ -488,10 +499,16 @@ else
                     render.setColor(Color(0, 0, 0))
                     render.drawRect(p.x + 217, p.y + 37, 16, 16)
                 end
+                --global settings
+                render.setFont(fontAnother)
+                render.setColor(Button[402] and Color(0, 150, 255) or Color(155, 255, 255))
+                render.drawText(p.x + 125, p.y + 140, "Global Settings", 1)
+                render.setColor(Button[402] and Color(200, 150, 75) or Color(100, 75, 25))
+                render.drawRectOutline(p.x + 65, p.y + 140, 120, 20, 2)
                 
                 --plys list
                 local plys = find.allPlayers()
-                local pos = Vector(p.x, p.y + 120)
+                local pos = Vector(p.x, p.y + 155)
                 render.setFont(fontAnother)
                 for i = 1, #plys do
                     
@@ -501,6 +518,27 @@ else
                     render.drawRect(pos.x + 5, pos.y + ButtonSize * i, 240, ButtonSize - 2)
                     render.setColor(Button[i] and team.getColor(plys[i]:getTeam()) or Color(200, 200, 200))
                     render.drawText(p.x + 120, pos.y + ButtonSize * i, string.len(plys[i]:getName()) > 20 and (string.sub(plys[i]:getName(), 1, 25) .. "...") or plys[i]:getName(), 1)
+                    
+                end
+                --Global settings
+                if OpenGlobalSettings then
+                    render.setColor(Color(150))
+                    render.setMaterial(MapSkin)
+                    render.drawTexturedRectUV(globalset.x, globalset.y, 150, 200, 0.0, 0.1, 0.2, 0.3)
+                    render.setColor(BaseBlueColor)
+                    render.drawRectOutline(globalset.x, globalset.y, 150, 200, 1)
+                    render.setFont(fontMenu)
+                    render.setColor(Color(155, 255, 155))
+                    render.drawText(globalset.x + 75, globalset.y, "Global Settings", 1)
+                    
+                    render.setFont(fontAnother)
+                    render.setColor(Color(155, 255, 255))
+                    render.drawText(globalset.x + 75, globalset.y + 35, "change MenuKey", 1)
+                    render.setColor(Button[403] and Color(200, 150, 75) or Color(100, 75, 25))
+                    render.drawRectOutline(globalset.x + 9, globalset.y + 35, 135, 20, 2)
+                    render.setFont(fontMap)
+                    render.setColor(ChangeMenuKey == false and Color(255, 200, 100) or Color(255, 100, 25))
+                    render.drawText(globalset.x + 75, globalset.y + 60, "curent key:[" .. (ChangeMenuKey == false and input.getKeyName(MenuKey) or "...") .. "]", 1)
                     
                 end
                 --CAM settings
@@ -812,7 +850,15 @@ else
         end)
                 
         hook.add("inputPressed", "", function(key)
-            if key == 81 then
+            if ChangeMenuKey == true then
+                
+                if key != 107 and key != 36  and key != 70 then
+                    MenuKey = key 
+                    ChangeMenuKey = false
+                    savePoses()
+                end
+                
+            elseif key == MenuKey then
                 
                 Show = not Show
                 input.enableCursor(Show)
@@ -896,6 +942,10 @@ else
                     OpenCAMsettings = not OpenCAMsettings
                 elseif Button[401] then
                     TransparentWeapon = not TransparentWeapon
+                elseif Button[402] then
+                    OpenGlobalSettings = not OpenGlobalSettings
+                elseif Button[403] then
+                    ChangeMenuKey = not ChangeMenuKey
                 elseif Button[301] then
                     WHname = not WHname
                     savePoses()
