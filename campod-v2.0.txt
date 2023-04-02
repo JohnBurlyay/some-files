@@ -28,7 +28,7 @@ if SERVER then
             if Enable == false then
                 O:setPos(Pos) 
                 if O:isNoclipped() then
-                    concmd("noclip")
+                    concmd("ulx noclip")
                 end
             elseif Enable == true then
                 Pos = O:getPos() 
