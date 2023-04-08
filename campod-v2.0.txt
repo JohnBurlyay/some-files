@@ -1,4 +1,4 @@
---@name CamPod-v2.65
+--@name CamPod-v2.65b
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -64,10 +64,12 @@ if SERVER then
     
     hook.add("PlayerSwitchWeapon", "", function(ply)
         if ply == Ply then
-            timer.create("weapon", 0.25, 1, function()
-                net.start("setModel")
-                net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
-                net.send(owner())
+            timer.create("weapon", 0.5, 1, function()
+                if ply:isValid() then
+                    net.start("setModel")
+                    net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
+                    net.send(owner())
+                end
             end)
         end
     end)
@@ -145,8 +147,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.65"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: Interface changes. Now you can change MenuKey button.")  
+            Ver = "v2.65b"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: Bug fixes. Now you can change MenuKey button.")  
             
         --map hack basics
             Map = material.create("UnlitGeneric")
@@ -292,7 +294,10 @@ else
         end)
         
         net.receive("setModel", function(str)
-            BaseView:setModel(net.readString() or "models/props_junk/PopCan01a.mdl")
+            try(
+                BaseView:setModel(net.readString() or "models/props_junk/PopCan01a.mdl"),
+                nil
+            )
         end)
             
         hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
