@@ -1,4 +1,4 @@
---@name CamPod-v2.65c
+--@name CamPod-v2.66
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -268,20 +268,20 @@ else
         end
         
         local function writeKey(data)
-            
-            local id = data.ent:getSteamID()
-            
-            --check for player exists in table
-            if KeyLog[id] == nil then
-                KeyLog[id] = {}
+            if data.ent then
+                local id = data.ent:getSteamID()
+                
+                --check for player exists in table
+                if KeyLog[id] == nil then
+                    KeyLog[id] = {}
+                end
+                --check for specified KEYVALUE exists in table
+                if KeyLog[id][KeyIndex[data.key].str] == nil then
+                    KeyLog[id][KeyIndex[data.key].str] = {num = 0, clr = KeyIndex[data.key].clr}
+                end
+                
+                KeyLog[id][KeyIndex[data.key].str].num = KeyLog[id][KeyIndex[data.key].str].num + 1
             end
-            --check for specified KEYVALUE exists in table
-            if KeyLog[id][KeyIndex[data.key].str] == nil then
-                KeyLog[id][KeyIndex[data.key].str] = {num = 0, clr = KeyIndex[data.key].clr}
-            end
-            
-            KeyLog[id][KeyIndex[data.key].str].num = KeyLog[id][KeyIndex[data.key].str].num + 1
-
         end
             
         net.receive("sendOnOwner", function(str)
