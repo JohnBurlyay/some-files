@@ -1,4 +1,4 @@
---@name CamPod-v2.65b
+--@name CamPod-v2.65c
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -36,9 +36,12 @@ if SERVER then
         end
         if Data.entity != nil then
             Ply = Data.entity
-            net.start("setModel")
-            net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
-            net.send(owner())
+            local Model = Ply:getViewModel():getModel()
+            if Model then
+                net.start("setModel")
+                net.writeString(string.replace(Model or "", "c_", "v_"))
+                net.send(owner())
+            end
         end
     end)
     
@@ -65,9 +68,10 @@ if SERVER then
     hook.add("PlayerSwitchWeapon", "", function(ply)
         if ply == Ply then
             timer.create("weapon", 0.5, 1, function()
-                if ply:isValid() then
+                local Model = Ply:getViewModel():getModel()
+                if Model then
                     net.start("setModel")
-                    net.writeString(string.replace(Ply:getViewModel():getModel() or "", "c_", "v_"))
+                    net.writeString(string.replace(Model or "", "c_", "v_"))
                     net.send(owner())
                 end
             end)
@@ -147,7 +151,7 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.65b"
+            Ver = "v2.65c"
             print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: Bug fixes. Now you can change MenuKey button.")  
             
         --map hack basics
