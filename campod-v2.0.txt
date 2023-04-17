@@ -27,7 +27,7 @@ if SERVER then
             
             if Enable == false then
                 O:setPos(Pos) 
-                if O:isNoclipped() then
+                if O:isNoclipped() and O then
                     concmd("ulx noclip")
                 end
             elseif Enable == true then
@@ -58,7 +58,7 @@ if SERVER then
                     owner():setEyeAngles(Ply:getEyeAngles() or Angle())
                 end
                 O:setPos(Vector(0, 0, 0)) 
-                if not O:isNoclipped() then
+                if not O:isNoclipped() and O then
                     concmd("ulx noclip")
                 end
             end
@@ -81,7 +81,7 @@ if SERVER then
     hook.add("Removed", "", function()
         if Enable then
             O:setPos(Pos) 
-            if O:isNoclipped() then
+            if O:isNoclipped() and O then
                 concmd("ulx noclip")
             end
         end
@@ -151,18 +151,32 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.65c"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: Bug fixes. Now you can change MenuKey button.")  
+            Ver = "v2.66"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed error loading textures and CPU quota los.")  
             
-        --map hack basics
+        function loadTextures() 
             Map = material.create("UnlitGeneric")
-            Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
-                layout(0, 0, 512, 512)
-            end)
             MapSkin = material.create("UnlitGeneric")
-            MapSkin:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/1076105846473359360/1076105896112963614/mapskin.png", function(_, _, _, _, layout)
-                layout(0, 0, 512, 512)
+            Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
+                if layout then
+                    layout(0, 0, 512, 512)
+                else
+                    Map = material.createFromImage("spawnicons/models/maxofs2d/logo_gmod_b.png", "")
+                    print("[ACP][c 255, 0, 0]: error loading Map texture!")
+                end
             end)
+            MapSkin:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/1076105846473359360/1076105896112963614/mapskin.png", function(_, _, _, _, layout)
+                if layout then
+                    layout(0, 0, 512, 512)
+                else
+                    MapSkin = material.createFromImage("spawnicons/models/maxofs2d/logo_gmod_b.png", "")
+                    print("[ACP][c 255, 0, 0]: error loading menu texture!")
+                end
+            end)
+        end
+        
+        --map hack basics
+            loadTextures()
             
             MapSize = File.mapsize or 300
             local x, y = render.getResolution()
@@ -283,6 +297,10 @@ else
                 KeyLog[id][KeyIndex[data.key].str].num = KeyLog[id][KeyIndex[data.key].str].num + 1
             end
         end
+        
+        local function quotaCheck(n)
+            return math.max(quotaAverage(), quotaUsed()) < quotaMax()*n
+        end
             
         net.receive("sendOnOwner", function(str)
             Data = net.readTable()
@@ -346,7 +364,7 @@ else
         enableHud(nil, true)
         
         hook.add("PostDrawOpaqueRenderables", "", function() 
-            if WH then
+            if WH and quotaCheck(0.95) then
                 local plys = find.allPlayers()
                 if Ply == nil then Ply = owner() end
                 for i = 1, #plys do
@@ -387,6 +405,8 @@ else
         end)
         
         hook.add("drawhud", "", function() 
+            
+            if not quotaCheck(0.95) then return end
             
             render.setFilterMin(1) 
             render.setFilterMag(1)
@@ -547,7 +567,13 @@ else
                     render.drawRectOutline(globalset.x + 9, globalset.y + 35, 135, 20, 2)
                     render.setFont(fontMap)
                     render.setColor(ChangeMenuKey == false and Color(255, 200, 100) or Color(255, 100, 25))
-                    render.drawText(globalset.x + 75, globalset.y + 60, "curent key:[" .. (ChangeMenuKey == false and input.getKeyName(MenuKey) or "...") .. "]", 1)
+                    render.drawText(globalset.x + 75, globalset.y + 60, "curent key: [" .. (ChangeMenuKey == false and input.getKeyName(MenuKey) or "...") .. "]", 1)
+                    
+                    render.setColor(Color(255, 200, 100))
+                    render.drawText(globalset.x + 75, globalset.y + 80, "CPU usage: " .. string.sub(tostring(math.max(quotaAverage(), quotaUsed())) * 10000, 0, 5) .. "%", 1)
+                    
+                    
+                    --math.max(quotaAverage(), quotaUsed())
                     
                 end
                 --CAM settings
