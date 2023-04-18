@@ -1,4 +1,4 @@
---@name CamPod-v2.66
+--@name CamPod-v2.67
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -12,6 +12,11 @@ if SERVER then
     Ply = owner()
     O = owner()
     Pos = Vector(0, 0, 0)
+    Team = owner():getTeam()
+    
+    Chair = prop.createSent(Vector(0), Angle(0, 0, 0), "Seat_Jeep", 1, {})     
+    Chair:setColor(Color(0, 0, 0, 0))
+    Chair:setCollisionGroup(10)
     
     net.receive("sendOnServer", function(str)
         Data = net.readTable()
@@ -26,12 +31,12 @@ if SERVER then
             Enable = Data.enable
             
             if Enable == false then
-                O:setPos(Pos) 
-                if O:isNoclipped() and O then
-                    concmd("ulx noclip")
-                end
+                Chair:setPos(Pos)
+                Chair:ejectDriver()
+                Chair:setPos(Vector(0))
             elseif Enable == true then
                 Pos = O:getPos() 
+                Chair:use(1, 0)
             end
         end
         if Data.entity != nil then
@@ -51,16 +56,8 @@ if SERVER then
     
     hook.add("think", "", function()
         if Enable == true then
-            if Ply != nil and Ply != owner() and Ply:isValid() then
-                if E == 1 then
-                    Ply:setEyeAngles(owner():getEyeAngles())
-                else
-                    owner():setEyeAngles(Ply:getEyeAngles() or Angle())
-                end
-                O:setPos(Vector(0, 0, 0)) 
-                if not O:isNoclipped() and O then
-                    concmd("ulx noclip")
-                end
+            if Chair:getPos() != Vector(0) then
+                Chair:setPos(Vector(0))
             end
         end
     end)
@@ -80,10 +77,9 @@ if SERVER then
     
     hook.add("Removed", "", function()
         if Enable then
-            O:setPos(Pos) 
-            if O:isNoclipped() and O then
-                concmd("ulx noclip")
-            end
+            Chair:setPos(Pos)
+            Chair:ejectDriver()
+            Chair:setPos(Vector(0))
         end
     end)
     
@@ -151,8 +147,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.66"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed error loading textures and CPU quota los.")  
+            Ver = "v2.67"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: reworked teleportation to vec(0).")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
