@@ -1,4 +1,4 @@
---@name CamPod-v2.67
+--@name CamPod-v2.67a
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -64,14 +64,18 @@ if SERVER then
     
     hook.add("PlayerSwitchWeapon", "", function(ply)
         if ply == Ply then
-            timer.create("weapon", 0.5, 1, function()
-                local Model = Ply:getViewModel():getModel()
-                if Model then
-                    net.start("setModel")
-                    net.writeString(string.replace(Model or "", "c_", "v_"))
-                    net.send(owner())
-                end
-            end)
+            if not timer.exists("weapon " .. ply:getSteamID()) then
+                timer.create("weapon", 0.25, 1, function()
+                    local Model = Ply:getViewModel():getModel()
+                    if Model then
+                        net.start("setModel")
+                        net.writeString(string.replace(Model or "", "c_", "v_"))
+                        net.send(owner())
+                    end
+                end)
+            else
+                timer.start("weapon " .. ply:getSteamID())
+            end
         end
     end)
     
@@ -147,8 +151,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.67"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: reworked teleportation to vec(0).")  
+            Ver = "v2.67a"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed 'Max timers exceeded!' crush.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
