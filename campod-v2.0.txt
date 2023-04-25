@@ -1,4 +1,4 @@
---@name CamPod-v2.67a
+--@name CamPod-v2.67b
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -151,8 +151,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.67a"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed 'Max timers exceeded!' crush.")  
+            Ver = "v2.67b"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crush hyacks.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
@@ -356,7 +356,9 @@ else
                 return view
             else
                 BaseView:setColor(Color(255, 255, 255, 0)) 
-                Ply:setColor(Color(255, 255, 255, 255))
+                if Ply then
+                    Ply:setColor(Color(255, 255, 255, 255))
+                end
                 if Ply:getActiveWeapon():isValid() then Ply:getActiveWeapon():setColor(Color(255, 255, 255, 255)) end
             end
         end)
