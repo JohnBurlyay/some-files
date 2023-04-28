@@ -1,4 +1,4 @@
---@name CamPod-v2.67b
+--@name CamPod-v2.67c
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -151,7 +151,7 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.67b"
+            Ver = "v2.67c"
             print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crush hyacks.")  
             
         function loadTextures() 
@@ -356,7 +356,7 @@ else
                 return view
             else
                 BaseView:setColor(Color(255, 255, 255, 0)) 
-                if Ply then
+                if Ply and Ply:isValid() then
                     Ply:setColor(Color(255, 255, 255, 255))
                 end
                 if Ply:getActiveWeapon():isValid() then Ply:getActiveWeapon():setColor(Color(255, 255, 255, 255)) end
