@@ -1,4 +1,4 @@
---@name CamPod-v2.68
+--@name CamPod-v2.69
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -153,8 +153,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.68"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crushes.")  
+            Ver = "v2.69"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crushes. Added cursor in CamHack mode.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
@@ -414,6 +414,13 @@ else
             
             render.setFilterMin(1) 
             render.setFilterMag(1)
+            
+            --draw pointer
+            if Enable then
+                local resx, resy = render.getResolution() 
+                render.setColor(Color(100, 175, 100))
+                render.drawCircle(resx / 2, resy / 2, 5)
+            end
             
             if Show then
                 
@@ -1003,8 +1010,10 @@ else
                     local plys = find.allPlayers()
                     for i = 1, #plys do
                         if Button[i] then
-                            Ply:setColor(Color(255, 255, 255, 255))
-                            Ply = plys[i]
+                            if Ply:isValid() then
+                                Ply:setColor(Color(255, 255, 255, 255))
+                                Ply = plys[i]
+                            end
                             net.start("enable")
                             net.writeTable({entity = Ply})
                             net.send(owner())
