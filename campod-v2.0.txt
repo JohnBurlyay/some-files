@@ -1,4 +1,4 @@
---@name CamPod-v2.7
+--@name CamPod-v2.71
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -153,7 +153,7 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.7"
+            Ver = "v2.71"
             print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crushes. Added cursor in CamHack mode.")  
             
         function loadTextures() 
@@ -776,9 +776,8 @@ else
                     --draw base cirlce
                     render.drawFilledCircle(DrawPos.x + MapSize / 2, DrawPos.y + 30 + MapSize / 2, MapSize / 2 - 2)
                     
-                    if Ply:isValid() then
-                        local plypos = Vector(scrnsize.x, scrnsize.y) - (Ply:getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
-                    end
+                    local plypos = Vector(scrnsize.x, scrnsize.y) - ((Ply or owner()):getPos() / 13248 * MapSize / 2):setZ(0) * Vector(-1, 1) / (MapSize * 2)             
+
                     
                     local mtx = Matrix()
                     mtx:setTranslation(Vector(DrawPos.x+ MapSize / 2, DrawPos.y + MapSize / 2 + 30, 0))
