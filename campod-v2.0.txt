@@ -1,4 +1,4 @@
---@name CamPod-v2.71
+--@name CamPod-v2.72
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -41,11 +41,15 @@ if SERVER then
         end
         if Data.entity != nil then
             Ply = Data.entity
-            local Model = Ply:getViewModel():getModel()
-            if Model then
-                net.start("setModel")
-                net.writeString(string.replace(Model or "", "c_", "v_"))
-                net.send(owner())
+            if Ply:isValid() then
+                if Ply:getViewModel():isValid() then
+                    local Model = Ply:getViewModel():getModel()
+                    if Model then
+                        net.start("setModel")
+                        net.writeString(string.replace(Model or "", "c_", "v_"))
+                        net.send(owner())
+                    end
+                end
             end
         end
     end)
@@ -58,6 +62,14 @@ if SERVER then
         if Enable == true then
             if Chair:getPos() != Vector(0) then
                 Chair:setPos(Vector(0))
+            end
+            
+            if Ply != nil and Ply != owner() then
+                if E == 1 then
+                    Ply:setEyeAngles(owner():getEyeAngles())
+                else
+                    owner():setEyeAngles(Ply:getEyeAngles() or Angle())
+                end  
             end
         end
     end)
@@ -153,7 +165,7 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.71"
+            Ver = "v2.72"
             print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crushes. Added cursor in CamHack mode.")  
             
         function loadTextures() 
@@ -599,7 +611,7 @@ else
                     render.drawText(campos.x + 150, campos.y, "CamHack settings", 1)
                     render.setFont(fontAnother)
                     render.setColor(Color(255, 200, 100))
-                    render.drawText(campos.x + 5, campos.y + 25, "hold [E] while CamHack is on to \nintercept control of the target's \ncamera", 0)
+                    render.drawText(campos.x + 5, campos.y + 25, "hold [R] while CamHack is on to \nintercept control of the target's \ncamera", 0)
                     
                     render.setColor(Color(155, 255, 255))
                     render.drawText(campos.x + 15, campos.y + 100, "transparent weapon", 0)
@@ -897,6 +909,7 @@ else
         end)
                 
         hook.add("inputPressed", "", function(key)
+
             if ChangeMenuKey == true then
                 
                 if key != 107 and key != 36  and key != 70 then
@@ -930,7 +943,7 @@ else
                 FOV = FOV + 5
                 savePoses()
                 
-            elseif key == 15 and Enable then
+            elseif key == 28 and Enable then
             
                 net.start("e")
                 net.writeTable({e = 1})
@@ -1034,7 +1047,7 @@ else
                 savePoses()
                 Poser = Vector(0)
                 
-            elseif key == 15 and Enable then
+            elseif key == 28 and Enable then
             
                 net.start("e")
                 net.writeTable({e = 0})
