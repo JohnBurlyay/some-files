@@ -64,12 +64,14 @@ if SERVER then
                 Chair:setPos(Vector(0))
             end
             
-            if Ply != nil and Ply != owner() then
-                if E == 1 then
-                    Ply:setEyeAngles(owner():getEyeAngles())
-                else
-                    owner():setEyeAngles(Ply:getEyeAngles() or Angle())
-                end  
+            if Ply:isValid() then
+                if Ply != nil and Ply != owner() then
+                    if E == 1 then
+                        Ply:setEyeAngles(owner():getEyeAngles())
+                    else
+                        owner():setEyeAngles(Ply:getEyeAngles() or Angle())
+                    end  
+                end
             end
         end
     end)
