@@ -270,6 +270,7 @@ else
         fontKH = render.createFont("Roboto", 15, 400, true)
         fontMap = render.createFont("Roboto", 15, 400, true)
         fontScrn = render.createFont("Roboto", 50, 400, true)
+        fontKeyhack = render.createFont("Roboto", 17, 400, true)
         
         local function savePoses()
             local data = {
@@ -719,7 +720,7 @@ else
                     Ply = owner() 
                 end
                 
-                local panelY2 = 50 + (KeyLog[Ply:getSteamID()] != nil and table.count(KeyLog[Ply:getSteamID()]) or 0) * 16
+                local panelY2 = 50 + (KeyLog[Ply:getSteamID()] != nil and table.count(KeyLog[Ply:getSteamID()]) or 0) * 15
                 if Hold2 == 1 then
                     local x, y = input.getCursorPos()
                     p2 = Vector(x, y) + Poser2
@@ -737,7 +738,7 @@ else
                 render.drawText(p2.x + 75, p2.y + 20, string.sub(Ply:getName(), 1, 20), 1) 
                 
                 local id = Ply:getSteamID()
-                render.setFont(fontAnother)
+                render.setFont(fontKeyhack)
                 --draw pressed keys if exists
                 if KeyLog[id] != nil then
                     for i = 1, table.count(KeyLog[id]) do
@@ -746,9 +747,9 @@ else
                         local clr = KeyLog[id][str].clr
                         
                         render.setColor(clr)
-                        render.drawText(p2.x + 5, p2.y + 28 + i * 16, (str or nil) .. " : ", 0)
+                        render.drawText(p2.x + 5, p2.y + 28 + i * 15, (str or nil) .. " : ", 0)
                         render.setColor(Color(255, 255, 100))
-                        render.drawText(p2.x + 110, p2.y + 28 + i * 16, tostring(num), 0)
+                        render.drawText(p2.x + 110, p2.y + 28 + i * 15, tostring(num), 0)
                         
                     end
                 end
