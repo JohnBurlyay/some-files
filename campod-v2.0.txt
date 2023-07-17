@@ -1,4 +1,4 @@
---@name CamPod-v2.72
+--@name CamPod-v2.73
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -59,7 +59,7 @@ if SERVER then
     end)
     
     hook.add("think", "", function()
-        if Enable == true then
+        if Enable == true and Chair:isValid() then
             if Chair:getPos() != Vector(0) then
                 Chair:setPos(Vector(0))
             end
@@ -77,7 +77,8 @@ if SERVER then
     end)
     
     hook.add("PlayerSwitchWeapon", "", function(ply)
-        if ply == Ply then
+        if ply == Ply and Ply:isValid() then
+--[[
             if not timer.exists("weapon " .. ply:getSteamID()) then
                 timer.create("weapon", 0.25, 1, function()
                     if Ply:isValid() then
@@ -92,6 +93,15 @@ if SERVER then
             else
                 timer.start("weapon " .. ply:getSteamID())
             end
+]]          
+            timer.simple(0.25, function()
+                local Model = Ply:getViewModel():getModel()
+                if Model then
+                    net.start("setModel")
+                    net.writeString(string.replace(Model or "", "c_", "v_"))
+                    net.send(owner())
+                end
+            end)
         end
     end)
     
@@ -167,8 +177,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.72"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed some crushes. Added cursor in CamHack mode.")  
+            Ver = "v2.73"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed timer/entity crushes.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
