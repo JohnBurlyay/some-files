@@ -1,0 +1,321 @@
+--@name EntityAdministrator-v0.5
+--@author JohnBurlyay
+--@shared
+--@model models/cheeze/buttons2/deactivate.mdl
+
+if SERVER then
+
+    chip():setCollisionGroup(10)
+    
+    local function Func(data)
+        local Ent = entity(data.id)
+        if Ent:isValid() then
+            
+        --props
+            if data.func == "remove" then Ent:remove()
+            elseif data.func == "no Collide" then Ent:setNocollideAll(true)
+            elseif data.func == "return Collide" then Ent:setNocollideAll(false)
+            elseif data.func == "make transparent" then Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 0))
+            elseif data.func == "remove transparency" then Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 255))
+            elseif data.func == "gravity off" then Ent:enableGravity(false)
+            elseif data.func == "gravity on" then Ent:enableGravity(true)
+            elseif data.func == "remove Trails" then Ent:removeTrails()
+            elseif data.func == "set NoDrag" then Ent:setCollisionGroup(10)
+            elseif data.func == "froze" then Ent:setFrozen(true)
+            elseif data.func == "unfroze" then Ent:setFrozen(false)
+            elseif data.func == "toss prop" then Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass())
+            elseif data.func == "break" then Ent:breakEnt()
+            elseif data.func == "break constraints" then constraint.breakAll(Ent)
+            elseif data.func == "make spherical" then Ent:enableSphere(true, nil)
+            elseif data.func == "set unbreakable" then Ent:setUnbreakable(true)
+            elseif data.func == "set breakable" then Ent:setUnbreakable(false)
+        --jail
+            elseif data.func == "remove jail" then Ent:setPos(Vector(-7777)) Ent:setParent(entity(127))
+        --player
+            elseif data.func == "drop weapon" then if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end
+            elseif data.func == "modelSize: 0.5" then Ent:setModelScale(0.5)
+            elseif data.func == "modelSize: 1.0" then Ent:setModelScale(1)
+            elseif data.func == "modelSize: 2.0" then Ent:setModelScale(2)
+            elseif data.func == "toss player" then Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20))
+            elseif data.func == "kill" then Ent:applyDamage(999999, entity(127), entity(127))
+            elseif data.func == "strip weapons" then Ent:stripWeapons()
+            elseif data.func == "full heal" then Ent:setHealth(Ent:getMaxHealth())
+            elseif data.func == "teleport to ACID" then Ent:setPos(Vector(9350, 8495, -11500))
+            elseif data.func == "teleport to Vector(0)" then Ent:setPos(Vector(0))
+        --universal
+            elseif data.func == "ignite" then Ent:ignite(999, nil)
+            elseif data.func == "extinguish" then Ent:extinguish()
+        --vehicle
+            elseif data.func == "eject Driver" then Ent:ejectDriver()
+            elseif data.func == "kill Driver" then Ent:killDriver()
+            elseif data.func == "strip Driver" then Ent:stripDriver()
+            elseif data.func == "lock" then Ent:lock()
+            elseif data.func == "unlock" then Ent:unlock()
+            elseif data.func == "toss vehicle" then Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass() * 2)
+        --npc
+            elseif data.func == "like me" then Ent:addEntityRelationship(owner(), "like", 99)
+            elseif data.func == "fear me" then Ent:addEntityRelationship(owner(), "fear", 99)
+            elseif data.func == "hate me" then Ent:addEntityRelationship(owner(), "hate", 99)
+            elseif data.func == "neutral me" then Ent:addEntityRelationship(owner(), "neutral", 99)
+            elseif data.func == "broke weapon" then Ent:giveWeapon("weapon_empty_hands")
+                
+            end
+        end
+    end
+    
+    net.receive("sendFunc", function(str)
+        local data = net.readTable()
+        Func(data)
+    end)
+    
+elseif CLIENT then
+    
+    if player() != owner() then return end
+    enableHud(nil, true)
+    
+    Data = {
+        player = {
+            "kill",
+            "drop weapon",
+            "strip weapons",
+            "modelSize: 0.5",
+            "modelSize: 1",
+            "modelSize: 2",
+            "ignite",
+            "extinguish",
+            "toss player",
+            "full heal",
+            "teleport to ACID",
+            "teleport to Vector(0)",
+        },
+        other = {
+            "remove",
+            "break",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "gravity off",
+            "gravity on",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss prop",
+            "make spherical",
+            "break constraints", 
+            "set unbreakable",   
+            "set breakable",      
+        },
+        jail = {
+            "remove jail"
+        },
+        class_C_BaseEntity = {
+            
+        },
+        prop_vehicle_prisoner_pod = {
+            "eject Driver",
+            "kill Driver",
+            "strip Driver",
+            "lock",
+            "unlock",
+            "remove",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "gravity off",
+            "gravity on",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss prop",
+            "make spherical",
+            "break constraints"   
+        },
+        prop_vehicle_airboat = {
+            "eject Driver",
+            "kill Driver",
+            "strip Driver",
+            "lock",
+            "unlock",
+            "remove",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss vehicle",
+            "break constraints"   
+        },
+        prop_vehicle_jeep = {
+            "eject Driver",
+            "kill Driver",
+            "strip Driver",
+            "lock",
+            "unlock",
+            "remove",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "gravity off",
+            "gravity on",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss vehicle",
+            "break constraints",   
+            "set unbreakable",   
+            "set breakable", 
+        },
+        npc = {
+            "like me",
+            "fear me",
+            "hate me",
+            "neutral me",
+            "broke weapon",
+            "remove",
+            "kill"
+        },
+        
+    }
+    Button = {}
+    Ent = nil
+    Ply = owner()
+    BaseColor1 = Color(50, 50, 100, 255)
+    BaseColor2 = Color(0, 0, 0, 255)
+    BaseColor3 = Color(100, 200, 100, 255)
+    Font1 = render.createFont("Consolas", 15, 50, true)
+    Font2 = render.createFont("Consolas", 18, 50, true)
+    ButtonSize = Vector(250, 30)
+        
+    local function getStorage()
+        local data = {}
+        if Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
+            data = Data["jail"]
+        elseif Ent:isNPC() then
+            data = Data["npc"]
+        elseif Data[Ent:getClass():replace(" ", "_")] != nil then
+            data = Data[Ent:getClass():replace(" ", "_")]
+        else
+            data = Data["other"]
+        end
+        return data
+    end
+    
+    hook.add("drawhud", "", function()
+        
+        if ResX == nil then
+           ResX, ResY = render.getResolution() 
+        end
+        
+        if Ent != nil then
+            if Ent:isValid() then
+                local mouseX, mouseY = input.getCursorPos()
+                
+                render.setFont(Font1)
+                
+                local data = getStorage()
+                
+                local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                render.setColor(BaseColor1 * 2)
+                render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                render.setColor(BaseColor2 * 2)
+                render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                render.setColor(Color(255, 255, 255))
+                render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
+                render.setFont(Font2)
+                
+                if table.count(data) > 0 then
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + 1, y + 1), Vector(x - 1, y - 1) + ButtonSize)
+                        render.setColor(Button[i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
+                else
+                    y = y + ButtonSize.y
+                    render.setColor(BaseColor1)
+                    render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                    render.setColor(BaseColor2)
+                    render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                    render.setColor(Color(255, 255, 255, 255))
+                    render.drawText(x + ButtonSize.x / 2, y + 5, "нет доступных функций", 1)
+                end
+            else
+                Ent = nil
+                input.enableCursor(false)
+                Ply:emitSound("buttons/button8.wav", 75, 125, 0.75, CHAN_AUTO)
+            end
+        end
+        
+    end)
+        
+    hook.add("inputPressed", "", function(key)
+        if key == 108 and Ent == nil then
+            if Ply:isValid() then
+                if Ply:getActiveWeapon():isValid() then
+                    if Ply:getActiveWeapon():getClass() == "weapon_empty_hands" then
+                        if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
+                            Ent = Ply:getEyeTrace().Entity
+                            --print(Ply:getEyeTrace().Entity:getClass())
+                            input.enableCursor(true)
+                            Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+                        end
+                    end
+                else
+                    if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
+                        Ent = Ply:getEyeTrace().Entity
+                        --print(Ply:getEyeTrace().Entity:getClass())
+                        input.enableCursor(true)
+                        Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+                    end
+                end
+            end
+        elseif key == 108 and Ent != nil then
+            Ent = nil
+            input.enableCursor(false)
+        elseif Ent != nil then
+            if key == 107 then
+                local data = getStorage()
+                local mouseX, mouseY = input.getCursorPos()
+                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x, ButtonSize.y * (table.count(data) + 1)))
+                if inmenu then
+                    for i = 1, table.count(data) do
+                        if Button[i] then
+                            net.start("sendFunc")
+                            net.writeTable({id = Ent:entIndex(), func = data[i]})
+                            net.send(Ply)
+                            Ent = nil
+                            input.enableCursor(false)
+                            Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                        end
+                    end
+                else
+                    Ent = nil
+                    input.enableCursor(false)
+                end
+            end 
+        end
+    end)
+    
+end
