@@ -42,6 +42,7 @@ if SERVER then
             elseif data.func == "full heal" then Ent:setHealth(Ent:getMaxHealth())
             elseif data.func == "teleport to ACID" then Ent:setPos(Vector(9350, 8495, -11500))
             elseif data.func == "teleport to Vector(0)" then Ent:setPos(Vector(0))
+            elseif data.func == "drop all weapons" then for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end
         --universal
             elseif data.func == "ignite" then Ent:ignite(999, nil)
             elseif data.func == "extinguish" then Ent:extinguish()
@@ -79,6 +80,7 @@ elseif CLIENT then
         player = {
             "kill",
             "drop weapon",
+            "drop all weapons",
             "strip weapons",
             "modelSize: 0.5",
             "modelSize: 1.0",
