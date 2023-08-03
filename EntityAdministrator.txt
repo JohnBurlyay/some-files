@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.5
+--@name EntityAdministrator-v0.52
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -71,7 +71,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.5"
+    Ver = "v0.52"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver)  
     enableHud(nil, true)
     
@@ -181,8 +181,6 @@ elseif CLIENT then
             "unfroze",
             "toss vehicle",
             "break constraints",   
-            "set unbreakable",   
-            "set breakable", 
         },
         npc = {
             "like me",
@@ -192,6 +190,15 @@ elseif CLIENT then
             "broke weapon",
             "remove",
             "kill"
+        },
+        prop_dynamic = {
+            "remove",
+            "ignite",
+            "extinguish",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
         },
         
     }
@@ -287,7 +294,7 @@ elseif CLIENT then
                 else
                     if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
                         Ent = Ply:getEyeTrace().Entity
-                        --print(Ply:getEyeTrace().Entity:getClass())
+                        print(Ply:getEyeTrace().Entity:getClass())
                         input.enableCursor(true)
                         Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
                     end
