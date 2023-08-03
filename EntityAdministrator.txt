@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.52
+--@name EntityAdministrator-v0.53
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -71,7 +71,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.52"
+    Ver = "v0.53"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver)  
     enableHud(nil, true)
     
@@ -81,8 +81,8 @@ elseif CLIENT then
             "drop weapon",
             "strip weapons",
             "modelSize: 0.5",
-            "modelSize: 1",
-            "modelSize: 2",
+            "modelSize: 1.0",
+            "modelSize: 2.0",
             "ignite",
             "extinguish",
             "toss player",
