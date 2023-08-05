@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.54
+--@name EntityAdministrator-v0.55
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -6,9 +6,11 @@
 if SERVER then
 
     chip():setCollisionGroup(10)
+    LastEnt = nil
     
     local function Func(data)
         local Ent = entity(data.id)
+        local roped = false
         if Ent:isValid() then
             
         --props
@@ -29,7 +31,57 @@ if SERVER then
             elseif data.func == "make spherical" then Ent:enableSphere(true, nil)
             elseif data.func == "set unbreakable" then Ent:setUnbreakable(true)
             elseif data.func == "set breakable" then Ent:setUnbreakable(false)
-        --jail
+            elseif data.func == "rope" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil)
+                        roped = true
+                    end
+                end
+            elseif data.func == "rigid rope" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/cable2", true, nil)
+                        roped = true
+                    end
+                end
+            elseif data.func == "axis" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.axis(LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil)
+                        roped = true
+                    end
+                end
+            elseif data.func == "elastic" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.elastic(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false)
+                        roped = true
+                    end
+                end
+            elseif data.func == "ballsocket" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.ballsocket(LastEnt, Ent, nil, nil, Vector(), 0, 0, true)
+                        roped = true
+                    end
+                end
+            elseif data.func == "weld" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.weld(LastEnt, Ent, nil, nil, 0, true)
+                        roped = true
+                    end
+                end
+            elseif data.func == "nocollide" then 
+                if LastEnt != nil then
+                    if LastEnt:isValid() and LastEnt != Ent then
+                        constraint.nocollide(LastEnt, Ent, nil, nil)
+                        roped = true
+                    end
+                end
+            elseif data.func == "KeepUpRight" then constraint.keepupright(Ent, Ent:getAngles(), 0, 50000)
+        --jail  
             elseif data.func == "remove jail" then Ent:setPos(Vector(-7777)) Ent:setParent(entity(127))
         --player
             elseif data.func == "drop weapon" then if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end
@@ -59,8 +111,15 @@ if SERVER then
             elseif data.func == "hate me" then Ent:addEntityRelationship(owner(), "hate", 99)
             elseif data.func == "neutral me" then Ent:addEntityRelationship(owner(), "neutral", 99)
             elseif data.func == "broke weapon" then Ent:giveWeapon("weapon_empty_hands")
-                
+        --class_C_BaseEntity
+
             end
+        end
+        
+        if roped == false then
+            LastEnt = Ent
+        else
+            LastEnt = nil
         end
     end
     
@@ -72,11 +131,16 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.54"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver)  
+    Ver = "v0.55"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added 'jail' functions, 'constraints' functions.")  
     enableHud(nil, true)
+    John = "STEAM_0:1:98261831"
     
     Data = {
+        john = {
+            "не надо трогать Жона",
+            "его пропы тоже =)"
+        },
         player = {
             "kill",
             "drop weapon",
@@ -93,6 +157,7 @@ elseif CLIENT then
             "teleport to Vector(0)",
         },
         other = {
+            "constraints =>",
             "remove",
             "break",
             "no Collide",
@@ -109,19 +174,27 @@ elseif CLIENT then
             "unfroze",
             "toss prop",
             "make spherical",
-            "break constraints", 
             "set unbreakable",   
             "set breakable",     
             "teleport to ACID",
             "teleport to Vector(0)", 
+            "KeepUpRight",
         },
         jail = {
-            "remove jail"
+            "remove jail",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "set NoDrag",
         },
         class_C_BaseEntity = {
             
         },
         prop_vehicle_prisoner_pod = {
+            "constraints =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -141,11 +214,11 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss prop",
-            "break constraints",
             "teleport to ACID",
             "teleport to Vector(0)", 
         },
         prop_vehicle_airboat = {
+            "constraints =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -163,11 +236,11 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss vehicle",
-            "break constraints",
             "teleport to ACID",
             "teleport to Vector(0)",    
         },
         prop_vehicle_jeep = {
+            "constraints =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -187,9 +260,8 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss vehicle",
-            "break constraints",
             "teleport to ACID",
-            "teleport to Vector(0)",    
+            "teleport to Vector(0)",  
         },
         npc = {
             "like me",
@@ -208,8 +280,22 @@ elseif CLIENT then
             "return Collide",
             "make transparent",
             "remove transparency",
+            "teleport to ACID",
+            "teleport to Vector(0)", 
+        },
+        prop_physics_multiplayer = {
+            "remove",
+            "ignite",
+            "extinguish",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "teleport to ACID",
+            "teleport to Vector(0)", 
         },
         acf_gun = {
+            "constraints =>",
             "unload gun",
             "remove",
             "no Collide",
@@ -224,26 +310,64 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss prop",
-            "break constraints", 
         },
         func_door = {
             
         },
+        prop_door_rotating = {
+            "remove",
+            "break",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "gravity off",
+            "gravity on",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss prop",
+            "teleport to ACID",
+            "teleport to Vector(0)", 
+        }
         
+    }
+    DataConstraints = {
+        "rope",    
+        "rigid rope",
+        "elastic",
+        "axis",
+        "ballsocket",
+        "weld",
+        "nocollide",
+        "break constraints", 
     }
     Button = {}
     Ent = nil
     Ply = owner()
+    
     BaseColor1 = Color(50, 50, 100, 255)
     BaseColor2 = Color(0, 0, 0, 255)
     BaseColor3 = Color(100, 200, 100, 255)
+    
+    ConstraintsColor1 = Color(50, 100, 50, 255)
+    ConstraintsColor2 = Color(0, 0, 0, 255)
+    ConstraintsColor3 = Color(200, 200, 100, 255)
+    
     Font1 = render.createFont("Consolas", 15, 50, true)
     Font2 = render.createFont("Consolas", 18, 50, true)
     ButtonSize = Vector(250, 30)
-        
+    ButtonCorrector = 0.5
+    isConstraints = false
+    
     local function getStorage()
         local data = {}
-        if Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
+        if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
+            data = Data["john"]
+        elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
             data = Data["jail"]
         elseif Ent:isNPC() then
             data = Data["npc"]
@@ -254,6 +378,17 @@ elseif CLIENT then
         end
         return data
     end
+    
+    timer.create("check isConstraints", 1, 0, function()
+        local num = 0
+        for i = 1, table.count(DataConstraints) do
+            num = num + (Button[100 + i] and 1 or 0)
+        end
+        if num == 0 then
+            isConstraints = false
+        end    
+        --print(num)
+    end)
     
     hook.add("drawhud", "", function()
         
@@ -278,14 +413,36 @@ elseif CLIENT then
                 render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
                 render.setFont(Font2)
                 
+                local num = 0
+                for i = 1, table.count(DataConstraints) do
+                    num = num + (Button[100 + i] and 1 or 0)
+                end
+                
+                if num == 0 then
+                    timer.unpause("check isConstraints")
+                else
+                    timer.pause("check isConstraints")
+                end
+                --print(num)
+                
                 if table.count(data) > 0 then
                     for i = 1, table.count(data) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
-                        Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + 1, y + 1), Vector(x - 1, y - 1) + ButtonSize)
-                        render.setColor(Button[i] and BaseColor3 or BaseColor1)
+                        local isJohn = data == Data["john"]
+                        if not isJohn then
+                            Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        if dat == "constraints =>" then
+                            render.setColor(Button[i] and ConstraintsColor3 or ConstraintsColor1)
+                            if isConstraints == false then
+                                isConstraints = Button[i]
+                            end
+                        else
+                            render.setColor(Button[i] and BaseColor3 or BaseColor1)
+                        end
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
+                        render.setColor(dat == "constraints =>" and ConstraintsColor2 or BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
@@ -298,6 +455,23 @@ elseif CLIENT then
                     render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                     render.setColor(Color(255, 255, 255, 255))
                     render.drawText(x + ButtonSize.x / 2, y + 5, "нет доступных функций", 1)
+                end
+                
+                if isConstraints then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = DataConstraints
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                            
+                        Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        render.setColor(Button[100 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[100 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
                 end
             else
                 Ent = nil
@@ -323,7 +497,7 @@ elseif CLIENT then
                 else
                     if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
                         Ent = Ply:getEyeTrace().Entity
-                        print(Ply:getEyeTrace().Entity:getClass())
+                        --print(Ply:getEyeTrace().Entity:getClass())
                         input.enableCursor(true)
                         Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
                     end
@@ -336,21 +510,37 @@ elseif CLIENT then
             if key == 107 then
                 local data = getStorage()
                 local mouseX, mouseY = input.getCursorPos()
-                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x, ButtonSize.y * (table.count(data) + 1)))
+                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isConstraints and 2 or 1), ButtonSize.y * (table.count(data) + 1)))
                 if inmenu then
                     for i = 1, table.count(data) do
-                        if Button[i] then
+                        if Button[i] and data[i] != "constraints =>" then
                             net.start("sendFunc")
                             net.writeTable({id = Ent:entIndex(), func = data[i]})
                             net.send(Ply)
                             Ent = nil
                             input.enableCursor(false)
                             Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                            isConstraints = false
+                        end
+                    end
+                    if isConstraints then
+                        local data = DataConstraints
+                        for i = 1, table.count(data) do
+                            if Button[100 + i] then
+                                net.start("sendFunc")
+                                net.writeTable({id = Ent:entIndex(), func = data[i]})
+                                net.send(Ply)
+                                Ent = nil
+                                input.enableCursor(false)
+                                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                                isConstraints = false
+                            end
                         end
                     end
                 else
                     Ent = nil
                     input.enableCursor(false)
+                    isConstraints = false
                 end
             end 
         end
