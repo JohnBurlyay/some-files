@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.55
+--@name EntityAdministrator-v0.56
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -7,6 +7,54 @@ if SERVER then
 
     chip():setCollisionGroup(10)
     LastEnt = nil
+    Holo = {}
+    O = owner()  
+    BaseProp = nil
+
+    function holo(id, model, pos, ang, scale, mat, color, parent)
+        Holo[id] = holograms.create(pos, ang, model, scale)
+        Holo[id]:setMaterial(mat)
+        Holo[id]:setColor(color)
+        Holo[id]:setParent(parent)
+        return Holo[id]
+    end
+    
+    holo(1, "models/hunter/blocks/cube025x025x025.mdl", O:localToWorld(Vector(0, 0, 0)), O:worldToLocalAngles(Angle(0, 0, 0)), Vector(1, 1, 1), "", Color(255, 255, 255, 0), O:getActiveWeapon())
+    BaseProp = prop.create(Holo[1]:getPos(), Angle(), "models/led.mdl", 1)
+    BaseProp:setNocollideAll(true)
+    BaseProp:setColor(Color(255, 255, 255, 0))
+    BaseProp:setParent(Holo[1])      
+    
+    timer.create("respawn", 1, 0, function()
+        if O:isAlive() then
+            if not Holo[1]:isValid() and hologram.canSpawn() then
+                holo(1, "models/hunter/blocks/cube025x025x025.mdl", O:localToWorld(Vector(0, 0, 0)), O:worldToLocalAngles(Angle(0, 0, 0)), Vector(1, 1, 1), "", Color(255, 255, 255, 0), O:getActiveWeapon())
+                --print("holo respawn!")
+            end
+            if not BaseProp:isValid() and prop.canSpawn() then
+                BaseProp = prop.create(Holo[1]:getPos(), Angle(), "models/led.mdl", 1)
+                BaseProp:setNocollideAll(true)
+                BaseProp:setColor(Color(255, 255, 255, 0))
+                BaseProp:setParent(Holo[1])
+                --print("baseprop respawn!")
+            end
+        end
+    end)
+    
+    hook.add("think", "", function()
+        if BaseProp:isValid() and Holo[1]:isValid() then
+            local Props = BaseProp:getAllConstrained(nil)
+            if #Props > 0 then
+                for i = 1, #Props do
+                    local P = Props[i]
+                    if P:isValidPhys() and P != O and P != BaseProp then
+                        P:applyForceCenter(Vector(0, 0, 1))
+                    end
+                end 
+            end
+            --BaseProp:setPos(Holo[1]:getPos())
+        end
+    end)
     
     local function Func(data)
         local Ent = entity(data.id)
@@ -81,6 +129,12 @@ if SERVER then
                     end
                 end
             elseif data.func == "KeepUpRight" then constraint.keepupright(Ent, Ent:getAngles(), 0, 50000)
+            elseif data.func == "rope to me" then constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil)
+            elseif data.func == "rigid rope to me" then constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", true, nil)
+            elseif data.func == "elastic to me" then constraint.elastic(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false)
+            elseif data.func == "axis to me" then constraint.axis(Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil)
+            elseif data.func == "ballsocket to me" then constraint.ballsocket(Ent, BaseProp, nil, nil, Vector(), 0, 0, true)
+            elseif data.func == "weld to me" then constraint.weld(Ent, BaseProp, nil, nil, 0, true)
         --jail  
             elseif data.func == "remove jail" then Ent:setPos(Vector(-7777)) Ent:setParent(entity(127))
         --player
@@ -131,8 +185,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.55"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added 'jail' functions, 'constraints' functions.")  
+    Ver = "v0.56"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added some constraints.")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
     
@@ -281,6 +335,8 @@ elseif CLIENT then
             "ignite",
             "extinguish",
             "set NoDrag",
+            "froze",
+            "unfroze",
             "teleport to ACID",
             "teleport to Vector(0)", 
         },
@@ -293,6 +349,8 @@ elseif CLIENT then
             "ignite",
             "extinguish",
             "set NoDrag",
+            "froze",
+            "unfroze",
             "toss prop",
             "teleport to ACID",
             "teleport to Vector(0)", 
@@ -340,7 +398,14 @@ elseif CLIENT then
         "ballsocket",
         "weld",
         "nocollide",
-        "break constraints", 
+        "break constraints",
+        "", 
+        "rope to me",
+        "rigid rope to me",
+        "elastic to me",
+        "axis to me",
+        "ballsocket to me",
+        "weld to me",
     }
     Button = {}
     Ent = nil
@@ -427,7 +492,7 @@ elseif CLIENT then
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
                         local isJohn = data == Data["john"]
-                        if not isJohn then
+                        if not isJohn and dat != "" then
                             Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
                         if dat == "constraints =>" then
@@ -460,8 +525,10 @@ elseif CLIENT then
                     for i = 1, table.count(data) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
-                            
-                        Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        
+                        if dat != "" then
+                            Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
                         render.setColor(Button[100 + i] and BaseColor3 or BaseColor1)
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(BaseColor2)
@@ -503,6 +570,7 @@ elseif CLIENT then
         elseif key == 108 and Ent != nil then
             Ent = nil
             input.enableCursor(false)
+            Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
         elseif Ent != nil then
             if key == 107 then
                 local data = getStorage()
@@ -538,6 +606,7 @@ elseif CLIENT then
                     Ent = nil
                     input.enableCursor(false)
                     isConstraints = false
+                    Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
                 end
             end 
         end
