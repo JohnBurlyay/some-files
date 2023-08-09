@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.56
+--@name EntityAdministrator-v0.57
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -135,6 +135,7 @@ if SERVER then
             elseif data.func == "axis to me" then constraint.axis(Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil)
             elseif data.func == "ballsocket to me" then constraint.ballsocket(Ent, BaseProp, nil, nil, Vector(), 0, 0, true)
             elseif data.func == "weld to me" then constraint.weld(Ent, BaseProp, nil, nil, 0, true)
+            elseif string.sub(data.func, 0, 5) == "skin " then Ent:setSkin(tonumber(data.func:replace("skin ", "")) - 1)
         --jail  
             elseif data.func == "remove jail" then Ent:setPos(Vector(-7777)) Ent:setParent(entity(127))
         --player
@@ -185,8 +186,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.56"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added some constraints.")  
+    Ver = "v0.57"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added some constraints. Added skin-change function")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
     
@@ -390,6 +391,7 @@ elseif CLIENT then
         }
         
     }
+    
     DataConstraints = {
         "rope",    
         "rigid rope",
@@ -407,6 +409,9 @@ elseif CLIENT then
         "ballsocket to me",
         "weld to me",
     }
+    
+    DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin " .. i end
+    
     Button = {}
     Ent = nil
     Ply = owner()
@@ -424,32 +429,43 @@ elseif CLIENT then
     ButtonSize = Vector(250, 30)
     ButtonCorrector = 0.5
     isConstraints = false
+    isSkins = false
     
     local function getStorage()
         local data = {}
         if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
-            data = Data["john"]
+            data = table.copy(Data["john"])
         elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
-            data = Data["jail"]
+            data = table.copy(Data["jail"])
         elseif Ent:isNPC() then
-            data = Data["npc"]
+            data = table.copy(Data["npc"])
         elseif Data[Ent:getClass():replace(" ", "_")] != nil then
-            data = Data[Ent:getClass():replace(" ", "_")]
+            data = table.copy(Data[Ent:getClass():replace(" ", "_")])
         else
-            data = Data["other"]
+            data = table.copy(Data["other"])
         end
         return data
     end
     
-    timer.create("check isConstraints", 1, 0, function()
+    local function closeTrees()
+        isConstraints = false
+        isSkins = false
+    end
+    
+    timer.create("check trees", 1, 0, function()
         local num = 0
-        for i = 1, table.count(DataConstraints) do
-            num = num + (Button[100 + i] and 1 or 0)
+        if isConstraints == true then
+            for i = 1, table.count(DataConstraints) do
+                num = num + (Button[100 + i] and 1 or 0)
+            end
+        elseif isSkins == true then
+            for i = 1, table.count(DataSkins) do
+                num = num + (Button[200 + i] and 1 or 0)
+            end
         end
         if num == 0 then
-            isConstraints = false
+            closeTrees()
         end    
-        --print(num)
     end)
     
     hook.add("drawhud", "", function()
@@ -464,7 +480,10 @@ elseif CLIENT then
                 
                 render.setFont(Font1)
                 
-                local data = getStorage()
+                local data = table.copy(getStorage())
+                if Ent:getSkinCount() > 1 then
+                   table.insert(data, 1, "set skin =>") 
+                end
                 
                 local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                 render.setColor(BaseColor1 * 2)
@@ -476,14 +495,19 @@ elseif CLIENT then
                 render.setFont(Font2)
                 
                 local num = 0
-                for i = 1, table.count(DataConstraints) do
-                    num = num + (Button[100 + i] and 1 or 0)
+                if isConstraints == true then
+                    for i = 1, table.count(DataConstraints) do
+                        num = num + (Button[100 + i] and 1 or 0)
+                    end
+                elseif isSkins == true then
+                    for i = 1, table.count(DataSkins) do
+                        num = num + (Button[200 + i] and 1 or 0)
+                    end
                 end
-                
                 if num == 0 then
-                    timer.unpause("check isConstraints")
+                    timer.unpause("check trees")
                 else
-                    timer.pause("check isConstraints")
+                    timer.pause("check trees")
                 end
                 --print(num)
                 
@@ -495,16 +519,28 @@ elseif CLIENT then
                         if not isJohn and dat != "" then
                             Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
-                        if dat == "constraints =>" then
+                        if string.match(dat, "=>", nil) then
                             render.setColor(Button[i] and ConstraintsColor3 or ConstraintsColor1)
-                            if isConstraints == false then
-                                isConstraints = Button[i]
+                            if dat == "constraints =>" then
+                                if isConstraints == false then
+                                    isConstraints = Button[i]
+                                    if isConstraints == true then
+                                        isSkins = false
+                                    end
+                                end
+                            elseif dat == "set skin =>" then
+                                if isSkins == false then
+                                    isSkins = Button[i]
+                                    if isSkins == true then
+                                        isConstraints = false
+                                    end
+                                end
                             end
                         else
                             render.setColor(Button[i] and BaseColor3 or BaseColor1)
                         end
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(dat == "constraints =>" and ConstraintsColor2 or BaseColor2)
+                        render.setColor(string.match(dat, "=>", nil) and ConstraintsColor2 or BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
@@ -521,7 +557,7 @@ elseif CLIENT then
                 
                 if isConstraints then
                     local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = DataConstraints
+                    local data = table.copy(DataConstraints)
                     for i = 1, table.count(data) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
@@ -536,10 +572,28 @@ elseif CLIENT then
                         render.setColor(Button[100 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                     end
+                elseif isSkins then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataSkins)
+                    for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        
+                        if dat != "" then
+                            Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[200 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[200 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(dat:replace("skin ", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
+                    end
                 end
             else
                 Ent = nil
                 input.enableCursor(false)
+                closeTrees()
                 Ply:emitSound("buttons/button8.wav", 75, 125, 0.75, CHAN_AUTO)
             end
         end
@@ -574,22 +628,26 @@ elseif CLIENT then
         elseif Ent != nil then
             if key == 107 then
                 local data = getStorage()
+                if Ent:getSkinCount() > 1 then
+                   table.insert(data, 1, "set skin =>") 
+                end
                 local mouseX, mouseY = input.getCursorPos()
-                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isConstraints and 2 or 1), ButtonSize.y * (table.count(data) + 1)))
+                local isTrees = isConstraints or isSkins
+                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
                 if inmenu then
                     for i = 1, table.count(data) do
-                        if Button[i] and data[i] != "constraints =>" then
+                        if Button[i] and not string.match(data[i], "=>", nil) then
                             net.start("sendFunc")
                             net.writeTable({id = Ent:entIndex(), func = data[i]})
                             net.send(Ply)
                             Ent = nil
                             input.enableCursor(false)
                             Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
-                            isConstraints = false
+                            closeTrees()
                         end
                     end
                     if isConstraints then
-                        local data = DataConstraints
+                        local data = table.copy(DataConstraints)
                         for i = 1, table.count(data) do
                             if Button[100 + i] then
                                 net.start("sendFunc")
@@ -598,14 +656,27 @@ elseif CLIENT then
                                 Ent = nil
                                 input.enableCursor(false)
                                 Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
-                                isConstraints = false
+                                closeTrees()
+                            end
+                        end
+                    elseif isSkins then
+                        local data = table.copy(DataSkins)
+                        for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
+                            if Button[200 + i] then
+                                net.start("sendFunc")
+                                net.writeTable({id = Ent:entIndex(), func = data[i]})
+                                net.send(Ply)
+                                Ent = nil
+                                input.enableCursor(false)
+                                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                                closeTrees()
                             end
                         end
                     end
                 else
                     Ent = nil
                     input.enableCursor(false)
-                    isConstraints = false
+                    closeTrees()
                     Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
                 end
             end 
