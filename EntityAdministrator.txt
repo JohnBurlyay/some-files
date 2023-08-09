@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.57
+--@name EntityAdministrator-v0.57b
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -186,7 +186,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.57"
+    Ver = "v0.57b"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added some constraints. Added skin-change function")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
@@ -481,8 +481,11 @@ elseif CLIENT then
                 render.setFont(Font1)
                 
                 local data = table.copy(getStorage())
-                if Ent:getSkinCount() > 1 then
-                   table.insert(data, 1, "set skin =>") 
+                local isJohn = data == Data["john"]
+                if not isJohn then
+                    if Ent:getSkinCount() > 1 then
+                       table.insert(data, 1, "set skin =>") 
+                    end
                 end
                 
                 local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
@@ -515,7 +518,6 @@ elseif CLIENT then
                     for i = 1, table.count(data) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
-                        local isJohn = data == Data["john"]
                         if not isJohn and dat != "" then
                             Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
