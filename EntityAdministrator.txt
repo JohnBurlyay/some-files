@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.57b
+--@name EntityAdministrator-v0.59
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -27,11 +27,11 @@ if SERVER then
     
     timer.create("respawn", 1, 0, function()
         if O:isAlive() then
-            if not Holo[1]:isValid() and hologram.canSpawn() then
+            if not Holo[1]:isValid() and hologram.canSpawn() and O:getActiveWeapon():isValid() then
                 holo(1, "models/hunter/blocks/cube025x025x025.mdl", O:localToWorld(Vector(0, 0, 0)), O:worldToLocalAngles(Angle(0, 0, 0)), Vector(1, 1, 1), "", Color(255, 255, 255, 0), O:getActiveWeapon())
                 --print("holo respawn!")
             end
-            if not BaseProp:isValid() and prop.canSpawn() then
+            if not BaseProp:isValid() and prop.canSpawn() and Holo[1]:isValid() then
                 BaseProp = prop.create(Holo[1]:getPos(), Angle(), "models/led.mdl", 1)
                 BaseProp:setNocollideAll(true)
                 BaseProp:setColor(Color(255, 255, 255, 0))
@@ -56,138 +56,116 @@ if SERVER then
         end
     end)
     
-    local function Func(data)
-        local Ent = entity(data.id)
-        local roped = false
-        if Ent:isValid() then
-            
-        --props
-            if data.func == "remove" then Ent:remove()
-            elseif data.func == "no Collide" then Ent:setNocollideAll(true)
-            elseif data.func == "return Collide" then Ent:setNocollideAll(false)
-            elseif data.func == "make transparent" then Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 0))
-            elseif data.func == "remove transparency" then Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 255))
-            elseif data.func == "gravity off" then Ent:enableGravity(false)
-            elseif data.func == "gravity on" then Ent:enableGravity(true)
-            elseif data.func == "remove Trails" then Ent:removeTrails()
-            elseif data.func == "set NoDrag" then Ent:setCollisionGroup(10)
-            elseif data.func == "froze" then Ent:setFrozen(true)
-            elseif data.func == "unfroze" then Ent:setFrozen(false)
-            elseif data.func == "toss prop" then Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass())
-            elseif data.func == "break" then Ent:breakEnt()
-            elseif data.func == "break constraints" then constraint.breakAll(Ent)
-            elseif data.func == "make spherical" then Ent:enableSphere(true, nil)
-            elseif data.func == "set unbreakable" then Ent:setUnbreakable(true)
-            elseif data.func == "set breakable" then Ent:setUnbreakable(false)
-            elseif data.func == "rope" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil)
-                        roped = true
-                    end
-                end
-            elseif data.func == "rigid rope" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/cable2", true, nil)
-                        roped = true
-                    end
-                end
-            elseif data.func == "axis" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.axis(LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil)
-                        roped = true
-                    end
-                end
-            elseif data.func == "elastic" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.elastic(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false)
-                        roped = true
-                    end
-                end
-            elseif data.func == "ballsocket" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.ballsocket(LastEnt, Ent, nil, nil, Vector(), 0, 0, true)
-                        roped = true
-                    end
-                end
-            elseif data.func == "weld" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.weld(LastEnt, Ent, nil, nil, 0, true)
-                        roped = true
-                    end
-                end
-            elseif data.func == "nocollide" then 
-                if LastEnt != nil then
-                    if LastEnt:isValid() and LastEnt != Ent then
-                        constraint.nocollide(LastEnt, Ent, nil, nil)
-                        roped = true
-                    end
-                end
-            elseif data.func == "KeepUpRight" then constraint.keepupright(Ent, Ent:getAngles(), 0, 50000)
-            elseif data.func == "rope to me" then constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil)
-            elseif data.func == "rigid rope to me" then constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", true, nil)
-            elseif data.func == "elastic to me" then constraint.elastic(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false)
-            elseif data.func == "axis to me" then constraint.axis(Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil)
-            elseif data.func == "ballsocket to me" then constraint.ballsocket(Ent, BaseProp, nil, nil, Vector(), 0, 0, true)
-            elseif data.func == "weld to me" then constraint.weld(Ent, BaseProp, nil, nil, 0, true)
-            elseif string.sub(data.func, 0, 5) == "skin " then Ent:setSkin(tonumber(data.func:replace("skin ", "")) - 1)
-        --jail  
-            elseif data.func == "remove jail" then Ent:setPos(Vector(-7777)) Ent:setParent(entity(127))
-        --player
-            elseif data.func == "drop weapon" then if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end
-            elseif data.func == "modelSize: 0.5" then Ent:setModelScale(0.5)
-            elseif data.func == "modelSize: 1.0" then Ent:setModelScale(1)
-            elseif data.func == "modelSize: 2.0" then Ent:setModelScale(2)
-            elseif data.func == "toss player" then Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20))
-            elseif data.func == "kill" then Ent:applyDamage(999999, entity(127), entity(127))
-            elseif data.func == "strip weapons" then Ent:stripWeapons()
-            elseif data.func == "full heal" then Ent:setHealth(Ent:getMaxHealth())
-            elseif data.func == "teleport to ACID" then Ent:setPos(Vector(9350, 8495, -11500))
-            elseif data.func == "teleport to Vector(0)" then Ent:setPos(Vector(0))
-            elseif data.func == "drop all weapons" then for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end
-        --universal
-            elseif data.func == "ignite" then Ent:ignite(999, nil)
-            elseif data.func == "extinguish" then Ent:extinguish()
-        --vehicle
-            elseif data.func == "eject Driver" then Ent:ejectDriver()
-            elseif data.func == "kill Driver" then Ent:killDriver()
-            elseif data.func == "strip Driver" then Ent:stripDriver()
-            elseif data.func == "lock" then Ent:lock()
-            elseif data.func == "unlock" then Ent:unlock()
-            elseif data.func == "toss vehicle" then Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass() * 2)
-        --npc
-            elseif data.func == "like me" then Ent:addEntityRelationship(owner(), "like", 99)
-            elseif data.func == "fear me" then Ent:addEntityRelationship(owner(), "fear", 99)
-            elseif data.func == "hate me" then Ent:addEntityRelationship(owner(), "hate", 99)
-            elseif data.func == "neutral me" then Ent:addEntityRelationship(owner(), "neutral", 99)
-            elseif data.func == "broke weapon" then Ent:giveWeapon("weapon_empty_hands")
-        --class_C_BaseEntity
-
-            end
+    VehicleFunctions = {
+        kill = {},
+        eject = {},
+        strip = {},    
+    }
+    
+    hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
+        if table.hasValue(VehicleFunctions.kill, vehicle) then
+            vehicle:killDriver()
         end
+        if table.hasValue(VehicleFunctions.eject, vehicle) then
+            vehicle:ejectDriver()
+        end
+        if table.hasValue(VehicleFunctions.strip, vehicle) then
+            vehicle:stripDriver()
+        end
+    end)
+    
+    Function = {
+    --props
+        ["remove"] = function(Ent) Ent:remove() end,   
+        ["no Collide"] = function(Ent) Ent:setNocollideAll(true) end,
+        ["return Collide"] = function(Ent) Ent:setNocollideAll(false) end,
+        ["make transparent"] = function(Ent) Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 0)) end,
+        ["remove transparency"] = function(Ent) Ent:setColor(Color(Ent:getColor()[1], Ent:getColor()[2], Ent:getColor()[3], 255)) end,
+        ["gravity off"] = function(Ent) Ent:enableGravity(false) end,
+        ["gravity on"] = function(Ent) Ent:enableGravity(true) end,
+        ["remove Trails"] = function(Ent) Ent:removeTrails() end,
+        ["set NoDrag"] = function(Ent) Ent:setCollisionGroup(10) end,
+        ["froze"] = function(Ent) Ent:setFrozen(true) end,
+        ["unfroze"] = function(Ent) Ent:setFrozen(false) end,
+        ["toss prop"] = function(Ent) Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass()) end,
+        ["break"] = function(Ent) Ent:breakEnt() end,
+        ["break constraints"] = function(Ent) constraint.breakAll(Ent) end,
+        ["make spherical"] = function(Ent) Ent:enableSphere(true, nil) end,
+        ["set breakable"] = function(Ent) Ent:setUnbreakable(false) end,
+        ["set unbreakable"] = function(Ent) Ent:setUnbreakable(true) end,
+        ["rope"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil) roped = true end end end,
+        ["rigid rope"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.rope(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/cable2", true, nil) roped = true end end end,
+        ["axis"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.axis(LastEnt, Ent, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil) roped = true end end end,
+        ["elastic"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.elastic(Ent:entIndex(), LastEnt, Ent, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false) roped = true end end end,
+        ["ballsocket"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.ballsocket(LastEnt, Ent, nil, nil, Vector(), 0, 0, true) roped = true end end end,
+        ["weld"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.weld(LastEnt, Ent, nil, nil, 0, true) roped = true end end end,
+        ["nocollide"] = function(Ent) if LastEnt != nil then if LastEnt:isValid() and LastEnt != Ent then constraint.nocollide(LastEnt, Ent, nil, nil) roped = true end end end,
+        ["KeepUpRight"] = function(Ent) constraint.keepupright(Ent, Ent:getAngles(), 0, 50000) end,
+        ["rope to me"] = function(Ent) constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", false, nil) end,
+        ["rigid rope to me"] = function(Ent) constraint.rope(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, 2, "cable/rope", true, nil) end,
+        ["elastic to me"] = function(Ent) constraint.elastic(Ent:entIndex(), Ent, BaseProp, nil, nil, Vector(), Vector(), nil, nil, nil, 2, false) end,
+        ["axis to me"] = function(Ent) constraint.axis(Ent, BaseProp, nil, nil, Vector(), Vector(), 0, 0, 0, true, nil) end,
+        ["ballsocket to me"] = function(Ent) constraint.ballsocket(Ent, BaseProp, nil, nil, Vector(), 0, 0, true) end,
+        ["weld to me"] = function(Ent) constraint.weld(Ent, BaseProp, nil, nil, 0, true) end,
+        ["ignite"] = function(Ent) Ent:ignite(999, nil) end,
+        ["extinguish"] = function(Ent) Ent:extinguish() end,
+    --jail  
+        ["remove jail"] = function(Ent) Ent:setPos(Vector(-7777)) Ent:setParent(entity(127)) end,
+    --player
+        ["drop weapon"] = function(Ent) if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end,
+        ["modelSize: 0.5"] = function(Ent) Ent:setModelScale(0.5) end,
+        ["modelSize: 1.0"] = function(Ent) Ent:setModelScale(1) end,
+        ["modelSize: 2.0"] = function(Ent) Ent:setModelScale(2) end,
+        ["toss player"] = function(Ent) Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20)) end,
+        ["kill"] = function(Ent) Ent:applyDamage(999999, entity(127), entity(127)) end,
+        ["strip weapons"] = function(Ent) Ent:stripWeapons() end,
+        ["full heal"] = function(Ent) Ent:setHealth(Ent:getMaxHealth()) end,
+        ["teleport to ACID"] = function(Ent) Ent:setPos(Vector(9350, 8495, -11500)) end,
+        ["teleport to Vector(0)"] = function(Ent) Ent:setPos(Vector(0)) end,
+        ["drop all weapons"] = function(Ent) for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end end,
+    --vehicle
+        ["eject Driver"] = function(Ent) Ent:ejectDriver() end,
+        ["kill Driver"] = function(Ent) Ent:killDriver() end,
+        ["strip Driver"] = function(Ent) Ent:stripDriver() end,
+        ["lock"] = function(Ent) Ent:lock() end,
+        ["unlock"] = function(Ent) Ent:unlock() end,
+        ["toss vehicle"] = function(Ent) Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass() * 2) end,
+        ["function[kill drivers]"] = function(Ent) table.add(VehicleFunctions.kill, {Ent}) end,
+        ["remove function[kill drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.kill, Ent) end,
+        ["function[eject drivers]"] = function(Ent) table.add(VehicleFunctions.eject, {Ent}) end,
+        ["remove function[eject drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.eject, Ent) end,
+        ["function[strip drivers]"] = function(Ent) table.add(VehicleFunctions.strip, {Ent}) end,
+        ["remove function[strip drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.strip, Ent) end,
+    --npc
+        ["like me"] = function(Ent) Ent:addEntityRelationship(owner(), "like", 99) end,
+        ["fear me"] = function(Ent) Ent:addEntityRelationship(owner(), "fear", 99) end,
+        ["hate me"] = function(Ent) Ent:addEntityRelationship(owner(), "hate", 99) end,
+        ["neutral me"] = function(Ent) Ent:addEntityRelationship(owner(), "neutral", 99) end,
+        ["broke weapon"] = function(Ent) Ent:giveWeapon("weapon_empty_hands") end,
+        
+    }
+    for i = 1, 30 do Function["skin " .. i] = function(Ent) Ent:setSkin(i - 1) end end
+        
+    net.receive("sendFunc", function(str)
+        local data = net.readTable()
+        local func = data.func
+        local Ent = entity(data.id)
+        
+        roped = false
+        Function[func](Ent)
         
         if roped == false then
             LastEnt = Ent
         else
             LastEnt = nil
         end
-    end
-    
-    net.receive("sendFunc", function(str)
-        local data = net.readTable()
-        Func(data)
     end)
     
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.57b"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " added some constraints. Added skin-change function")  
+    Ver = "v0.59"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " fixed some crush, some optimization")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
     
@@ -317,6 +295,12 @@ elseif CLIENT then
             "toss vehicle",
             "teleport to ACID",
             "teleport to Vector(0)",  
+            "function[kill drivers]",
+            "remove function[kill drivers]",
+            "function[eject drivers]",
+            "remove function[eject drivers]",
+            "function[strip drivers]",
+            "remove function[strip drivers]",
         },
         npc = {
             "like me",
@@ -388,7 +372,20 @@ elseif CLIENT then
             "set NoDrag",
             "teleport to ACID",
             "teleport to Vector(0)", 
-        }
+        },
+        func_breakable = {
+            "remove",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "remove Trails",
+            "set NoDrag",
+            "teleport to ACID",
+            "teleport to Vector(0)", 
+        },
         
     }
     
@@ -483,7 +480,7 @@ elseif CLIENT then
                 local data = table.copy(getStorage())
                 local isJohn = data == Data["john"]
                 if not isJohn then
-                    if Ent:getSkinCount() > 1 then
+                    if (Ent:getSkinCount() or 0) > 1 then
                        table.insert(data, 1, "set skin =>") 
                     end
                 end
@@ -630,7 +627,7 @@ elseif CLIENT then
         elseif Ent != nil then
             if key == 107 then
                 local data = getStorage()
-                if Ent:getSkinCount() > 1 then
+                if (Ent:getSkinCount() or 0) > 1 then
                    table.insert(data, 1, "set skin =>") 
                 end
                 local mouseX, mouseY = input.getCursorPos()
