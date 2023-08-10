@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.6
+--@name EntityAdministrator-v0.61
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -64,6 +64,7 @@ if SERVER then
     PlayerFunctions = {
         respawn = {},
         heal = {},    
+        strip = {}
     }
     
     hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
@@ -90,6 +91,14 @@ if SERVER then
         if table.count(PlayerFunctions.heal[ply:getSteamID()] or {}) > 1 then
             if PlayerFunctions.heal[ply:getSteamID()].heal != 0 then
                 ply:setHealth(newHealth + math.round(damageTaken))
+            end
+        end
+    end)
+    
+    hook.add("PlayerSwitchWeapon", "", function(ply, oldwep, newweapon)
+        if table.count(PlayerFunctions.strip[ply:getSteamID()] or {}) > 1 then
+            if PlayerFunctions.strip[ply:getSteamID()].strip != 0 then
+                ply:stripWeapons()
             end
         end
     end)
@@ -149,6 +158,8 @@ if SERVER then
         ["remove function [spawnpoint]"] = function(Ent) PlayerFunctions.respawn[Ent:getSteamID()] = nil end,
         ["function [healing]"] = function(Ent) if table.count(PlayerFunctions.heal[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.heal[Ent:getSteamID()] = {heal = 1, id = Ent:getSteamID()} end end,
         ["remove function [healing]"] = function(Ent) PlayerFunctions.heal[Ent:getSteamID()] = nil end,
+        ["function [ban weapons]"] = function(Ent) if table.count(PlayerFunctions.strip[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.strip[Ent:getSteamID()] = {strip = 1, id = Ent:getSteamID()} end Ent:stripWeapons() end,
+        ["remove function [ban weapons]"] = function(Ent) PlayerFunctions.strip[Ent:getSteamID()] = nil end,
             
     --vehicle
         ["eject Driver"] = function(Ent) Ent:ejectDriver() end,
@@ -192,7 +203,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.6"
+    Ver = "v0.61"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " fixed some crush, some optimization. Added functions for player/vehicle. Now you can target yourself.")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
@@ -429,6 +440,27 @@ elseif CLIENT then
             "teleport to ACID",
             "teleport to Vector(0)", 
         },
+        gmod_rttv = {
+            "constraints =>",
+            "remove",
+            "break",
+            "no Collide",
+            "return Collide",
+            "make transparent",
+            "remove transparency",
+            "ignite",
+            "extinguish",
+            "gravity off",
+            "gravity on",
+            "remove Trails",
+            "set NoDrag",
+            "froze",
+            "unfroze",
+            "toss prop",
+            "teleport to ACID",
+            "teleport to Vector(0)", 
+            "KeepUpRight",
+        },
         
     }
     
@@ -452,8 +484,10 @@ elseif CLIENT then
     DataPlayerFunctions = {
         "function [spawnpoint]",
         "function [healing]",
+        "function [ban weapons]",
         "remove function [spawnpoint]",
         "remove function [healing]",
+        "remove function [ban weapons]",
     }
     DataVehicleFunctions = {
         "function [kill drivers]",
