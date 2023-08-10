@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.59
+--@name EntityAdministrator-v0.6
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -61,6 +61,10 @@ if SERVER then
         eject = {},
         strip = {},    
     }
+    PlayerFunctions = {
+        respawn = {},
+        heal = {},    
+    }
     
     hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
         if table.hasValue(VehicleFunctions.kill, vehicle) then
@@ -71,6 +75,22 @@ if SERVER then
         end
         if table.hasValue(VehicleFunctions.strip, vehicle) then
             vehicle:stripDriver()
+        end
+    end)
+    
+    hook.add("PlayerSpawn", "", function(ply)
+        if table.count(PlayerFunctions.respawn[ply:getSteamID()] or {}) > 1 then
+            if PlayerFunctions.respawn[ply:getSteamID()].pos != Vector() then
+                ply:setPos(PlayerFunctions.respawn[ply:getSteamID()].pos)
+            end
+        end
+    end)
+    
+    hook.add("PlayerHurt", "", function(ply, attacker, newHealth, damageTaken)
+        if table.count(PlayerFunctions.heal[ply:getSteamID()] or {}) > 1 then
+            if PlayerFunctions.heal[ply:getSteamID()].heal != 0 then
+                ply:setHealth(newHealth + math.round(damageTaken))
+            end
         end
     end)
     
@@ -109,8 +129,10 @@ if SERVER then
         ["weld to me"] = function(Ent) constraint.weld(Ent, BaseProp, nil, nil, 0, true) end,
         ["ignite"] = function(Ent) Ent:ignite(999, nil) end,
         ["extinguish"] = function(Ent) Ent:extinguish() end,
+            
     --jail  
         ["remove jail"] = function(Ent) Ent:setPos(Vector(-7777)) Ent:setParent(entity(127)) end,
+            
     --player
         ["drop weapon"] = function(Ent) if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end,
         ["modelSize: 0.5"] = function(Ent) Ent:setModelScale(0.5) end,
@@ -123,6 +145,11 @@ if SERVER then
         ["teleport to ACID"] = function(Ent) Ent:setPos(Vector(9350, 8495, -11500)) end,
         ["teleport to Vector(0)"] = function(Ent) Ent:setPos(Vector(0)) end,
         ["drop all weapons"] = function(Ent) for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end end,
+        ["function [spawnpoint]"] = function(Ent) if table.count(PlayerFunctions.respawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.respawn[Ent:getSteamID()] = {pos = Ent:getPos(), id = Ent:getSteamID()} end end,
+        ["remove function [spawnpoint]"] = function(Ent) PlayerFunctions.respawn[Ent:getSteamID()] = nil end,
+        ["function [healing]"] = function(Ent) if table.count(PlayerFunctions.heal[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.heal[Ent:getSteamID()] = {heal = 1, id = Ent:getSteamID()} end end,
+        ["remove function [healing]"] = function(Ent) PlayerFunctions.heal[Ent:getSteamID()] = nil end,
+            
     --vehicle
         ["eject Driver"] = function(Ent) Ent:ejectDriver() end,
         ["kill Driver"] = function(Ent) Ent:killDriver() end,
@@ -130,12 +157,13 @@ if SERVER then
         ["lock"] = function(Ent) Ent:lock() end,
         ["unlock"] = function(Ent) Ent:unlock() end,
         ["toss vehicle"] = function(Ent) Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass() * 2) end,
-        ["function[kill drivers]"] = function(Ent) table.add(VehicleFunctions.kill, {Ent}) end,
-        ["remove function[kill drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.kill, Ent) end,
-        ["function[eject drivers]"] = function(Ent) table.add(VehicleFunctions.eject, {Ent}) end,
-        ["remove function[eject drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.eject, Ent) end,
-        ["function[strip drivers]"] = function(Ent) table.add(VehicleFunctions.strip, {Ent}) end,
-        ["remove function[strip drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.strip, Ent) end,
+        ["function [kill drivers]"] = function(Ent) table.add(VehicleFunctions.kill, {Ent}) end,
+        ["remove function [kill drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.kill, Ent) end,
+        ["function [eject drivers]"] = function(Ent) table.add(VehicleFunctions.eject, {Ent}) end,
+        ["remove function [eject drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.eject, Ent) end,
+        ["function [strip drivers]"] = function(Ent) table.add(VehicleFunctions.strip, {Ent}) end,
+        ["remove function [strip drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.strip, Ent) end,
+            
     --npc
         ["like me"] = function(Ent) Ent:addEntityRelationship(owner(), "like", 99) end,
         ["fear me"] = function(Ent) Ent:addEntityRelationship(owner(), "fear", 99) end,
@@ -164,8 +192,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.59"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " fixed some crush, some optimization")  
+    Ver = "v0.6"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update:" .. " fixed some crush, some optimization. Added functions for player/vehicle. Now you can target yourself.")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
     
@@ -174,7 +202,23 @@ elseif CLIENT then
             "не надо трогать Жона",
             "его пропы тоже =)"
         },
+        owner = {
+            "player functions =>",
+            "kill",
+            "drop weapon",
+            "drop all weapons",
+            "strip weapons",
+            "modelSize: 0.5",
+            "modelSize: 1.0",
+            "modelSize: 2.0",
+            "ignite",
+            "extinguish",
+            "full heal",
+            "teleport to ACID",
+            "teleport to Vector(0)",
+        },
         player = {
+            "player functions =>",
             "kill",
             "drop weapon",
             "drop all weapons",
@@ -188,6 +232,7 @@ elseif CLIENT then
             "full heal",
             "teleport to ACID",
             "teleport to Vector(0)",
+
         },
         other = {
             "constraints =>",
@@ -228,6 +273,7 @@ elseif CLIENT then
         },
         prop_vehicle_prisoner_pod = {
             "constraints =>",
+            "vehicle functions =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -252,6 +298,7 @@ elseif CLIENT then
         },
         prop_vehicle_airboat = {
             "constraints =>",
+            "vehicle functions =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -274,6 +321,7 @@ elseif CLIENT then
         },
         prop_vehicle_jeep = {
             "constraints =>",
+            "vehicle functions =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -295,12 +343,7 @@ elseif CLIENT then
             "toss vehicle",
             "teleport to ACID",
             "teleport to Vector(0)",  
-            "function[kill drivers]",
-            "remove function[kill drivers]",
-            "function[eject drivers]",
-            "remove function[eject drivers]",
-            "function[strip drivers]",
-            "remove function[strip drivers]",
+
         },
         npc = {
             "like me",
@@ -406,6 +449,20 @@ elseif CLIENT then
         "ballsocket to me",
         "weld to me",
     }
+    DataPlayerFunctions = {
+        "function [spawnpoint]",
+        "function [healing]",
+        "remove function [spawnpoint]",
+        "remove function [healing]",
+    }
+    DataVehicleFunctions = {
+        "function [kill drivers]",
+        "function [eject drivers]",
+        "function [strip drivers]",
+        "remove function [kill drivers]",
+        "remove function [eject drivers]",
+        "remove function [strip drivers]",
+    }
     
     DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin " .. i end
     
@@ -425,13 +482,18 @@ elseif CLIENT then
     Font2 = render.createFont("Consolas", 18, 50, true)
     ButtonSize = Vector(250, 30)
     ButtonCorrector = 0.5
+    
     isConstraints = false
     isSkins = false
+    isPlayerFunctions = false
+    isVehicleFunctions = false
     
     local function getStorage()
         local data = {}
         if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
             data = table.copy(Data["john"])
+        elseif Ent == owner() then
+            data = table.copy(Data["owner"])
         elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
             data = table.copy(Data["jail"])
         elseif Ent:isNPC() then
@@ -447,9 +509,11 @@ elseif CLIENT then
     local function closeTrees()
         isConstraints = false
         isSkins = false
+        isPlayerFunctions = false
+        isVehicleFunctions = false
     end
     
-    timer.create("check trees", 1, 0, function()
+    function checkTrees()
         local num = 0
         if isConstraints == true then
             for i = 1, table.count(DataConstraints) do
@@ -459,8 +523,20 @@ elseif CLIENT then
             for i = 1, table.count(DataSkins) do
                 num = num + (Button[200 + i] and 1 or 0)
             end
+        elseif isPlayerFunctions == true then
+            for i = 1, table.count(DataPlayerFunctions) do
+                num = num + (Button[300 + i] and 1 or 0)
+            end
+        elseif isVehicleFunctions == true then
+            for i = 1, table.count(DataVehicleFunctions) do
+                num = num + (Button[400 + i] and 1 or 0)
+            end
         end
-        if num == 0 then
+        return num 
+    end
+    
+    timer.create("check trees", 1, 0, function()
+        if checkTrees() == 0 then
             closeTrees()
         end    
     end)
@@ -494,17 +570,7 @@ elseif CLIENT then
                 render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
                 render.setFont(Font2)
                 
-                local num = 0
-                if isConstraints == true then
-                    for i = 1, table.count(DataConstraints) do
-                        num = num + (Button[100 + i] and 1 or 0)
-                    end
-                elseif isSkins == true then
-                    for i = 1, table.count(DataSkins) do
-                        num = num + (Button[200 + i] and 1 or 0)
-                    end
-                end
-                if num == 0 then
+                if checkTrees() == 0 then
                     timer.unpause("check trees")
                 else
                     timer.pause("check trees")
@@ -525,6 +591,8 @@ elseif CLIENT then
                                     isConstraints = Button[i]
                                     if isConstraints == true then
                                         isSkins = false
+                                        isPlayerFunctions = false
+                                        isVehicleFunctions = false
                                     end
                                 end
                             elseif dat == "set skin =>" then
@@ -532,6 +600,26 @@ elseif CLIENT then
                                     isSkins = Button[i]
                                     if isSkins == true then
                                         isConstraints = false
+                                        isPlayerFunctions = false
+                                        isVehicleFunctions = false
+                                    end
+                                end
+                            elseif dat == "player functions =>" then
+                                if isPlayerFunctions == false then
+                                    isPlayerFunctions = Button[i]
+                                    if isPlayerFunctions == true then
+                                        isConstraints = false
+                                        isSkins = false
+                                        isVehicleFunctions = false
+                                    end
+                                end
+                            elseif dat == "vehicle functions =>" then
+                                if isVehicleFunctions == false then
+                                    isVehicleFunctions = Button[i]
+                                    if isVehicleFunctions == true then
+                                        isConstraints = false
+                                        isSkins = false
+                                        isPlayerFunctions = false
                                     end
                                 end
                             end
@@ -560,7 +648,6 @@ elseif CLIENT then
                     for i = 1, table.count(data) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
-                        
                         if dat != "" then
                             Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
@@ -577,7 +664,6 @@ elseif CLIENT then
                     for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
                         local dat = data[table.getKeys(data)[i]]
                         y = y + ButtonSize.y
-                        
                         if dat != "" then
                             Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
@@ -587,6 +673,38 @@ elseif CLIENT then
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[200 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(dat:replace("skin ", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
+                    end
+                elseif isPlayerFunctions then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataPlayerFunctions)
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        if dat != "" then
+                            Button[300 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[300 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[300 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
+                elseif isVehicleFunctions then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataVehicleFunctions)
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        if dat != "" then
+                            Button[400 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[400 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[400 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                     end
                 end
             else
@@ -598,26 +716,32 @@ elseif CLIENT then
         end
         
     end)
-        
+    
+    function findTarget()
+        local Angles = Ply:getEyeAngles()
+        if Angles[1] == 89 and math.abs(Angles[3]) < 10 then
+            Ent = owner()
+            input.enableCursor(true)
+            Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+        else
+            if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
+                Ent = Ply:getEyeTrace().Entity
+                --print(Ply:getEyeTrace().Entity:getClass())
+                input.enableCursor(true)
+                Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+            end
+        end
+    end
+    
     hook.add("inputPressed", "", function(key)
         if key == 108 and Ent == nil then
             if Ply:isValid() then
                 if Ply:getActiveWeapon():isValid() then
                     if Ply:getActiveWeapon():getClass() == "weapon_empty_hands" then
-                        if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
-                            Ent = Ply:getEyeTrace().Entity
-                            --print(Ply:getEyeTrace().Entity:getClass())
-                            input.enableCursor(true)
-                            Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
-                        end
+                        findTarget()
                     end
                 else
-                    if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
-                        Ent = Ply:getEyeTrace().Entity
-                        --print(Ply:getEyeTrace().Entity:getClass())
-                        input.enableCursor(true)
-                        Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
-                    end
+                    findTarget()
                 end
             end
         elseif key == 108 and Ent != nil then
@@ -631,7 +755,7 @@ elseif CLIENT then
                    table.insert(data, 1, "set skin =>") 
                 end
                 local mouseX, mouseY = input.getCursorPos()
-                local isTrees = isConstraints or isSkins
+                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions
                 local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
                 if inmenu then
                     for i = 1, table.count(data) do
@@ -662,6 +786,32 @@ elseif CLIENT then
                         local data = table.copy(DataSkins)
                         for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
                             if Button[200 + i] then
+                                net.start("sendFunc")
+                                net.writeTable({id = Ent:entIndex(), func = data[i]})
+                                net.send(Ply)
+                                Ent = nil
+                                input.enableCursor(false)
+                                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                                closeTrees()
+                            end
+                        end
+                    elseif isPlayerFunctions then
+                        local data = table.copy(DataPlayerFunctions)
+                        for i = 1, table.count(data) do
+                            if Button[300 + i] then
+                                net.start("sendFunc")
+                                net.writeTable({id = Ent:entIndex(), func = data[i]})
+                                net.send(Ply)
+                                Ent = nil
+                                input.enableCursor(false)
+                                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                                closeTrees()
+                            end
+                        end
+                    elseif isVehicleFunctions then
+                        local data = table.copy(DataVehicleFunctions)
+                        for i = 1, table.count(data) do
+                            if Button[400 + i] then
                                 net.start("sendFunc")
                                 net.writeTable({id = Ent:entIndex(), func = data[i]})
                                 net.send(Ply)
