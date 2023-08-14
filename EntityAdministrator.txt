@@ -1,7 +1,9 @@
---@name EntityAdministrator-v0.66
+--@name EntityAdministrator-v0.67
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
+
+John = "STEAM_0:1:98261831"
 
 if SERVER then
 
@@ -82,6 +84,11 @@ if SERVER then
         block = {},
         camera = {}
     }
+    PropFunctions = {
+        OnPhysgunFreezeProp = false,
+        OnPhysgunFreezeVehicle = false,
+        
+    }
     
     hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
         if table.hasValue(VehicleFunctions.kill, vehicle) then
@@ -117,6 +124,21 @@ if SERVER then
                 ply:stripWeapons()
             end
         end
+    end)
+    
+    hook.add("OnPhysgunFreeze", "", function(physgun, physobj, ent, ply)
+        --if ent:getOwner():getSteamID() != John then 
+            if PropFunctions.OnPhysgunFreezeProp == true and not ent:isVehicle() then
+                if ent:getOwner() != nil then
+                    timer.simple(0.01, function() ent:setFrozen(false) end)
+                end
+            end
+            if PropFunctions.OnPhysgunFreezeVehicle == true and ent:isVehicle() then
+                if ent:getOwner() != nil then
+                    timer.simple(0.01, function() ent:setFrozen(false) end)
+                end
+            end
+        --end
     end)
     
     Function = {
@@ -167,7 +189,10 @@ if SERVER then
             local P = prop.createCustom(data.pos, data.ang, convexes, false)
             P:setFrozen(data.frozen)        
         end,
-            
+    --mass prop functions
+        ["function [props can't froze]"] = function() PropFunctions.OnPhysgunFreezeProp = true end,
+        ["remove function [props can't froze]"] = function() PropFunctions.OnPhysgunFreezeProp = false end,
+                        
     --jail  
         ["remove jail"] = function(Ent) Ent:setPos(Vector(-7777)) Ent:setParent(entity(127)) end,
             
@@ -207,6 +232,10 @@ if SERVER then
         ["remove function [eject drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.eject, Ent) end,
         ["function [strip drivers]"] = function(Ent) table.add(VehicleFunctions.strip, {Ent}) end,
         ["remove function [strip drivers]"] = function(Ent) table.removeByValue(VehicleFunctions.strip, Ent) end,
+            
+    --mass vehicle functions
+        ["function [vehicle can't froze]"] = function() PropFunctions.OnPhysgunFreezeVehicle = true end,
+        ["remove function [vehicle can't froze]"] = function() PropFunctions.OnPhysgunFreezeVehicle = false end,
             
     --npc
         ["like me"] = function(Ent) Ent:addEntityRelationship(owner(), "like", 99) end,
@@ -258,10 +287,9 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.66"
+    Ver = "v0.67"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. "player => block functions. EmitSound funcs. Some optimization.")  
     enableHud(nil, true)
-    John = "STEAM_0:1:98261831"
     
     Data = {
         john = {
@@ -304,6 +332,7 @@ elseif CLIENT then
         },
         other = {
             "constraints =>",
+            "mass prop functions =>",
             "emit sound =>",
             "remove",
             "break",
@@ -345,6 +374,7 @@ elseif CLIENT then
         prop_vehicle_prisoner_pod = {
             "constraints =>",
             "vehicle functions =>",
+            "mass vehicle functions =>",
             "emit sound =>",
             "eject Driver",
             "kill Driver",
@@ -371,6 +401,7 @@ elseif CLIENT then
         prop_vehicle_airboat = {
             "constraints =>",
             "vehicle functions =>",
+            "mass vehicle functions =>",
             "emit sound =>",
             "eject Driver",
             "kill Driver",
@@ -395,6 +426,7 @@ elseif CLIENT then
         prop_vehicle_jeep = {
             "constraints =>",
             "vehicle functions =>",
+            "mass vehicle functions =>",
             "emit sound =>",
             "eject Driver",
             "kill Driver",
@@ -583,6 +615,7 @@ elseif CLIENT then
         "function [ban weapons]",
         "function [block moving]",
         "function [block camera]",
+        "",
         "remove function [spawnpoint]",
         "remove function [healing]",
         "remove function [ban weapons]",
@@ -593,9 +626,14 @@ elseif CLIENT then
         "function [kill drivers]",
         "function [eject drivers]",
         "function [strip drivers]",
+        "",
         "remove function [kill drivers]",
         "remove function [eject drivers]",
         "remove function [strip drivers]",
+    }
+    DataMassVehicleFunctions = {
+        "function [vehicle can't froze]",
+        "remove function [vehicle can't froze]",
     }
     DataCustomPropFunctions = {
         "make balloon",
@@ -613,6 +651,10 @@ elseif CLIENT then
         "snd:ambient/alarms/siren.wav",
         "snd:ambient/energy/force_field_loop1.wav",
         "snd:ambient/energy/electric_loop.wav",
+    }
+    DataMassPropFunctions = {
+        "function [props can't froze]",
+        "remove function [props can't froze]",  
     }
     
     DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
@@ -666,6 +708,8 @@ elseif CLIENT then
         isVehicleFunctions = false
         isCustomPropFunctions = false
         isSoundFunctions = false
+        isMassPropFunctions = false
+        isMassVehicleFunctions = false
     end
     
     function checkTrees()
@@ -693,6 +737,14 @@ elseif CLIENT then
         elseif isSoundFunctions == true then
             for i = 1, table.count(DataSoundFunctions) do
                 num = num + (Button[600 + i] and 1 or 0)
+            end
+        elseif isMassPropFunctions == true then
+            for i = 1, table.count(DataSoundFunctions) do
+                num = num + (Button[700 + i] and 1 or 0)
+            end
+        elseif isMassVehicleFunctions == true then
+            for i = 1, table.count(DataMassVehicleFunctions) do
+                num = num + (Button[800 + i] and 1 or 0)
             end
         end
         return num 
@@ -795,6 +847,22 @@ elseif CLIENT then
                                     if isSoundFunctions == true then
                                         closeTrees()
                                         isSoundFunctions = true
+                                    end
+                                end
+                            elseif dat == "mass prop functions =>" then
+                                if isMassPropFunctions == false then
+                                    isMassPropFunctions = Button[i]
+                                    if isMassPropFunctions == true then
+                                        closeTrees()
+                                        isMassPropFunctions = true
+                                    end
+                                end
+                            elseif dat == "mass vehicle functions =>" then
+                                if isMassVehicleFunctions == false then
+                                    isMassVehicleFunctions = Button[i]
+                                    if isMassVehicleFunctions == true then
+                                        closeTrees()
+                                        isMassVehicleFunctions = true
                                     end
                                 end
                             end
@@ -913,6 +981,38 @@ elseif CLIENT then
                         render.setColor(Button[600 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                     end
+                elseif isMassPropFunctions then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataMassPropFunctions)
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        if dat != "" then
+                            Button[700 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[700 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[700 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
+                elseif isMassVehicleFunctions then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataMassVehicleFunctions)
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        if dat != "" then
+                            Button[800 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[800 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[800 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
                 end
             else
                 Ent = nil
@@ -972,7 +1072,7 @@ elseif CLIENT then
                    table.insert(data, 1, "set skin =>") 
                 end
                 local mouseX, mouseY = input.getCursorPos()
-                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions
+                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions
                 local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
                 if inmenu then
                     for i = 1, table.count(data) do
@@ -1019,6 +1119,20 @@ elseif CLIENT then
                         local data = table.copy(DataSoundFunctions)
                         for i = 1, table.count(data) do
                             if Button[600 + i] then
+                                sendData(data, i)
+                            end
+                        end
+                    elseif isMassPropFunctions then
+                        local data = table.copy(DataMassPropFunctions)
+                        for i = 1, table.count(data) do
+                            if Button[700 + i] then
+                                sendData(data, i)
+                            end
+                        end
+                    elseif isMassVehicleFunctions then
+                        local data = table.copy(DataMassVehicleFunctions)
+                        for i = 1, table.count(data) do
+                            if Button[800 + i] then
                                 sendData(data, i)
                             end
                         end
