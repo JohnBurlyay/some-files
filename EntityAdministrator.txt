@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.65
+--@name EntityAdministrator-v0.66
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -258,8 +258,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.65"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. "player => block functions. EmitSound funcs.")  
+    Ver = "v0.66"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. "player => block functions. EmitSound funcs. Some optimization.")  
     enableHud(nil, true)
     John = "STEAM_0:1:98261831"
     
@@ -270,6 +270,7 @@ elseif CLIENT then
         },
         owner = {
             "player functions =>",
+            "emit sound =>",
             "kill",
             "drop weapon",
             "drop all weapons",
@@ -285,6 +286,7 @@ elseif CLIENT then
         },
         player = {
             "player functions =>",
+            "emit sound =>",
             "kill",
             "drop weapon",
             "drop all weapons",
@@ -327,6 +329,7 @@ elseif CLIENT then
             "convert to custom prop",
         },
         jail = {
+            "emit sound =>",
             "remove jail",
             "no Collide",
             "return Collide",
@@ -337,11 +340,12 @@ elseif CLIENT then
             "set NoDrag",
         },
         class_C_BaseEntity = {
-            
+            "emit sound =>",
         },
         prop_vehicle_prisoner_pod = {
             "constraints =>",
             "vehicle functions =>",
+            "emit sound =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -367,6 +371,7 @@ elseif CLIENT then
         prop_vehicle_airboat = {
             "constraints =>",
             "vehicle functions =>",
+            "emit sound =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -390,6 +395,7 @@ elseif CLIENT then
         prop_vehicle_jeep = {
             "constraints =>",
             "vehicle functions =>",
+            "emit sound =>",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -414,6 +420,7 @@ elseif CLIENT then
 
         },
         npc = {
+            "emit sound =>",
             "like me",
             "fear me",
             "hate me",
@@ -424,6 +431,7 @@ elseif CLIENT then
         },
         npc_rollermine = {
             "constraints =>",
+            "emit sound =>",
             "like me",
             "fear me",
             "hate me",
@@ -433,6 +441,7 @@ elseif CLIENT then
             "kill",
         },
         prop_dynamic = {
+            "emit sound =>",
             "remove",
             "make transparent",
             "remove transparency",
@@ -443,6 +452,7 @@ elseif CLIENT then
             "teleport to Vector(0)", 
         },
         prop_physics_multiplayer = {
+            "emit sound =>",
             "remove",
             "no Collide",
             "return Collide",
@@ -459,6 +469,7 @@ elseif CLIENT then
         },
         acf_gun = {
             "constraints =>",
+            "emit sound =>",
             --"unload gun",
             "remove",
             "no Collide",
@@ -478,6 +489,7 @@ elseif CLIENT then
             
         },
         prop_door_rotating = {
+            "emit sound =>",
             "remove",
             "no Collide",
             "return Collide",
@@ -491,6 +503,7 @@ elseif CLIENT then
             "teleport to Vector(0)", 
         },
         func_breakable = {
+            "emit sound =>",
             "remove",
             "no Collide",
             "return Collide",
@@ -505,6 +518,7 @@ elseif CLIENT then
         },
         gmod_rttv = {
             "constraints =>",
+            "emit sound =>",
             "remove",
             "break",
             "no Collide",
@@ -527,6 +541,7 @@ elseif CLIENT then
         starfall_prop = {
             "constraints =>",
             "custom prop physics =>",
+            "emit sound =>",
             "remove",
             "no Collide",
             "return Collide",
@@ -625,7 +640,7 @@ elseif CLIENT then
     isVehicleFunctions = false
     isCustomPropFunctions = false
     isSoundFunctions = false
-    
+        
     local function getStorage()
         local data = {}
         if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
@@ -738,66 +753,48 @@ elseif CLIENT then
                                 if isConstraints == false then
                                     isConstraints = Button[i]
                                     if isConstraints == true then
-                                        isSkins = false
-                                        isPlayerFunctions = false
-                                        isVehicleFunctions = false
-                                        isCustomPropFunctions = false
-                                        isSoundFunctions = false
+                                        closeTrees()
+                                        isConstraints = true
                                     end
                                 end
                             elseif dat == "set skin =>" then
                                 if isSkins == false then
                                     isSkins = Button[i]
                                     if isSkins == true then
-                                        isConstraints = false
-                                        isPlayerFunctions = false
-                                        isVehicleFunctions = false
-                                        isCustomPropFunctions = false
-                                        isSoundFunctions = false
+                                        closeTrees()
+                                        isSkins = true
                                     end
                                 end
                             elseif dat == "player functions =>" then
                                 if isPlayerFunctions == false then
                                     isPlayerFunctions = Button[i]
                                     if isPlayerFunctions == true then
-                                        isConstraints = false
-                                        isSkins = false
-                                        isVehicleFunctions = false
-                                        isCustomPropFunctions = false
-                                        isSoundFunctions = false
+                                        closeTrees()
+                                        isPlayerFunctions = true
                                     end
                                 end
                             elseif dat == "vehicle functions =>" then
                                 if isVehicleFunctions == false then
                                     isVehicleFunctions = Button[i]
                                     if isVehicleFunctions == true then
-                                        isConstraints = false
-                                        isSkins = false
-                                        isPlayerFunctions = false
-                                        isCustomPropFunctions = false
-                                        isSoundFunctions = false
+                                        closeTrees()
+                                        isVehicleFunctions = true
                                     end
                                 end
                             elseif dat == "custom prop physics =>" then
                                 if isCustomPropFunctions == false then
                                     isCustomPropFunctions = Button[i]
                                     if isCustomPropFunctions == true then
-                                        isConstraints = false
-                                        isSkins = false
-                                        isPlayerFunctions = false
-                                        isVehicleFunctions = false
-                                        isSoundFunctions = false
+                                        closeTrees()
+                                        isCustomPropFunctions = true
                                     end
                                 end
                             elseif dat == "emit sound =>" then
                                 if isSoundFunctions == false then
                                     isSoundFunctions = Button[i]
                                     if isSoundFunctions == true then
-                                        isConstraints = false
-                                        isSkins = false
-                                        isPlayerFunctions = false
-                                        isVehicleFunctions = false
-                                        isCustomPropFunctions = false
+                                        closeTrees()
+                                        isSoundFunctions = true
                                     end
                                 end
                             end
