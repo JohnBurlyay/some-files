@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.69
+--@name EntityAdministrator-v0.7
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -134,6 +134,7 @@ if SERVER then
         OnPhysgunFreezeVehicle = false,
         
     }
+    RemoteUse = {}
     
     hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
         if table.hasValue(VehicleFunctions.kill, vehicle) then
@@ -206,7 +207,7 @@ if SERVER then
             end
         end
     end)
-    
+        
     Function = {
     --props
         ["remove"] = function(Ent) Ent:remove() end,   
@@ -344,6 +345,10 @@ if SERVER then
     --skins
         ["skin"] = function(Ent, skin) Ent:setSkin(tonumber(skin)) end,
             
+    --remote use
+        ["remote"] = function(Ent, key) RemoteUse[key] = Ent net.start("RemoteUseData") net.writeTable(RemoteUse) net.send(owner()) end,
+        ["clear all buttons"] = function(Ent) RemoteUse = {} net.start("RemoteUseData") net.writeTable(RemoteUse) net.send(owner()) end,
+            
             
     }
         
@@ -375,11 +380,17 @@ if SERVER then
         end
     end)
     
+    net.receive("RemoteUse", function(str)
+        local data = net.readTable()
+        owner():setPos(data.ent:localToWorld(Vector(30, 30, 0)))
+        data.ent:use() 
+    end)
+    
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.69"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " player => prop/npc spawn block. prop => grab")  
+    Ver = "v0.7"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " Player => prop/npc spawn block. Prop => grab. +RemoteUseFunctions.")  
     enableHud(nil, true)
     
     Data = {
@@ -461,13 +472,14 @@ elseif CLIENT then
             "set NoDrag",
         },
         class_C_BaseEntity = {
-            "emit sound =>",
+            "remote use =>",
         },
         prop_vehicle_prisoner_pod = {
             "constraints =>",
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "remote use =>",
             "grab / stop grab",
             "eject Driver",
             "kill Driver",
@@ -496,6 +508,7 @@ elseif CLIENT then
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "remote use =>",
             "grab / stop grab",
             "eject Driver",
             "kill Driver",
@@ -522,6 +535,7 @@ elseif CLIENT then
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "remote use =>",
             "grab / stop grab",
             "eject Driver",
             "kill Driver",
@@ -758,12 +772,25 @@ elseif CLIENT then
         "function [props can't froze]",
         "remove function [props can't froze]",  
     }
+    DataRemoteUseFunctions = {
+        "remote:KP_PGUP",
+        "remote:KP_UPARROW",
+        "remote:KP_HOME",
+        "remote:KP_RIGHTARROW",
+        "remote:KP_5",
+        "remote:KP_LEFTARROW",
+        "remote:KP_PGDN",
+        "remote:KP_DOWNARROW",
+        "remote:KP_END",   
+        "clear all buttons", 
+    }
     
     DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
     
     Button = {}
     Ent = nil
     Ply = owner()
+    RemoteUse = {}
     
     BaseColor1 = Color(50, 50, 100, 255)
     BaseColor2 = Color(0, 0, 0, 255)
@@ -778,13 +805,6 @@ elseif CLIENT then
     ButtonSize = Vector(250, 30)
     ButtonCorrector = 0.5
     
-    isConstraints = false
-    isSkins = false
-    isPlayerFunctions = false
-    isVehicleFunctions = false
-    isCustomPropFunctions = false
-    isSoundFunctions = false
-        
     local function getStorage()
         local data = {}
         if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
@@ -812,7 +832,9 @@ elseif CLIENT then
         isSoundFunctions = false
         isMassPropFunctions = false
         isMassVehicleFunctions = false
+        isRemoteUseFunctions = false
     end
+    closeTrees()
     
     function checkTrees()
         local num = 0
@@ -847,6 +869,10 @@ elseif CLIENT then
         elseif isMassVehicleFunctions == true then
             for i = 1, table.count(DataMassVehicleFunctions) do
                 num = num + (Button[800 + i] and 1 or 0)
+            end
+        elseif isRemoteUseFunctions == true then
+            for i = 1, table.count(DataRemoteUseFunctions) do
+                num = num + (Button[900 + i] and 1 or 0)
             end
         end
         return num 
@@ -967,6 +993,14 @@ elseif CLIENT then
                                         isMassVehicleFunctions = true
                                     end
                                 end
+                            elseif dat == "remote use =>" then
+                                if isRemoteUseFunctions == false then
+                                    isRemoteUseFunctions = Button[i]
+                                    if isRemoteUseFunctions == true then
+                                        closeTrees()
+                                        isRemoteUseFunctions = true
+                                    end
+                                end
                             end
                         else
                             render.setColor(Button[i] and BaseColor3 or BaseColor1)
@@ -1081,7 +1115,7 @@ elseif CLIENT then
                         render.setColor(BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[600 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                        render.drawText(x + ButtonSize.x / 2, y + 5, string.explode(":", dat, false)[2] or dat, 1)
                     end
                 elseif isMassPropFunctions then
                     local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
@@ -1114,6 +1148,23 @@ elseif CLIENT then
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[800 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
                         render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                    end
+                elseif isRemoteUseFunctions then
+                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    local data = table.copy(DataRemoteUseFunctions)
+                    for i = 1, table.count(data) do
+                        local dat = data[table.getKeys(data)[i]]
+                        y = y + ButtonSize.y
+                        if dat != "" then
+                            Button[900 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                        end
+                        render.setColor(Button[900 + i] and BaseColor3 or BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Button[900 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                        local text = string.explode(":", dat, false)[2] or dat
+                        render.drawText(x + ButtonSize.x / 2, y + 5, RemoteUse[text] == nil and text or "=[ " .. text .. " ]=", 1)
                     end
                 end
             else
@@ -1152,7 +1203,18 @@ elseif CLIENT then
         closeTrees()
     end
     
+    net.receive("RemoteUseData", function(str)
+        RemoteUse = net.readTable()
+    end)
+    
     hook.add("inputPressed", "", function(key)
+        if RemoteUse[input.getKeyName(key)] != nil then
+            net.start("RemoteUse")
+            net.writeTable({ent = RemoteUse[input.getKeyName(key)]})
+            net.send(owner())
+            Ply:emitSound("buttons/combine_button1.wav", 100, 150, 1, CHAN_AUTO)
+        end
+        
         if key == 108 and Ent == nil then
             if Ply:isValid() then
                 if Ply:getActiveWeapon():isValid() then
@@ -1180,7 +1242,7 @@ elseif CLIENT then
                    table.insert(data, 1, "set skin =>") 
                 end
                 local mouseX, mouseY = input.getCursorPos()
-                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions
+                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions or isRemoteUseFunctions
                 local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
                 if inmenu then
                     for i = 1, table.count(data) do
@@ -1241,6 +1303,13 @@ elseif CLIENT then
                         local data = table.copy(DataMassVehicleFunctions)
                         for i = 1, table.count(data) do
                             if Button[800 + i] then
+                                sendData(data, i)
+                            end
+                        end
+                    elseif isRemoteUseFunctions then
+                        local data = table.copy(DataRemoteUseFunctions)
+                        for i = 1, table.count(data) do
+                            if Button[900 + i] then
                                 sendData(data, i)
                             end
                         end
