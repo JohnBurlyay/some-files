@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.68
+--@name EntityAdministrator-v0.69
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -6,12 +6,17 @@
 John = "STEAM_0:1:98261831"
 
 if SERVER then
-
+    
+    wire.adjustOutputs({"Grab"}, {"number"})
+    wire.ports.Grab = 0
+    
     chip():setCollisionGroup(10)
     LastEnt = nil
     Holo = {}
     O = owner()  
     BaseProp = nil
+    GraberEntity = nil
+    Grabed = nil
 
     function holo(id, model, pos, ang, scale, mat, color, parent)
         Holo[id] = holograms.create(pos, ang, model, scale)
@@ -27,23 +32,52 @@ if SERVER then
     BaseProp:setColor(Color(255, 255, 255, 0))
     BaseProp:setParent(Holo[1])      
     
+    DataGraber = {
+        Gravity = true,
+        Model = "models/hunter/plates/plate.mdl",
+        Range = 1000,
+    }
+    
+    local function Graber(Ent)
+        if GraberEntity != nil or Ent == nil then
+            if GraberEntity:isValid() then
+                GraberEntity:remove()
+                wire.ports.Grab = 0
+                GraberEntity = nil
+                if Grabed:isValid() then
+                    Grabed:enableGravity(true) 
+                end
+                Grabed = nil
+            end
+        else
+            Grabed = Ent
+            local pos = owner():localToWorld(Vector(0, 0, 40)) + (Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 3)) - owner():localToWorld(Vector(0, 0, 40))) * 0.25
+            local ang = (Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 3)) - pos):getAngle() + Angle(90, 0, 0)
+            GraberEntity = prop.createSent(pos, ang, "gmod_wire_grabber", 1, DataGraber)
+            GraberEntity:setNocollideAll(true)
+            GraberEntity:setColor(Color(255, 255, 255, 0))
+            wire.ports.Grab = 1
+            Ent:setFrozen(false)
+            timer.simple(0.1, function() wire.create(GraberEntity, chip(), "Grab", "Grab") end)
+            timer.simple(0.25, function() GraberEntity["enable"] = 1 end)
+        end
+    end
+    
     timer.create("respawn", 1, 0, function()
         if O:isAlive() then
             if not Holo[1]:isValid() and hologram.canSpawn() and O:getActiveWeapon():isValid() then
                 holo(1, "models/hunter/blocks/cube025x025x025.mdl", O:localToWorld(Vector(0, 0, 0)), O:worldToLocalAngles(Angle(0, 0, 0)), Vector(1, 1, 1), "", Color(255, 255, 255, 0), O:getActiveWeapon())
-                --print("holo respawn!")
             end
             if not BaseProp:isValid() and prop.canSpawn() and Holo[1]:isValid() then
                 BaseProp = prop.create(Holo[1]:getPos(), Angle(), "models/led.mdl", 1)
                 BaseProp:setNocollideAll(true)
                 BaseProp:setColor(Color(255, 255, 255, 0))
                 BaseProp:setParent(Holo[1])
-                --print("baseprop respawn!")
             end
         end
     end)
     
-    hook.add("think", "", function()
+    hook.add("tick", "", function()
         if BaseProp:isValid() and Holo[1]:isValid() then
             local Props = BaseProp:getAllConstrained(nil)
             if #Props > 0 then
@@ -54,7 +88,6 @@ if SERVER then
                     end
                 end 
             end
-            --BaseProp:setPos(Holo[1]:getPos())
         end
         local Plys = find.allPlayers()
         for i = 1, #Plys do
@@ -68,6 +101,16 @@ if SERVER then
                 if PlayerFunctions.camera[ply:getSteamID()].ang != Angle() then
                     ply:setEyeAngles(PlayerFunctions.camera[ply:getSteamID()].ang)
                 end
+            end
+        end
+        --graber work
+        if GraberEntity != nil and GraberEntity:isValid() then
+            if GraberEntity["enable"] == 1 then
+                GraberEntity:setPos(owner():localToWorld(Vector(0, 0, 40)))
+                GraberEntity:setAngles(owner():getEyeAngles() + Angle(90, 0, 0))
+            end
+            if Grabed:isValid() and Grabed:isValidPhys() then
+               Grabed:setFrozen(false) 
             end
         end
     end)
@@ -125,6 +168,10 @@ if SERVER then
             if PlayerFunctions.strip[ply:getSteamID()].strip != 0 then
                 ply:stripWeapons()
             end
+        end
+        
+        if ply == owner() and GraberEntity != nil then
+            Graber(nil)
         end
     end)
     
@@ -206,8 +253,18 @@ if SERVER then
             }
             Ent:remove()
             local P = prop.createCustom(data.pos, data.ang, convexes, false)
-            P:setFrozen(data.frozen)        
+            P:setFrozen(data.frozen)  
+            
+            local tbl = P:getPhysicsObject():getMesh()
+            mesh.generateUV(tbl, 0.1)
+            mesh.generateNormals(tbl, true)
+            mesh.generateTangents(tbl)
+            P:setMesh(mesh.createFromTable(tbl))   
+            P:setMeshMaterial(data.mat)   
         end,
+        
+        ["grab / stop grab"] = function(Ent) Graber(Ent) end,
+        
     --mass prop functions
         ["function [props can't froze]"] = function() PropFunctions.OnPhysgunFreezeProp = true end,
         ["remove function [props can't froze]"] = function() PropFunctions.OnPhysgunFreezeProp = false end,
@@ -238,10 +295,8 @@ if SERVER then
         ["remove function [block moving]"] = function(Ent) PlayerFunctions.block[Ent:getSteamID()] = nil end,
         ["function [block camera]"] = function(Ent) if table.count(PlayerFunctions.camera[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.camera[Ent:getSteamID()] = {ang = Ent:getEyeAngles(), id = Ent:getSteamID()} end end,
         ["remove function [block camera]"] = function(Ent) PlayerFunctions.camera[Ent:getSteamID()] = nil end,
-            
         ["function [block PROPspawn]"] = function(Ent) if table.count(PlayerFunctions.propspawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.propspawn[Ent:getSteamID()] = {id = Ent:getSteamID(), propspawn = 1} end end,
         ["remove function [block PROPspawn]"] = function(Ent) PlayerFunctions.propspawn[Ent:getSteamID()] = nil end,
-            
         ["function [block NPCspawn]"] = function(Ent) if table.count(PlayerFunctions.npcspawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.npcspawn[Ent:getSteamID()] = {id = Ent:getSteamID(), npcspawn = 1} end end,
         ["remove function [block NPCspawn]"] = function(Ent) PlayerFunctions.npcspawn[Ent:getSteamID()] = nil end,
             
@@ -312,11 +367,19 @@ if SERVER then
         end
     end)
     
+    net.receive("throw", function(str)
+        if Grabed != nil and GraberEntity != nil and Grabed:isValid() and GraberEntity:isValid() then
+            local Throwed = Grabed
+            Graber(nil)
+            Throwed:applyForceCenter((Throwed:getVelocity() + owner():getEyeTrace().Normal * 1000) * Throwed:getMass())
+        end
+    end)
+    
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.68"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " player => prop/npc spawn block.")  
+    Ver = "v0.69"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " player => prop/npc spawn block. prop => grab")  
     enableHud(nil, true)
     
     Data = {
@@ -362,6 +425,7 @@ elseif CLIENT then
             "constraints =>",
             "mass prop functions =>",
             "emit sound =>",
+            "grab / stop grab",
             "remove",
             "break",
             "no Collide",
@@ -404,6 +468,7 @@ elseif CLIENT then
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "grab / stop grab",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -431,6 +496,7 @@ elseif CLIENT then
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "grab / stop grab",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -456,6 +522,7 @@ elseif CLIENT then
             "vehicle functions =>",
             "mass vehicle functions =>",
             "emit sound =>",
+            "grab / stop grab",
             "eject Driver",
             "kill Driver",
             "strip Driver",
@@ -513,6 +580,7 @@ elseif CLIENT then
         },
         prop_physics_multiplayer = {
             "emit sound =>",
+            "grab / stop grab",
             "remove",
             "no Collide",
             "return Collide",
@@ -579,6 +647,7 @@ elseif CLIENT then
         gmod_rttv = {
             "constraints =>",
             "emit sound =>",
+            "grab / stop grab",
             "remove",
             "break",
             "no Collide",
@@ -602,6 +671,7 @@ elseif CLIENT then
             "constraints =>",
             "custom prop physics =>",
             "emit sound =>",
+            "grab / stop grab",
             "remove",
             "no Collide",
             "return Collide",
@@ -1097,6 +1167,12 @@ elseif CLIENT then
             Ent = nil
             input.enableCursor(false)
             Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+        elseif Ent == nil then
+            if key == 107 then
+                net.start("throw")
+                net.writeTable({func = "da"})
+                net.send(owner())
+            end
         elseif Ent != nil then
             if key == 107 then
                 local data = getStorage()
