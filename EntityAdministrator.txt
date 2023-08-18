@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.7
+--@name EntityAdministrator-v0.71
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -255,13 +255,7 @@ if SERVER then
             Ent:remove()
             local P = prop.createCustom(data.pos, data.ang, convexes, false)
             P:setFrozen(data.frozen)  
-            
-            local tbl = P:getPhysicsObject():getMesh()
-            mesh.generateUV(tbl, 0.1)
-            mesh.generateNormals(tbl, true)
-            mesh.generateTangents(tbl)
-            P:setMesh(mesh.createFromTable(tbl))   
-            P:setMeshMaterial(data.mat)   
+ 
         end,
         
         ["grab / stop grab"] = function(Ent) Graber(Ent) end,
@@ -302,7 +296,6 @@ if SERVER then
         ["remove function [block NPCspawn]"] = function(Ent) PlayerFunctions.npcspawn[Ent:getSteamID()] = nil end,
             
             
-            
     --vehicle
         ["eject Driver"] = function(Ent) Ent:ejectDriver() end,
         ["kill Driver"] = function(Ent) Ent:killDriver() end,
@@ -332,18 +325,18 @@ if SERVER then
         --["unload gun"] = function(Ent) Ent:acfUnload() end,
     
     --custom prop
-        ["make balloon"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, 75000), 3) Ent:setFrozen(false) end,
-        ["set supergravity"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, -25000), 3) Ent:setFrozen(false) end,
-        ["spining physics"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(2500, 2500, 2500), Vector(0, 0, 0), 2) Ent:setFrozen(false) end,
-        ["wheel physics"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(1000, 0, 0), Vector(0, 0, 0), 2) Ent:setFrozen(false) end,
-        ["set default physics"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, 0), 0) Ent:setFrozen(false) end,
-        ["thruster physics"] = function(Ent) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(1000, 0, 0), 2) Ent:setFrozen(false) end,
+        ["make balloon"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, 75000), 3) Ent:setFrozen(false) Ent["forces"] = func end,
+        ["set supergravity"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, -25000), 3) Ent:setFrozen(false) Ent["forces"] = func end,
+        ["spining physics"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(2500, 2500, 2500), Vector(0, 0, 0), 2) Ent:setFrozen(false) Ent["forces"] = func end,
+        ["wheel physics"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(1000, 0, 0), Vector(0, 0, 0), 2) Ent:setFrozen(false) Ent["forces"] = func end,
+        ["set default physics"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(0, 0, 0), 0) Ent:setFrozen(false) Ent["forces"] = "" end,
+        ["thruster physics"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(1000, 0, 0), 2) Ent:setFrozen(false) Ent["forces"] = func end,
     
     --sounds
         ["snd"] = function(Ent, snd) Ent:emitSound(snd, 100, 100, 1, CHAN_AUTO) end,
     
     --skins
-        ["skin"] = function(Ent, skin) Ent:setSkin(tonumber(skin)) end,
+        ["skin"] = function(Ent, skin) Ent:setSkin(tonumber(skin - 1)) end,
             
     --remote use
         ["remote"] = function(Ent, key) RemoteUse[key] = Ent net.start("RemoteUseData") net.writeTable(RemoteUse) net.send(owner()) end,
@@ -359,7 +352,7 @@ if SERVER then
         
         roped = false
         if Function[func] != nil then
-            Function[func](Ent)
+            Function[func](Ent, func)
         else
             local subfunc = string.explode(":", func, nil)
             Function[subfunc[1]](Ent, subfunc[2])
@@ -382,15 +375,15 @@ if SERVER then
     
     net.receive("RemoteUse", function(str)
         local data = net.readTable()
-        owner():setPos(data.ent:localToWorld(Vector(30, 30, 0)))
+        owner():setPos(data.ent:localToWorld(data.ent:isVehicle() and Vector(30, 30, 0) or Vector()))
         data.ent:use() 
     end)
     
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.7"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " Player => prop/npc spawn block. Prop => grab. +RemoteUseFunctions.")  
+    Ver = "v0.71"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " Player => prop/npc spawn block. Prop => grab. +RemoteUseFunctions. Some fixes.")  
     enableHud(nil, true)
     
     Data = {
@@ -795,6 +788,7 @@ elseif CLIENT then
     BaseColor1 = Color(50, 50, 100, 255)
     BaseColor2 = Color(0, 0, 0, 255)
     BaseColor3 = Color(100, 200, 100, 255)
+    BaseColor4 = Color(50, 100, 100, 255)
     
     ConstraintsColor1 = Color(50, 100, 50, 255)
     ConstraintsColor2 = Color(0, 0, 0, 255)
@@ -1046,7 +1040,7 @@ elseif CLIENT then
                         if dat != "" then
                             Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
-                        render.setColor(Button[200 + i] and BaseColor3 or BaseColor1)
+                        render.setColor(Button[200 + i] and BaseColor3 or (tonumber(dat:replace("skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
@@ -1094,12 +1088,12 @@ elseif CLIENT then
                         if dat != "" then
                             Button[500 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
-                        render.setColor(Button[500 + i] and BaseColor3 or BaseColor1)
+                        render.setColor(Button[500 + i] and BaseColor3 or (Ent["forces"] != dat and BaseColor1 or BaseColor4))
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[500 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
+                        render.drawText(x + ButtonSize.x / 2, y + 5, Ent["forces"] != dat and dat or "=> " .. dat .. " <=", 1)
                     end
                 elseif isSoundFunctions then
                     local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
@@ -1158,12 +1152,12 @@ elseif CLIENT then
                         if dat != "" then
                             Button[900 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
-                        render.setColor(Button[900 + i] and BaseColor3 or BaseColor1)
+                        local text = string.explode(":", dat, false)[2] or dat
+                        render.setColor(Button[900 + i] and BaseColor3 or (RemoteUse[text] == nil and BaseColor1 or BaseColor4))
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[900 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        local text = string.explode(":", dat, false)[2] or dat
                         render.drawText(x + ButtonSize.x / 2, y + 5, RemoteUse[text] == nil and text or "=[ " .. text .. " ]=", 1)
                     end
                 end
@@ -1197,6 +1191,7 @@ elseif CLIENT then
         net.start("sendFunc")
         net.writeTable({id = Ent:entIndex(), func = data[i]})
         net.send(Ply)
+        Ent["forces"] = data[i]
         Ent = nil
         input.enableCursor(false)
         Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
