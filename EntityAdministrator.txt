@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.73fix
+--@name EntityAdministrator-v0.74
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -441,7 +441,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.73fix"
+    Ver = "v0.74"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter.")  
     enableHud(nil, true)
     
@@ -895,9 +895,7 @@ elseif CLIENT then
             data = table.copy(Data["owner"])
         elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
             data = table.copy(Data["jail"])
-        --elseif Data[Ent:getClass():replace(" ", "_")] != nil then
         elseif Data[string.replace(Ent:getClass(), " ", "_")] != nil then
-            --data = table.copy(Data[Ent:getClass():replace(" ", "_")])
             data = table.copy(Data[string.replace(Ent:getClass(), " ", "_")])
         elseif Ent:isNPC() then
             data = table.copy(Data["npc"])
@@ -1143,12 +1141,12 @@ elseif CLIENT then
                         if dat != "" then
                             Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                         end
-                        render.setColor(Button[200 + i] and BaseColor3 or (tonumber(dat:replace("skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
+                        render.setColor(Button[200 + i] and BaseColor3 or (tonumber(string.replace(dat, "skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
                         render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(BaseColor2)
                         render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                         render.setColor(Button[200 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(dat:replace("skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
+                        render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
                     end
                 elseif isPlayerFunctions then
                     local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
