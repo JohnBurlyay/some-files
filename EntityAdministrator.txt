@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.73
+--@name EntityAdministrator-v0.73fix
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -441,7 +441,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.73"
+    Ver = "v0.73fix"
     print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter.")  
     enableHud(nil, true)
     
@@ -895,8 +895,10 @@ elseif CLIENT then
             data = table.copy(Data["owner"])
         elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
             data = table.copy(Data["jail"])
-        elseif Data[Ent:getClass():replace(" ", "_")] != nil then
-            data = table.copy(Data[Ent:getClass():replace(" ", "_")])
+        --elseif Data[Ent:getClass():replace(" ", "_")] != nil then
+        elseif Data[string.replace(Ent:getClass(), " ", "_")] != nil then
+            --data = table.copy(Data[Ent:getClass():replace(" ", "_")])
+            data = table.copy(Data[string.replace(Ent:getClass(), " ", "_")])
         elseif Ent:isNPC() then
             data = table.copy(Data["npc"])
         else
