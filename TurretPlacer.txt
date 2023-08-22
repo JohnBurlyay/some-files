@@ -267,6 +267,8 @@ elseif CLIENT then
     
     ChipName = "[TurretPlacer] " 
     Ver = "v0.8"
+    print("[TurretPlcaer][c 255, 155, 0]: loaded " .. Ver .. ". Use 'empty_hands' => [RMB] to spawn turrets. [E] to open turret menu.")  
+    
     O = owner()
     Swep = "weapon_empty_hands"
     Data = {}
