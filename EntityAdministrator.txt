@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.72
+--@name EntityAdministrator-v0.73
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -32,12 +32,6 @@ if SERVER then
     BaseProp:setColor(Color(255, 255, 255, 0))
     BaseProp:setParent(Holo[1])      
     
-    DataGraber = {
-        Gravity = true,
-        Model = "models/hunter/plates/plate.mdl",
-        Range = 1000,
-    }
-    
     local function Graber(Ent)
         if GraberEntity != nil or Ent == nil then
             if GraberEntity:isValid() then
@@ -53,7 +47,7 @@ if SERVER then
             Grabed = Ent
             local pos = owner():localToWorld(Vector(0, 0, 40)) + (Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 3)) - owner():localToWorld(Vector(0, 0, 40))) * 0.25
             local ang = (Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 3)) - pos):getAngle() + Angle(90, 0, 0)
-            GraberEntity = prop.createSent(pos, ang, "gmod_wire_grabber", 1, DataGraber)
+            GraberEntity = prop.createSent(pos, ang, "gmod_wire_grabber", 1, {Gravity = true, Model = "models/hunter/plates/plate.mdl", Range = 10000})
             GraberEntity:setNocollideAll(true)
             GraberEntity:setColor(Color(255, 255, 255, 0))
             wire.ports.Grab = 1
@@ -128,6 +122,7 @@ if SERVER then
         camera = {},
         propspawn = {},
         npcspawn = {},
+        altenter = {}
     }
     PropFunctions = {
         OnPhysgunFreezeProp = false,
@@ -146,6 +141,12 @@ if SERVER then
         if table.hasValue(VehicleFunctions.strip, vehicle) then
             vehicle:stripDriver()
         end
+        
+        if table.count(PlayerFunctions.altenter[ply:getSteamID()] or {}) > 1 and vehicle:getCollisionGroup() == 20 then
+            vehicle:ejectDriver()
+        end
+        
+        --print(ply, vehicle)
     end)
     
     hook.add("PlayerSpawn", "", function(ply)
@@ -259,6 +260,7 @@ if SERVER then
         end,
         
         ["grab / stop grab"] = function(Ent) Graber(Ent) end,
+        ["add/remove dissolving"] = function(Ent) local Phys = Ent:getPhysicsObject() if Phys:hasGameFlags(FVPHYSICS.DMG_DISSOLVE) then Phys:clearGameFlags(FVPHYSICS.DMG_DISSOLVE) else Phys:addGameFlags(FVPHYSICS.DMG_DISSOLVE) end end,
         
     --mass prop functions
         ["function [props can't froze]"] = function() PropFunctions.OnPhysgunFreezeProp = true end,
@@ -294,7 +296,9 @@ if SERVER then
         ["remove function [block PROPspawn]"] = function(Ent) PlayerFunctions.propspawn[Ent:getSteamID()] = nil end,
         ["function [block NPCspawn]"] = function(Ent) if table.count(PlayerFunctions.npcspawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.npcspawn[Ent:getSteamID()] = {id = Ent:getSteamID(), npcspawn = 1} end end,
         ["remove function [block NPCspawn]"] = function(Ent) PlayerFunctions.npcspawn[Ent:getSteamID()] = nil end,
-            
+        ["function [block Alt+E]"] = function(Ent) if table.count(PlayerFunctions.altenter[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.altenter[Ent:getSteamID()] = {id = Ent:getSteamID(), altenter = 1} end end,
+        ["remove function [block Alt+E]"] = function(Ent) PlayerFunctions.altenter[Ent:getSteamID()] = nil end,
+         
             
     --vehicle
         ["eject Driver"] = function(Ent) Ent:ejectDriver() end,
@@ -333,7 +337,7 @@ if SERVER then
         ["thruster physics"] = function(Ent, func) local obb = Ent:obbSize() Ent:setCustomPropForces(Vector(0, 0, 0), Vector(1000, 0, 0), 2) Ent:setFrozen(false) Ent["forces"] = func end,
     
     --sounds
-        ["snd"] = function(Ent, snd) Ent:emitSound(snd, 100, 100, 1, CHAN_AUTO) end,
+        ["loop"] = function(Ent, snd) Ent:emitSound(snd, 100, 100, 1, CHAN_AUTO) end,
     
     --skins
         ["skin"] = function(Ent, skin) Ent:setSkin(tonumber(skin - 1)) end,
@@ -344,42 +348,58 @@ if SERVER then
     
     --effects
         ["large light"] = function(Ent) 
-            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "ar2explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "ar2explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5 effect_scale = math.min(effect_scale, 100)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "ar2explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "ar2explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["explosion"] = function(Ent) 
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.25, effect = "explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = 1, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.25, effect = "explosion", key = 1, Model = "models/props_lab/tpplug.mdl", scale = 1, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["blood"] = function(Ent) 
-            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "bloodspray", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "bloodspray", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10 effect_scale = math.min(effect_scale, 15)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "bloodspray", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "bloodspray", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["strider blood"] = function(Ent) 
-            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "striderblood", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "striderblood", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10 effect_scale = math.min(effect_scale, 15)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "striderblood", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "striderblood", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["cball explosion"] = function(Ent) 
-            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "cball_bounce", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "cball_bounce", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5 effect_scale = math.min(effect_scale, 100)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "cball_bounce", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "cball_bounce", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["smoke"] = function(Ent) 
+            if Ent["effects"] == nil then Ent["effects"] = {} end
             local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "smoke", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "smoke", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "smoke", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "smoke", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["water splash"] = function(Ent) 
+            if Ent["effects"] == nil then Ent["effects"] = {} end
             local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 5
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "watersplash", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "watersplash", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "watersplash", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0.1, effect = "watersplash", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
         end,
         ["fire"] = function(Ent) 
-            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "muzzleeffect", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
-            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "muzzleeffect", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent)
+            if Ent["effects"] == nil then Ent["effects"] = {} end
+            local effect_scale = (Ent:obbSize().x + Ent:obbSize().y + Ent:obbSize().z) / 10 effect_scale = math.min(effect_scale, 25)
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(-90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "muzzleeffect", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+            local gmod_emitter = prop.createSent(Ent:localToWorld(Vector(0, 0, Ent:obbSize().z / 2)), Angle(90, 0, 0), "gmod_emitter", 1, {delay = 0, effect = "muzzleeffect", key = 1, Model = "models/props_lab/tpplug.mdl", scale = effect_scale, starton = true, toggle = true}) gmod_emitter:setColor(Color(255, 255, 255, 0)) gmod_emitter:setCollisionGroup(10) gmod_emitter:setParent(Ent) table.add(Ent["effects"], {gmod_emitter})
+        end,
+        ["remove all effects"] = function(Ent) 
+            if Ent["effects"] != nil and #Ent["effects"] > 0 then
+                for i = 1, #Ent["effects"] do
+                    Ent["effects"][i]:remove()
+                end 
+                Ent["effects"] = nil
+            end
         end,
             
     }
@@ -421,8 +441,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.72"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " Player => prop/npc spawn block. Prop => grab. +RemoteUseFunctions. Some fixes. +Effects.")  
+    Ver = "v0.73"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter.")  
     enableHud(nil, true)
     
     Data = {
@@ -492,6 +512,7 @@ elseif CLIENT then
             "teleport to Vector(0)", 
             "KeepUpRight",
             "convert to custom prop",
+            "add/remove dissolving",
         },
         jail = {
             "emit sound =>",
@@ -536,6 +557,7 @@ elseif CLIENT then
             "toss prop",
             "teleport to ACID",
             "teleport to Vector(0)", 
+            "add/remove dissolving",
         },
         prop_vehicle_airboat = {
             "constraints =>",
@@ -564,6 +586,7 @@ elseif CLIENT then
             "toss vehicle",
             "teleport to ACID",
             "teleport to Vector(0)",    
+            "add/remove dissolving",
         },
         prop_vehicle_jeep = {
             "constraints =>",
@@ -594,6 +617,7 @@ elseif CLIENT then
             "toss vehicle",
             "teleport to ACID",
             "teleport to Vector(0)",  
+            "add/remove dissolving",
 
         },
         npc = {
@@ -617,6 +641,7 @@ elseif CLIENT then
             "broke weapon",
             "remove",
             "kill",
+            "add/remove dissolving",
         },
         prop_dynamic = {
             "emit sound =>",
@@ -645,6 +670,7 @@ elseif CLIENT then
             "toss prop",
             "teleport to ACID",
             "teleport to Vector(0)", 
+            "add/remove dissolving",
         },
         acf_gun = {
             "constraints =>",
@@ -663,13 +689,14 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss prop",
+            "add/remove dissolving",
         },
         func_door = {
             
         },
         prop_door_rotating = {
             "emit sound =>",
-            "remove",
+            --"remove",
             "no Collide",
             "return Collide",
             "make transparent",
@@ -694,6 +721,7 @@ elseif CLIENT then
             "set NoDrag",
             "teleport to ACID",
             "teleport to Vector(0)", 
+            "add/remove dissolving",
         },
         gmod_rttv = {
             "constraints =>",
@@ -717,6 +745,7 @@ elseif CLIENT then
             "teleport to ACID",
             "teleport to Vector(0)", 
             "KeepUpRight",
+            "add/remove dissolving",
         },
         starfall_prop = {
             "constraints =>",
@@ -738,6 +767,7 @@ elseif CLIENT then
             "froze",
             "unfroze",
             "toss prop", 
+            "add/remove dissolving",
         }
         
     }
@@ -767,6 +797,7 @@ elseif CLIENT then
         "function [block camera]",
         "function [block PROPspawn]",
         "function [block NPCspawn]",
+        "function [block Alt+E]",
         "",
         "remove function [spawnpoint]",
         "remove function [healing]",
@@ -775,6 +806,7 @@ elseif CLIENT then
         "remove function [block camera]",
         "remove function [block PROPspawn]",
         "remove function [block NPCspawn]",
+        "remove function [block Alt+E]",
     }
     DataVehicleFunctions = {
         "function [kill drivers]",
@@ -798,13 +830,12 @@ elseif CLIENT then
         "set default physics",
     }
     DataSoundFunctions = {
-        "snd:atmos/rain.wav",
-        "snd:ambient/water/water_flow_loop1.wav",
-        "snd:ambient/alarms/alarm_citizen_loop1.wav",
-        "snd:ambient/alarms/alarm1.wav",
-        "snd:ambient/alarms/siren.wav",
-        "snd:ambient/energy/force_field_loop1.wav",
-        "snd:ambient/energy/electric_loop.wav",
+        "loop:ambient/water/water_flow_loop1.wav",
+        "loop:ambient/alarms/alarm_citizen_loop1.wav",
+        "loop:ambient/alarms/alarm1.wav",
+        "loop:ambient/alarms/siren.wav",
+        "loop:ambient/energy/force_field_loop1.wav",
+        "loop:ambient/energy/electric_loop.wav",
     }
     DataMassPropFunctions = {
         "function [props can't froze]",
@@ -831,6 +862,8 @@ elseif CLIENT then
         "smoke",
         "water splash",
         "fire",
+        "",
+        "remove all effects",
     }
     
     DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
