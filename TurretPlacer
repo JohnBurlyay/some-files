@@ -1,0 +1,628 @@
+--@name TurretPlacer-v0.8
+--@author JohnBurlyay
+--@model models/jaanus/thruster_flat.mdl
+--@shared
+
+if SERVER then
+    
+    chip():setCollisionGroup(10)
+    
+    TableOutputs = {
+        names = {},
+        types = {},
+    }
+    
+    wire.adjustOutputs(TableOutputs.names, TableOutputs.types)
+    
+    O = owner()
+    Swep = "weapon_empty_hands"
+    Holo = {}
+    Data = {}
+    MaxTurrets = 10
+    SentDataTurret = {
+        damage = 10,
+        delay = 0.1,
+        force = 1,
+        Model = "models/weapons/w_smg1.mdl",
+        numbullets = 1,
+        sound = "weapons/physcannon/energy_bounce2.wav",
+        spread = 0.001,
+        tracer = "LaserTracer",
+        tracernum = 1,
+    }
+    FriendList = {}
+    BaseColor = Color(255, 255, 255)
+    --MagicColor = team.getColor(O:getTeam())
+    MagicColor = Color(0, 100, 255)
+    BaseMaterial = "models/props_combine/metal_combinebridge001"
+    MagicMaterial = "models/effects/slimebubble_sheet"
+    ElectroMaterial = "models/spawn_effect2"
+    ShotPoses = {0.25, 0.5, 0.55, 0.4, 0.6, 0.3, 0.2, 0.1, 0.7, 0.8, 0.9, 0.45, 0.35, 0.65, 0.75, 0.85, 0.15, 0.95}
+    
+    timer.create("CanSpawn", 0.75, 0, function()
+        CanSpawn = 1 
+        timer.pause("CanSpawn")
+    end)
+    
+    function holo(id, model, pos, ang, scale, mat, color, parent)
+        Holo[id] = holograms.create(pos, ang, model, scale)
+        Holo[id]:setMaterial(mat)
+        Holo[id]:setColor(color)
+        Holo[id]:setParent(parent)
+        return Holo[id]
+    end
+    
+    function createTurret(model, obb)
+        if not prop.canSpawn() then return end
+        local trace = O:getEyeTrace()
+        local aiment = trace.Entity
+        local block = prop.create(trace.HitPos + trace.HitNormal * obb.z / 2, trace.HitNormal:getAngle() + Angle(90, 0, 0), model, true)
+        block:setPersistent(true)
+        block:setColor(Color(255, 255, 255, 0))
+        local obb = obb.x
+        holo(1, "models/holograms/cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 2 + 2)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[1]:setSize(Vector(obb, obb, obb / 5))
+        holo(2, "models/holograms/cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 2 + 2)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[2]:setSize(Vector(obb + 5, obb + 5, obb / 10))
+        holo(3, "models/holograms/cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 2 + 2.1)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), ElectroMaterial, BaseColor, block)
+        Holo[3]:setSize(Vector(obb + 2.5, obb + 2.5, obb / 10))
+        holo(4, "models/props_combine/tprotato1.mdl", block:localToWorld(Vector(obb / 2, obb / 2, -obb / 2 + 1.5)), block:localToWorldAngles(Angle(-90, 0, 225)), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[4]:setSize(Vector(obb * 0.1, obb * 0.2, obb * 0.5))
+        holo(5, "models/props_combine/tprotato1.mdl", block:localToWorld(Vector(-obb / 2, -obb / 2, -obb / 2 + 1.5)), block:localToWorldAngles(Angle(-90, 0, 45)), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[5]:setSize(Vector(obb * 0.1, obb * 0.2, obb * 0.5))
+        holo(6, "models/props_combine/tprotato1.mdl", block:localToWorld(Vector(-obb / 2, obb / 2, -obb / 2 + 1.5)), block:localToWorldAngles(Angle(-90, 0, -45)), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[6]:setSize(Vector(obb * 0.1, obb * 0.2, obb * 0.5))
+        holo(7, "models/props_combine/tprotato1.mdl", block:localToWorld(Vector(obb / 2, -obb / 2, -obb / 2 + 1.5)), block:localToWorldAngles(Angle(-90, 0, 135)), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[7]:setSize(Vector(obb * 0.1, obb * 0.2, obb * 0.5))
+        holo(8, "models/holograms/hq_cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 4)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), ElectroMaterial, BaseColor, block)
+        Holo[8]:setSize(Vector(obb / 4, obb / 4, obb / 2))
+        holo(9, "models/holograms/hq_cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 3)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[9]:setSize(Vector(obb / 3.5, obb / 3.5, obb / 10))
+        holo(10, "models/holograms/hq_cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 6)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[10]:setSize(Vector(obb / 3.5, obb / 3.5, obb / 7.5))
+        holo(11, "models/holograms/hq_cylinder.mdl", block:localToWorld(Vector(0, 0, 0)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[11]:setSize(Vector(obb / 3.5, obb / 3.5, obb / 10))
+        holo(12, "models/holograms/hq_cylinder.mdl", block:localToWorld(Vector(0, 0, -obb / 4)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[12]:setSize(Vector(obb / 6, obb / 6, obb / 2))
+        holo(13, "models/jaanus/wiretool/wiretool_beamcaster.mdl", block:localToWorld(Vector(0, 0, 0)), block:localToWorldAngles(Angle()), Vector(0.1, 0.1, 0.1), BaseMaterial, BaseColor, block)
+        Holo[13]:setSize(Vector(obb / 3.75, obb / 3.75, obb / 5))
+        local sphere = holo(14, "models/jaanus/wiretool/wiretool_pixel_sml.mdl", block:localToWorld(Vector(0, 0, obb / 3)), block:localToWorldAngles(Angle(0, 0, 0)), Vector(0, 0, 0), "", Color(255), block)
+        local cilinder = holo(15, "models/jaanus/wiretool/wiretool_beamcaster.mdl", sphere:localToWorld(Vector(0, 0, 0)), sphere:localToWorldAngles(Angle(90, 0, 0)), Vector(0.1, 0.1, 0.1), "", BaseColor, sphere)
+        Holo[15]:setSize(Vector(obb / 6, obb / 6, obb / 2))
+        holo(16, "models/props_combine/combine_fence01a.mdl", sphere:localToWorld(Vector(-obb / 2.5, 0, 0)), sphere:localToWorldAngles(Angle(90, 0, 0)), Vector(0.1, 0.1, 0.1), "", BaseColor, cilinder)
+        Holo[16]:setSize(Vector(obb / 4, obb / 2, obb * 1.5))
+        holo(17, "models/props_combine/combine_fence01a.mdl", sphere:localToWorld(Vector(-obb / 2.5, 0, 0)), sphere:localToWorldAngles(Angle(-90, 0, 180)), Vector(0.1, 0.1, 0.1), "", BaseColor, cilinder)
+        Holo[17]:setSize(Vector(obb / 4, obb / 2, obb * 1.5))
+        holo(18, "models/props_combine/combine_fence01a.mdl", sphere:localToWorld(Vector(-obb / 2.5, 0, 0)), sphere:localToWorldAngles(Angle(0, -90, -90)), Vector(0.1, 0.1, 0.1), "", BaseColor, cilinder)
+        Holo[18]:setSize(Vector(obb / 4, obb / 2, obb * 1.5))
+        holo(19, "models/props_combine/combine_fence01a.mdl", sphere:localToWorld(Vector(-obb / 2.5, 0, 0)), sphere:localToWorldAngles(Angle(0, 90, 90)), Vector(0.1, 0.1, 0.1), "", BaseColor, cilinder)
+        Holo[19]:setSize(Vector(obb / 4, obb / 2, obb * 1.5))
+        holo(20, "models/jaanus/wiretool/wiretool_beamcaster.mdl", sphere:localToWorld(Vector(obb / 2.25, 0, 0)), sphere:localToWorldAngles(Angle(90, 0, 0)), Vector(0.1, 0.1, 0.1), "", BaseColor, cilinder)
+        Holo[20]:setSize(Vector(obb / 8, obb / 8, obb / 2))
+        local turret = prop.createSent(sphere:localToWorld(Vector(obb / 1.5, 0, 0)), sphere:localToWorldAngles(Angle(0, 0, 0)), "gmod_wire_turret", 1, SentDataTurret)
+        turret:setColor(Color(255, 255, 255, 0))
+        turret:setParent(sphere)
+        local port = "Fire" .. turret:entIndex() .. ""
+        table.add(TableOutputs.names, {port})
+        table.add(TableOutputs.types, {"number"})
+        wire.adjustOutputs(TableOutputs.names, TableOutputs.types)
+        wire.create(turret, chip(), "Fire", port)
+        
+        if aiment:isValid() then
+           block:setParent(aiment) 
+        end
+        
+        CanSpawn = 0
+        timer.unpause("CanSpawn")
+        
+        Data["Turret" .. block:entIndex()] = {
+            block = block,
+            turret = turret,
+            sphere = sphere,
+            cilinder = cilinder,
+            port = port,
+            active = false,
+            npc = true,
+            players = true,
+            range = 500,
+            find = {},
+            target = nil,
+            nextselector = 1,
+            attachments = {},
+            obb = obb,
+            
+            damage = 25,
+            delay = 0.1,
+            sound = "weapons/physcannon/energy_bounce2.wav",
+            tracer = "LaserTracer",
+        }
+        
+        net.start("sendDataToClient")
+        net.writeTable(Data)
+        net.send(O)
+    end
+    
+    function respawnTurret(data)
+        if prop.canSpawn() then
+            local sphere = data.sphere
+            local sentdata = {
+                damage = data.damage,
+                delay = data.delay,
+                force = 1,
+                Model = "models/weapons/w_smg1.mdl",
+                numbullets = 1,
+                sound = "weapons/physcannon/energy_bounce2.wav",
+                spread = 0.001,
+                tracer = "LaserTracer",
+                tracernum = 1
+            }
+            local turret = prop.createSent(sphere:localToWorld(Vector(data.obb / 1.5, 0, 0)), sphere:localToWorldAngles(Angle(0, 0, 0)), "gmod_wire_turret", 1, sentdata)
+            turret:setColor(Color(255, 255, 255, 0))
+            turret:setParent(sphere)
+            wire.create(turret, chip(), "Fire", data.port)
+            data.turret:remove()
+            data.turret = turret
+        end
+    end
+    
+    hook.add("tick", "", function()
+        for i = 1, table.count(Data) do
+            local data = Data[table.getKeys(Data)[i]]
+            if data.active == true then
+                
+                if table.count(data.find) == 0 then
+                    local Find = find.inSphere(data.block:getPos(), data.range, function(ent)
+                        if ent:isPlayer() and data.players == true and ent:isAlive() and not ent:hasGodMode() and FriendList[ent:getSteamID()] == nil then return true
+                        elseif ent:isNPC() and data.npc == true then return true end   
+                    end)
+                    data.find = Find
+                    data.target = data.find[1] or nil
+                    data.nextselector = 1
+                    data.cilinder:setAngles(data.cilinder:localToWorldAngles(Angle(0, 1, 0)))
+                    data.sphere:setAngles(data.sphere:localToWorldAngles(Angle(0, 1, 0))) 
+                else
+                    data.sphere:setAngles(data.sphere:localToWorldAngles(Angle(0, 1, 0))) 
+                    if data.target == nil or not data.target:isValid() or ((#data.attachments > 0 and data.nextselector > #data.attachments + 1) or (data.nextselector >= 10)) then
+                        table.remove(data.find, 1)
+                        data.target = data.find[1] or nil
+                        data.nextselector = 1
+                        if data.target and data.target:isValid() then 
+                            local attachments = data.target:getAttachments() 
+                            local tbl = {}
+                            for i = 1, #attachments do
+                                local pos, ang = data.target:getAttachment(attachments[i].id)
+                                tbl[i] = pos
+                            end
+                            tbl[#tbl + 1] = data.target:localToWorld(Vector(0))
+                            data.attachments = table.copy(tbl)
+                            
+                        end
+                        wire.ports[data.port] = 0               
+                    else
+                        if #data.attachments > 0 then
+                            attachmentPos = data.attachments[data.nextselector % #data.attachments]
+                        end
+                        local shotpos = #data.attachments > 0 and attachmentPos or data.target:localToWorld(Vector(0, 0, data.target:obbSize().z * (ShotPoses[data.nextselector % #ShotPoses])))
+                        local trace = trace.hull(data.sphere:getPos(), shotpos, Vector(-1), Vector(1), {data.block, data.turret}, nil, nil, nil)        
+                        
+                        if trace.Entity == data.target and ((data.target:isPlayer() and data.target:isAlive()) or data.target:isNPC()) and ((data.target:isPlayer() and not data.target:hasGodMode()) or data.target:isNPC()) and ((data.target:isPlayer() and FriendList[data.target:getSteamID()] == nil) or data.target:isNPC()) and data.target:getPos():getDistance(data.block:getPos()) <= data.range then
+                            data.sphere:setAngles((shotpos - data.sphere:getPos()):getAngle())
+                            wire.ports[data.port] = 1
+                            data.cilinder:setAngles(data.cilinder:localToWorldAngles(Angle(0, 33, 0)))
+                        else
+                            data.nextselector = data.nextselector + 1
+                        end
+                    end
+                    data.cilinder:setAngles(data.cilinder:localToWorldAngles(Angle(0, 3, 0)))
+                end
+                
+            else
+                wire.ports[data.port] = 0 
+            end
+        end
+    end)
+    
+    net.receive("sendFriends", function(str)
+        local data = net.readTable()
+        FriendList = data
+    end)
+    
+    net.receive("createTurret", function(str)
+        local data = net.readTable()
+        local aim = O:getEyeTrace().Entity
+        if CanSpawn == 1 and table.count(Data) < MaxTurrets and O:getActiveWeapon() != nil and O:getActiveWeapon():getClass() == Swep and Data["Turret" .. aim:entIndex()] == nil then
+            createTurret(data.model, data.obb)
+            O:emitSound("buttons/button14.wav", 75, 50, 0.75, CHAN_AUTO)
+        else
+            O:emitSound("buttons/button10.wav", 75, 50, 0.75, CHAN_AUTO)
+        end
+    end)
+    
+    net.receive("updateDataTurret", function(str)
+        local data = net.readTable()
+        if data.key == "remove" then
+            Data["Turret" .. data.id].block:remove()
+            Data["Turret" .. data.id] = nil
+        elseif data.key == "close" then
+            respawnTurret(Data["Turret" .. data.id])
+        else
+            Data["Turret" .. data.id][data.key] = data.value
+            Data["Turret" .. data.id].find = {}
+            wire.ports[Data["Turret" .. data.id].port] = 0   
+        end
+    end)
+    
+elseif CLIENT then
+    
+    if player() != owner() then return end
+    enableHud(nil, true)
+    
+    FileName = "TurretPlacer-FriendList.txt"
+    File = json.decode(file.read(FileName) or "[]")
+    FriendList = File or {[O:getSteamID()] = {name = O:getName(), team = O:getTeam()}}
+    
+    net.start("sendFriends")
+    net.writeTable(FriendList)
+    net.send(O)
+    
+    ChipName = "[TurretPlacer] " 
+    Ver = "v0.8"
+    O = owner()
+    Swep = "weapon_empty_hands"
+    Data = {}
+    Ent = nil
+    Button = {}
+    MinDamage, MaxDamage = 1, 100
+    MinRange, MaxRange = 250, 10000
+    MinDelay, MaxDelay = 0.1, 1
+    Holo = {}
+    BlockModel = {
+        "models/hunter/blocks/cube025x025x025.mdl",
+        "models/hunter/blocks/cube05x05x05.mdl",
+        "models/hunter/blocks/cube075x075x075.mdl",
+        "models/hunter/blocks/cube1x1x1.mdl",
+        "models/hunter/blocks/cube2x2x2.mdl",
+        "models/hunter/blocks/cube4x4x4.mdl",
+    }
+    ChosedModel = 4
+    
+    Font1 = render.createFont("Consolas", 20, 50, true)
+    Font2 = render.createFont("Consolas", 18, 50, true)
+    Font3 = render.createFont("Consolas", 12, 50, true)
+    Font4 = render.createFont("Consolas", 15, 50, true)
+    MenuSize = Vector(700, 400)
+    BarSize = Vector(700, 25)
+    SubMenuSize = Vector(MenuSize.x / 2, MenuSize.y - BarSize.y)
+    ActivateButtonSize = Vector(math.round(SubMenuSize.x / 1.5), BarSize.y)
+    CloseButtonSize = Vector(60, 25)
+    RemoveButtonSize = Vector(120, 25)
+    PlayerButtonSize = Vector(math.round(ActivateButtonSize.x / 1.5), math.round(ActivateButtonSize.y))
+    BaseColor1 = Color(100, 100, 100, 255)
+    BaseColor2 = Color(255, 175, 100, 255)
+    BarTextColor = Color(0, 0, 0, 255)
+    OutlineColor = Color(0, 0, 0, 255)
+    CloseButtonColorAimed = Color(20, 75, 0, 255)
+    CloseButtonColor = Color(75, 150, 25, 255)
+    BaseButtonColor = Color(100, 200, 255, 255)
+    BaseButtonColorAimed = Color(50, 100, 150, 255)
+    TextColorAimed = Color(255, 255, 255, 255)
+    DamageBarColor = Color(255, 175, 0, 255)
+    RemoveButtonColorAimed = Color(100, 25, 0, 255)
+    RemoveButtonColor = Color(200, 100, 50, 255)
+    PlayerButtonColorAimed = Color(100, 100, 100, 255)
+    PlayerButtonColor = Color(255, 255, 255, 255)
+    FrieldButtonColorAimed = Color(50, 100, 50, 255)
+    FrieldButtonColor = Color(150, 255, 150, 255)
+    MatTurret = material.createFromImage("entities/npc_turret_floor.png", "")
+    MatFriends = material.createFromImage("entities/npc_metropolice.png", "")
+    
+    function holo(id, model, pos, ang, scale, mat, color, parent)
+        Holo[id] = holograms.create(pos, ang, model, scale)
+        Holo[id]:setMaterial(mat)
+        Holo[id]:setColor(color)
+        Holo[id]:setParent(parent)
+        return Holo[id]
+    end
+    
+    AimHolo = holo(1, BlockModel[ChosedModel], Vector(0), Angle(), Vector(1, 1, 1), "models/wireframe", Color(255, 255, 255, 255), Holo[1])
+    
+    hook.add("Removed", "", function()
+        file.write(FileName, json.encode(table.copy(FriendList)))
+    end)
+    
+    net.receive("sendDataToClient", function(str)
+        Data = net.readTable()
+    end)
+    
+    hook.add("tick", "", function()
+        AimHolo:setPos(Vector(0)) 
+        if Ent == nil then
+            if O:isAlive() then
+                if O:getActiveWeapon():isValid() then
+                    if O:getActiveWeapon():getClass() == Swep then
+                        local trace = O:getEyeTrace()
+                        local aiment = trace.Entity
+                        if Data["Turret" .. aiment:entIndex()] == nil then
+                            AimHolo:setPos(trace.HitPos + trace.HitNormal * AimHolo:obbSize().z / 2)
+                            AimHolo:setAngles(trace.HitNormal:getAngle() + Angle(90, 0, 0))
+                            AimHolo:setColor(Color(255, 255, 255, 255))
+                            AimHolo:setModel(BlockModel[ChosedModel])
+                        else
+                            AimHolo:setPos(aiment:localToWorld(Vector()))
+                            AimHolo:setAngles(aiment:localToWorldAngles(Angle()))
+                            AimHolo:setColor(Color(255, 50, 50, 255))
+                            AimHolo:setModel(aiment:getModel())
+                        end
+                    end
+                end
+            end        
+        end
+    end)
+    
+    hook.add("drawhud", "", function()
+        if ResX == nil then ResX, ResY = render.getResolution() end
+        if Ent != nil then
+            if Ent:isValid() then
+                local mouseX, mouseY = input.getCursorPos()
+                local data = Data["Turret" .. Ent:entIndex()]
+                local x, y = ResX / 2 - MenuSize.x / 2, ResY / 2 - MenuSize.y / 2
+                
+                --base menu
+                    render.setColor(BaseColor1)
+                    render.drawRect(x, y, MenuSize.x, MenuSize.y)
+                    
+                    render.setMaterial(MatTurret)
+                    render.setColor(Color(255, 255, 255, 255))
+                    render.drawTexturedRect(x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y)
+                    
+                    render.setMaterial(MatFriends)
+                    render.setColor(Color(255, 255, 255, 255))
+                    render.drawTexturedRect(x + SubMenuSize.x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y)
+                    
+                    render.setColor(BaseColor2)
+                    render.drawRect(x, y, BarSize.x, BarSize.y)
+                    render.setColor(OutlineColor)
+                    render.drawRectOutline(x, y, BarSize.x, BarSize.y, 2)
+                    render.drawRectOutline(x, y, MenuSize.x, MenuSize.y, 2)
+                    render.drawRectOutline(x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y, 1)
+                    render.drawRectOutline(x + SubMenuSize.x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y, 1)
+                    render.setFont(Font1)  
+                    render.setColor(BarTextColor)          
+                    render.drawText(x + MenuSize.x / 2.5, y + 1, "Turret id : " .. Ent:entIndex(), 1)
+                    render.setFont(Font3) 
+                    render.setColor(Color(100, 100 , 100, 255))
+                    render.drawText(x + 5, y + 5, ChipName .. Ver, 0) 
+                    render.drawText(x + MenuSize.x - CloseButtonSize.x - RemoveButtonSize.x - 5, y + 5, "by JohnBurlyay", 2) 
+                    render.setFont(Font2)
+                    render.setColor(BarTextColor)  
+                    render.drawText(x + SubMenuSize.x / 2, y + BarSize.y + 1, "[ Turret settings ]", 1)
+                    render.drawText(x + SubMenuSize.x * 1.5, y + BarSize.y + 1, "[ Players ]         [ Friends ]", 1)
+                    
+                --close button
+                    Button[1] = Vector(mouseX, mouseY):withinAABox(Vector(x + MenuSize.x - CloseButtonSize.x, y), Vector(x + MenuSize.x, y + CloseButtonSize.y))
+                    render.setColor(Button[1] and CloseButtonColorAimed or CloseButtonColor)
+                    render.drawRect(x + MenuSize.x - CloseButtonSize.x, y, CloseButtonSize.x, CloseButtonSize.y)
+                    render.setColor(OutlineColor)
+                    render.drawRectOutline(x + MenuSize.x - CloseButtonSize.x, y, CloseButtonSize.x, CloseButtonSize.y, 2)
+                    render.setFont(Font1)  
+                    render.setColor(Button[1] and TextColorAimed or BarTextColor)          
+                    render.drawText(x + MenuSize.x - CloseButtonSize.x / 2, y + 1, "close", 1)
+                
+                --remove button
+                    Button[8] = Vector(mouseX, mouseY):withinAABox(Vector(x + MenuSize.x - CloseButtonSize.x - RemoveButtonSize.x + 1, y), Vector(x + MenuSize.x - CloseButtonSize.x + 1, y + CloseButtonSize.y))
+                    render.setColor(Button[8] and RemoveButtonColorAimed or RemoveButtonColor)
+                    render.drawRect(x + MenuSize.x - CloseButtonSize.x - RemoveButtonSize.x + 1, y, RemoveButtonSize.x, RemoveButtonSize.y)
+                    render.setColor(OutlineColor)
+                    render.drawRectOutline(x + MenuSize.x - CloseButtonSize.x - RemoveButtonSize.x + 1, y, RemoveButtonSize.x, RemoveButtonSize.y, 2)
+                    render.setFont(Font1)  
+                    render.setColor(Button[8] and TextColorAimed or BarTextColor)          
+                    render.drawText(x + MenuSize.x - CloseButtonSize.x - RemoveButtonSize.x / 2, y + 1, "remove", 1)
+                
+                --turret settings
+                    --active?
+                        local Ycorrector = 2
+                        Button[2] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setColor(Button[2] and BaseButtonColorAimed or BaseButtonColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y, 1)
+                        render.setFont(Font2)
+                        render.setColor(Button[2] and TextColorAimed or BarTextColor)  
+                        render.drawText(x + SubMenuSize.x / 2, y + BarSize.y * Ycorrector + 2, data.active and "deactivate" or "activate", 1)
+                    --target players?
+                        local Ycorrector = 3.5
+                        Button[3] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setColor(Button[3] and BaseButtonColorAimed or BaseButtonColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y, 1)
+                        render.setFont(Font2)
+                        render.setColor(Button[3] and TextColorAimed or BarTextColor)  
+                        render.drawText(x + SubMenuSize.x / 2, y + BarSize.y * Ycorrector + 2, data.players and "can target Players" or "don't target Players", 1)
+                    --target NPC?
+                        local Ycorrector = 5
+                        Button[4] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setColor(Button[4] and BaseButtonColorAimed or BaseButtonColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector, ActivateButtonSize.x, ActivateButtonSize.y, 1)
+                        render.setFont(Font2)
+                        render.setColor(Button[4] and TextColorAimed or BarTextColor)  
+                        render.drawText(x + SubMenuSize.x / 2, y + BarSize.y * Ycorrector + 2, data.npc and "can target NPC" or "don't target NPC", 1)
+                    --damage
+                        local Ycorrector = 6.5
+                        Button[5] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setFont(Font2)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + 2, ActivateButtonSize.x, ActivateButtonSize.y, 2)
+                        render.setColor(DamageBarColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2 + 2, y + BarSize.y * Ycorrector + 4, (ActivateButtonSize.x - 4) * (data.damage / MaxDamage), ActivateButtonSize.y - 4)
+                        render.setColor(BarTextColor)  
+                        render.drawText(x + 3, y + BarSize.y * Ycorrector + 2, "Damage:", 0)
+                        render.drawText(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 4, y + BarSize.y * Ycorrector + 2, data.damage .. "", 1)
+                    --range
+                        local Ycorrector = 8
+                        Button[6] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setFont(Font2)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + 2, ActivateButtonSize.x, ActivateButtonSize.y, 2)
+                        render.setColor(DamageBarColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2 + 2, y + BarSize.y * Ycorrector + 4, (ActivateButtonSize.x - 4) * (data.range / MaxRange), ActivateButtonSize.y - 4)
+                        render.setColor(BarTextColor)  
+                        render.drawText(x + 3, y + BarSize.y * Ycorrector + 2, "Range:", 0)
+                        render.drawText(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 4, y + BarSize.y * Ycorrector + 2, data.range .. "", 1)
+                    --delay
+                        local Ycorrector = 9.5
+                        Button[7] = Vector(mouseX, mouseY):withinAABox(Vector(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector), Vector(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + ActivateButtonSize.y))
+                        render.setFont(Font2)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2, y + BarSize.y * Ycorrector + 2, ActivateButtonSize.x, ActivateButtonSize.y, 2)
+                        render.setColor(DamageBarColor)
+                        render.drawRect(x + SubMenuSize.x / 2 - ActivateButtonSize.x / 2 + 2, y + BarSize.y * Ycorrector + 4, (ActivateButtonSize.x - 4) * (data.delay / MaxDelay), ActivateButtonSize.y - 4)
+                        render.setColor(BarTextColor)  
+                        render.drawText(x + 3, y + BarSize.y * Ycorrector + 2, "Delay:", 0)
+                        render.drawText(x + SubMenuSize.x / 2 + ActivateButtonSize.x / 4, y + BarSize.y * Ycorrector + 2, data.delay .. "", 1)
+                
+                --friend list
+                    local plys = find.allPlayers()
+                    local u = 0
+                    for i = 1, #plys do
+                        if FriendList[plys[i]:getSteamID()] == nil then
+                            u = u + 1
+                            Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(1 + x + MenuSize.x / 2 + 5, 1 + y + BarSize.y + PlayerButtonSize.y * u), Vector(-1 + x + MenuSize.x / 2 + 5 + PlayerButtonSize.x, -1 + y + BarSize.y + PlayerButtonSize.y * u + PlayerButtonSize.y))
+                            render.setColor(Button[100 + i] and team.getColor(plys[i]:getTeam()) / 2 or team.getColor(plys[i]:getTeam()))
+                            render.drawRect(x + MenuSize.x / 2 + 5, y + BarSize.y + PlayerButtonSize.y * u, PlayerButtonSize.x, PlayerButtonSize.y)
+                            render.setColor(OutlineColor)
+                            render.drawRectOutline(x + MenuSize.x / 2 + 5, y + BarSize.y + PlayerButtonSize.y * u, PlayerButtonSize.x, PlayerButtonSize.y, Button[100 + i] and 2 or 1)
+                            render.setFont(Font4)  
+                            render.setColor(Button[100 + i] and TextColorAimed or BarTextColor)          
+                            render.drawText(x + MenuSize.x / 2 + 7, y + BarSize.y + PlayerButtonSize.y * u + 3, i .. ") " .. string.sub(plys[i]:getName(), 1, 24), 0)
+                        end
+                    end
+                    for i = 1, table.count(FriendList) do
+                        local friend = FriendList[table.getKeys(FriendList)[i]]
+                        Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + MenuSize.x - 5 - PlayerButtonSize.x, 1 + y + BarSize.y + PlayerButtonSize.y * i), Vector(x + MenuSize.x - 5 - PlayerButtonSize.x + PlayerButtonSize.x, -1 + y + BarSize.y + PlayerButtonSize.y * i + PlayerButtonSize.y))
+                        render.setColor(Button[200 + i] and team.getColor(friend.team) / 2 or team.getColor(friend.team))
+                        render.drawRect(x + MenuSize.x - 5 - PlayerButtonSize.x, y + BarSize.y + PlayerButtonSize.y * i, PlayerButtonSize.x, PlayerButtonSize.y)
+                        render.setColor(OutlineColor)
+                        render.drawRectOutline(x + MenuSize.x - 5 - PlayerButtonSize.x, y + BarSize.y + PlayerButtonSize.y * i, PlayerButtonSize.x, PlayerButtonSize.y, Button[200 + i] and 2 or 1)
+                        render.setFont(Font4)  
+                        render.setColor(Button[200 + i] and TextColorAimed or BarTextColor)          
+                        render.drawText(x + MenuSize.x - 3 - PlayerButtonSize.x, y + BarSize.y + PlayerButtonSize.y * i + 3, i .. ") " .. string.sub(friend.name, 1, 24), 0)
+                    end
+                                               
+                
+            end
+        end
+            
+    end)    
+    
+    function updateData(key, value)
+        Data["Turret" .. Ent:entIndex()][key] = value
+        O:emitSound("buttons/lightswitch2.wav", 100, 150, 0.75, CHAN_AUTO)
+        
+        net.start("updateDataTurret")
+        net.writeTable({id = Ent:entIndex(), key = key, value = Data["Turret" .. Ent:entIndex()][key]})
+        net.send(O)
+    end
+    
+    hook.add("inputPressed", "", function(key)
+        if Ent == nil then
+            if not O:isAlive() or O:getActiveWeapon() == nil or O:getActiveWeapon():getClass() != Swep then return end
+            
+            if key == 108 then
+                net.start("createTurret")
+                net.writeTable({create = 1, model = AimHolo:getModel(), obb = AimHolo:obbSize()})
+                net.send(O)
+            elseif key == 15 then
+                local ent = O:getEyeTrace().Entity
+                if Data["Turret" .. ent:entIndex()] != nil then
+                    Ent = ent
+                    input.enableCursor(true)
+                    O:emitSound("buttons/combine_button1.wav", 100, 150, 0.75, CHAN_AUTO)
+                end
+            elseif key == 62 then
+                ChosedModel = (ChosedModel - 1) if ChosedModel < 1 then ChosedModel = #BlockModel end
+                AimHolo:setModel(BlockModel[ChosedModel])
+            elseif key == 63 then
+                ChosedModel = (ChosedModel + 1) if ChosedModel > #BlockModel then ChosedModel = 1 end
+                AimHolo:setModel(BlockModel[ChosedModel])
+            end
+            
+        else
+            if key == 107 then
+                --close menu
+                    if Button[1] then
+                        updateData("close")
+                        Ent = nil
+                        input.enableCursor(false)
+                        O:emitSound("buttons/combine_button7.wav", 100, 150, 0.75, CHAN_AUTO)
+                        
+                        net.start("sendFriends")
+                        net.writeTable(FriendList)
+                        net.send(O)
+                --activate/deactivate
+                    elseif Button[2] then
+                        updateData("active", not Data["Turret" .. Ent:entIndex()].active)
+                --can target Players?
+                    elseif Button[3] then
+                        updateData("players", not Data["Turret" .. Ent:entIndex()].players)
+                --can target NPC?
+                    elseif Button[4] then
+                        updateData("npc", not Data["Turret" .. Ent:entIndex()].npc)
+                --damage
+                    elseif Button[5] then
+                        local mouseX, mouseY = input.getCursorPos()
+                        local x, y = ResX / 2 - MenuSize.x / 2
+                        local delta = (mouseX - x + SubMenuSize.x / 2 - ActivateButtonSize.x) / ActivateButtonSize.x
+                        
+                        updateData("damage", math.round(MaxDamage * delta))
+                --range
+                    elseif Button[6] then
+                        local mouseX, mouseY = input.getCursorPos()
+                        local x, y = ResX / 2 - MenuSize.x / 2
+                        local delta = (mouseX - x + SubMenuSize.x / 2 - ActivateButtonSize.x) / ActivateButtonSize.x
+                        
+                        updateData("range", math.round(MaxRange * delta))
+                --delay
+                    elseif Button[7] then
+                        local mouseX, mouseY = input.getCursorPos()
+                        local x, y = ResX / 2 - MenuSize.x / 2
+                        local delta = (mouseX - x + SubMenuSize.x / 2 - ActivateButtonSize.x) / ActivateButtonSize.x
+                        
+                        updateData("delay", math.round(MaxDelay * delta, 2))
+                --remove
+                    elseif Button[8] then
+                        updateData("remove")
+                        Data["Turret" .. Ent:entIndex()] = nil
+                        Ent = nil
+                        input.enableCursor(false)
+                        O:emitSound("buttons/button6.wav", 100, 150, 0.75, CHAN_AUTO)
+                        
+                --friends
+                    else
+                        local plys = find.allPlayers() 
+                        for i = 1, #plys do
+                            if Button[100 + i] then
+                                local friend = plys[i]
+                                FriendList[friend:getSteamID()] = {name = friend:getName(), team = friend:getTeam()}
+                                Button[100 + i] = false
+                                file.write(FileName, json.encode(table.copy(FriendList)))
+                            end 
+                        end
+                        for i = 1, table.count(FriendList) do
+                            if Button[200 + i] then
+                                local friend = table.getKeys(FriendList)[i]
+                                FriendList[friend] = nil
+                                Button[200 + i] = false
+                                file.write(FileName, json.encode(table.copy(FriendList)))
+                            end 
+                        end
+                    end
+                
+            end
+            
+        end
+    end)
+    
+end   
