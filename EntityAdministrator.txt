@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.74
+--@name EntityAdministrator-v0.75
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -281,6 +281,8 @@ if SERVER then
         ["teleport to ACID"] = function(Ent) Ent:setPos(Vector(9350, 8495, -11500)) end,
         ["teleport to Vector(0)"] = function(Ent) Ent:setPos(Vector(0)) end,
         ["drop all weapons"] = function(Ent) for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end end,
+        ["toss me"] = function(Ent) Ent:setVelocity(Vector(Ent:getVelocity()[1] * 0.75, Ent:getVelocity()[2] * 0.75, math.abs(Ent:getVelocity()[3]) + 400)) end,
+        
         
         ["function [spawnpoint]"] = function(Ent) if table.count(PlayerFunctions.respawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.respawn[Ent:getSteamID()] = {pos = Ent:getPos(), id = Ent:getSteamID()} end end,
         ["remove function [spawnpoint]"] = function(Ent) PlayerFunctions.respawn[Ent:getSteamID()] = nil end,
@@ -441,8 +443,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() != owner() then return end
-    Ver = "v0.74"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter.")  
+    Ver = "v0.75"
+    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter. +Toss owner.")  
     enableHud(nil, true)
     
     Data = {
@@ -462,6 +464,7 @@ elseif CLIENT then
             "modelSize: 2.0",
             "ignite",
             "extinguish",
+            "toss me",
             "full heal",
             "teleport to ACID",
             "teleport to Vector(0)",
