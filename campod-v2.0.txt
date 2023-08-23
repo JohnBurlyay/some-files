@@ -1,4 +1,4 @@
---@name CamPod-v2.73
+--@name CamPod-v2.74
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -177,8 +177,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.73"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: fixed timer/entity crushes.")  
+            Ver = "v2.74"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: +ZOOM function on middle key mouse.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
@@ -364,9 +364,10 @@ else
                 local view = {
                     origin = EyePos + Ply:getEyeTrace().Normal * Range,
                     angles = EyeAng,
-                    fov = FOV,
-                    drawviewer = true   
-                }        
+                    fov = owner():keyDown(524288) and 5 or FOV,
+                    drawviewer = true,   
+                }      
+                  
                 
                 if Weapon:isValid() then Weapon:setColor(Color(255, 255, 255, 0)) end
                 
