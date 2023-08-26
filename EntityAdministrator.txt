@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.75
+--@name EntityAdministrator-v0.77
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -253,10 +253,13 @@ if SERVER then
                     Vector(Size.x, Size.y, Size.z), Vector(-Size.x, Size.y, Size.z), Vector(-Size.x, -Size.y, Size.z), Vector(Size.x, -Size.y, Size.z),
                 },
             }
-            Ent:remove()
+            local mat = Ent:getMaterials()
             local P = prop.createCustom(data.pos, data.ang, convexes, false)
-            P:setFrozen(data.frozen)  
- 
+            P:setFrozen(data.frozen) 
+            Ent:remove()
+            net.start("CustomProp+Material")
+            net.writeTable({entID = P:entIndex(), mat = mat})
+            net.send() 
         end,
         
         ["grab / stop grab"] = function(Ent) Graber(Ent) end,
@@ -442,1008 +445,1147 @@ if SERVER then
     
 elseif CLIENT then
     
-    if player() != owner() then return end
-    Ver = "v0.75"
-    print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can remove Effects. +Dissolving parameter. +Toss owner.")  
-    enableHud(nil, true)
+    if player() == owner() then
+        Ver = "v0.77"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can Bind functions => Hold [sprint] key, move mouse on buntton and then press any [bind key].")  
+        print("[EntAdmin][c 255, 155, 0]: to remove the binding, move the mouse over the button and click [reload]")  
+        enableHud(nil, true)
+        
+        Data = {
+            john = {
+                "не надо трогать Жона",
+                "его пропы тоже =)"
+            },
+            owner = {
+                "player functions =>",
+                "emit sound =>",
+                "kill",
+                "drop weapon",
+                "drop all weapons",
+                "strip weapons",
+                "modelSize: 0.5",
+                "modelSize: 1.0",
+                "modelSize: 2.0",
+                "ignite",
+                "extinguish",
+                "toss me",
+                "full heal",
+                "teleport to ACID",
+                "teleport to Vector(0)",
+            },
+            player = {
+                "player functions =>",
+                "emit sound =>",
+                "kill",
+                "drop weapon",
+                "drop all weapons",
+                "strip weapons",
+                "modelSize: 0.5",
+                "modelSize: 1.0",
+                "modelSize: 2.0",
+                "ignite",
+                "extinguish",
+                "toss player",
+                "full heal",
+                "teleport to ACID",
+                "teleport to Vector(0)",
     
-    Data = {
-        john = {
-            "не надо трогать Жона",
-            "его пропы тоже =)"
-        },
-        owner = {
-            "player functions =>",
-            "emit sound =>",
-            "kill",
-            "drop weapon",
-            "drop all weapons",
-            "strip weapons",
-            "modelSize: 0.5",
-            "modelSize: 1.0",
-            "modelSize: 2.0",
-            "ignite",
-            "extinguish",
-            "toss me",
-            "full heal",
-            "teleport to ACID",
-            "teleport to Vector(0)",
-        },
-        player = {
-            "player functions =>",
-            "emit sound =>",
-            "kill",
-            "drop weapon",
-            "drop all weapons",
-            "strip weapons",
-            "modelSize: 0.5",
-            "modelSize: 1.0",
-            "modelSize: 2.0",
-            "ignite",
-            "extinguish",
-            "toss player",
-            "full heal",
-            "teleport to ACID",
-            "teleport to Vector(0)",
-
-        },
-        other = {
-            "constraints =>",
-            "mass prop functions =>",
-            "emit sound =>",
-            "add effect =>",
-            "grab / stop grab",
-            "remove",
-            "break",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop",
-            "make spherical",
-            "set unbreakable",   
-            "set breakable",     
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-            "KeepUpRight",
-            "convert to custom prop",
-            "add/remove dissolving",
-        },
-        jail = {
-            "emit sound =>",
-            "remove jail",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "set NoDrag",
-        },
-        class_C_BaseEntity = {
-            "remote use =>",
-        },
-        prop_vehicle_prisoner_pod = {
-            "constraints =>",
-            "vehicle functions =>",
-            "mass vehicle functions =>",
-            "emit sound =>",
-            "remote use =>",
-            "add effect =>",
-            "grab / stop grab",
-            "eject Driver",
-            "kill Driver",
-            "strip Driver",
-            "lock",
-            "unlock",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-            "add/remove dissolving",
-        },
-        prop_vehicle_airboat = {
-            "constraints =>",
-            "vehicle functions =>",
-            "mass vehicle functions =>",
-            "emit sound =>",
-            "remote use =>",
-            "add effect =>",
-            "grab / stop grab",
-            "eject Driver",
-            "kill Driver",
-            "strip Driver",
-            "lock",
-            "unlock",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss vehicle",
-            "teleport to ACID",
-            "teleport to Vector(0)",    
-            "add/remove dissolving",
-        },
-        prop_vehicle_jeep = {
-            "constraints =>",
-            "vehicle functions =>",
-            "mass vehicle functions =>",
-            "emit sound =>",
-            "remote use =>",
-            "add effect =>",
-            "grab / stop grab",
-            "eject Driver",
-            "kill Driver",
-            "strip Driver",
-            "lock",
-            "unlock",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss vehicle",
-            "teleport to ACID",
-            "teleport to Vector(0)",  
-            "add/remove dissolving",
-
-        },
-        npc = {
-            "emit sound =>",
-            "like me",
-            "fear me",
-            "hate me",
-            "neutral me",
-            "broke weapon",
-            "remove",
-            "kill",
-        },
-        npc_rollermine = {
-            "constraints =>",
-            "emit sound =>",
-            "add effect =>",
-            "like me",
-            "fear me",
-            "hate me",
-            "neutral me",
-            "broke weapon",
-            "remove",
-            "kill",
-            "add/remove dissolving",
-        },
-        prop_dynamic = {
-            "emit sound =>",
-            "remove",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "set NoDrag",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-        },
-        prop_physics_multiplayer = {
-            "emit sound =>",
-            "grab / stop grab",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-            "add/remove dissolving",
-        },
-        acf_gun = {
-            "constraints =>",
-            "emit sound =>",
-            --"unload gun",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop",
-            "add/remove dissolving",
-        },
-        func_door = {
+            },
+            other = {
+                "constraints =>",
+                "mass prop functions =>",
+                "emit sound =>",
+                "add effect =>",
+                "grab / stop grab",
+                "remove",
+                "break",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop",
+                "make spherical",
+                "set unbreakable",   
+                "set breakable",     
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "KeepUpRight",
+                "convert to custom prop",
+                "add/remove dissolving",
+            },
+            jail = {
+                "emit sound =>",
+                "remove jail",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "set NoDrag",
+            },
+            class_C_BaseEntity = {
+                "remote use =>",
+            },
+            prop_vehicle_prisoner_pod = {
+                "constraints =>",
+                "vehicle functions =>",
+                "mass vehicle functions =>",
+                "emit sound =>",
+                "remote use =>",
+                "add effect =>",
+                "grab / stop grab",
+                "eject Driver",
+                "kill Driver",
+                "strip Driver",
+                "lock",
+                "unlock",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "add/remove dissolving",
+            },
+            prop_vehicle_airboat = {
+                "constraints =>",
+                "vehicle functions =>",
+                "mass vehicle functions =>",
+                "emit sound =>",
+                "remote use =>",
+                "add effect =>",
+                "grab / stop grab",
+                "eject Driver",
+                "kill Driver",
+                "strip Driver",
+                "lock",
+                "unlock",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss vehicle",
+                "teleport to ACID",
+                "teleport to Vector(0)",    
+                "add/remove dissolving",
+            },
+            prop_vehicle_jeep = {
+                "constraints =>",
+                "vehicle functions =>",
+                "mass vehicle functions =>",
+                "emit sound =>",
+                "remote use =>",
+                "add effect =>",
+                "grab / stop grab",
+                "eject Driver",
+                "kill Driver",
+                "strip Driver",
+                "lock",
+                "unlock",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss vehicle",
+                "teleport to ACID",
+                "teleport to Vector(0)",  
+                "add/remove dissolving",
+    
+            },
+            npc = {
+                "emit sound =>",
+                "like me",
+                "fear me",
+                "hate me",
+                "neutral me",
+                "broke weapon",
+                "remove",
+                "kill",
+            },
+            npc_rollermine = {
+                "constraints =>",
+                "emit sound =>",
+                "add effect =>",
+                "like me",
+                "fear me",
+                "hate me",
+                "neutral me",
+                "broke weapon",
+                "remove",
+                "kill",
+                "add/remove dissolving",
+            },
+            prop_dynamic = {
+                "emit sound =>",
+                "remove",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "set NoDrag",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+            },
+            prop_physics_multiplayer = {
+                "emit sound =>",
+                "grab / stop grab",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "add/remove dissolving",
+            },
+            acf_gun = {
+                "constraints =>",
+                "emit sound =>",
+                --"unload gun",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop",
+                "add/remove dissolving",
+            },
+            func_door = {
+                
+            },
+            prop_door_rotating = {
+                "emit sound =>",
+                --"remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "remove Trails",
+                "set NoDrag",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+            },
+            func_breakable = {
+                "emit sound =>",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "remove Trails",
+                "set NoDrag",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "add/remove dissolving",
+            },
+            gmod_rttv = {
+                "constraints =>",
+                "emit sound =>",
+                "grab / stop grab",
+                "remove",
+                "break",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop",
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "KeepUpRight",
+                "add/remove dissolving",
+            },
+            starfall_prop = {
+                "constraints =>",
+                "custom prop physics =>",
+                "emit sound =>",
+                "add effect =>",
+                "grab / stop grab",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "gravity off",
+                "gravity on",
+                "remove Trails",
+                "set NoDrag",
+                "froze",
+                "unfroze",
+                "toss prop", 
+                "add/remove dissolving",
+            }
             
-        },
-        prop_door_rotating = {
-            "emit sound =>",
-            --"remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "remove Trails",
-            "set NoDrag",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-        },
-        func_breakable = {
-            "emit sound =>",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "remove Trails",
-            "set NoDrag",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-            "add/remove dissolving",
-        },
-        gmod_rttv = {
-            "constraints =>",
-            "emit sound =>",
-            "grab / stop grab",
-            "remove",
-            "break",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop",
-            "teleport to ACID",
-            "teleport to Vector(0)", 
-            "KeepUpRight",
-            "add/remove dissolving",
-        },
-        starfall_prop = {
-            "constraints =>",
-            "custom prop physics =>",
-            "emit sound =>",
-            "add effect =>",
-            "grab / stop grab",
-            "remove",
-            "no Collide",
-            "return Collide",
-            "make transparent",
-            "remove transparency",
-            "ignite",
-            "extinguish",
-            "gravity off",
-            "gravity on",
-            "remove Trails",
-            "set NoDrag",
-            "froze",
-            "unfroze",
-            "toss prop", 
-            "add/remove dissolving",
         }
         
-    }
-    
-    DataConstraints = {
-        "rope",    
-        "rigid rope",
-        "elastic",
-        "axis",
-        "ballsocket",
-        "weld",
-        "nocollide",
-        "break constraints",
-        "", 
-        "rope to me",
-        "rigid rope to me",
-        "elastic to me",
-        "axis to me",
-        "ballsocket to me",
-        "weld to me",
-    }
-    DataPlayerFunctions = {
-        "function [spawnpoint]",
-        "function [healing]",
-        "function [ban weapons]",
-        "function [block moving]",
-        "function [block camera]",
-        "function [block PROPspawn]",
-        "function [block NPCspawn]",
-        "function [block Alt+E]",
-        "",
-        "remove function [spawnpoint]",
-        "remove function [healing]",
-        "remove function [ban weapons]",
-        "remove function [block moving]",
-        "remove function [block camera]",
-        "remove function [block PROPspawn]",
-        "remove function [block NPCspawn]",
-        "remove function [block Alt+E]",
-    }
-    DataVehicleFunctions = {
-        "function [kill drivers]",
-        "function [eject drivers]",
-        "function [strip drivers]",
-        "",
-        "remove function [kill drivers]",
-        "remove function [eject drivers]",
-        "remove function [strip drivers]",
-    }
-    DataMassVehicleFunctions = {
-        "function [vehicle can't froze]",
-        "remove function [vehicle can't froze]",
-    }
-    DataCustomPropFunctions = {
-        "make balloon",
-        "set supergravity",
-        "spining physics",
-        "wheel physics",
-        "thruster physics",
-        "set default physics",
-    }
-    DataSoundFunctions = {
-        "loop:ambient/water/water_flow_loop1.wav",
-        "loop:ambient/alarms/alarm_citizen_loop1.wav",
-        "loop:ambient/alarms/alarm1.wav",
-        "loop:ambient/alarms/siren.wav",
-        "loop:ambient/energy/force_field_loop1.wav",
-        "loop:ambient/energy/electric_loop.wav",
-    }
-    DataMassPropFunctions = {
-        "function [props can't froze]",
-        "remove function [props can't froze]",  
-    }
-    DataRemoteUseFunctions = {
-        "remote:KP_PGUP",
-        "remote:KP_UPARROW",
-        "remote:KP_HOME",
-        "remote:KP_RIGHTARROW",
-        "remote:KP_5",
-        "remote:KP_LEFTARROW",
-        "remote:KP_PGDN",
-        "remote:KP_DOWNARROW",
-        "remote:KP_END",   
-        "clear all buttons", 
-    }
-    DataEffectFunctions = {
-        "large light",
-        "explosion",   
-        "blood", 
-        "strider blood",
-        "cball explosion",
-        "smoke",
-        "water splash",
-        "fire",
-        "",
-        "remove all effects",
-    }
-    
-    DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
-    
-    Button = {}
-    Ent = nil
-    Ply = owner()
-    RemoteUse = {}
-    
-    BaseColor1 = Color(50, 50, 100, 255)
-    BaseColor2 = Color(0, 0, 0, 255)
-    BaseColor3 = Color(100, 200, 100, 255)
-    BaseColor4 = Color(50, 100, 100, 255)
-    
-    ConstraintsColor1 = Color(50, 100, 50, 255)
-    ConstraintsColor2 = Color(0, 0, 0, 255)
-    ConstraintsColor3 = Color(200, 200, 100, 255)
-    
-    Font1 = render.createFont("Consolas", 15, 50, true)
-    Font2 = render.createFont("Consolas", 18, 50, true)
-    ButtonSize = Vector(250, 30)
-    ButtonCorrector = 0.5
-    
-    local function getStorage()
-        local data = {}
-        if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
-            data = table.copy(Data["john"])
-        elseif Ent == owner() then
-            data = table.copy(Data["owner"])
-        elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
-            data = table.copy(Data["jail"])
-        elseif Data[string.replace(Ent:getClass(), " ", "_")] != nil then
-            data = table.copy(Data[string.replace(Ent:getClass(), " ", "_")])
-        elseif Ent:isNPC() then
-            data = table.copy(Data["npc"])
-        else
-            data = table.copy(Data["other"])
-        end
-        return data
-    end
-    
-    local function closeTrees()
-        isConstraints = false
-        isSkins = false
-        isPlayerFunctions = false
-        isVehicleFunctions = false
-        isCustomPropFunctions = false
-        isSoundFunctions = false
-        isMassPropFunctions = false
-        isMassVehicleFunctions = false
-        isRemoteUseFunctions = false
-        isEffectFunctions = false
-    end
-    closeTrees()
-    
-    function checkTrees()
-        local num = 0
-        if isConstraints == true then
-            for i = 1, table.count(DataConstraints) do
-                num = num + (Button[100 + i] and 1 or 0)
-            end
-        elseif isSkins == true then
-            for i = 1, table.count(DataSkins) do
-                num = num + (Button[200 + i] and 1 or 0)
-            end
-        elseif isPlayerFunctions == true then
-            for i = 1, table.count(DataPlayerFunctions) do
-                num = num + (Button[300 + i] and 1 or 0)
-            end
-        elseif isVehicleFunctions == true then
-            for i = 1, table.count(DataVehicleFunctions) do
-                num = num + (Button[400 + i] and 1 or 0)
-            end
-        elseif isCustomPropFunctions == true then
-            for i = 1, table.count(DataVehicleFunctions) do
-                num = num + (Button[500 + i] and 1 or 0)
-            end
-        elseif isSoundFunctions == true then
-            for i = 1, table.count(DataSoundFunctions) do
-                num = num + (Button[600 + i] and 1 or 0)
-            end
-        elseif isMassPropFunctions == true then
-            for i = 1, table.count(DataSoundFunctions) do
-                num = num + (Button[700 + i] and 1 or 0)
-            end
-        elseif isMassVehicleFunctions == true then
-            for i = 1, table.count(DataMassVehicleFunctions) do
-                num = num + (Button[800 + i] and 1 or 0)
-            end
-        elseif isRemoteUseFunctions == true then
-            for i = 1, table.count(DataRemoteUseFunctions) do
-                num = num + (Button[900 + i] and 1 or 0)
-            end
-        elseif isEffectFunctions == true then
-            for i = 1, table.count(DataEffectFunctions) do
-                num = num + (Button[1000 + i] and 1 or 0)
-            end
-        end
-        return num 
-    end
-    
-    timer.create("check trees", 1, 0, function()
-        if checkTrees() == 0 then
-            closeTrees()
-        end    
-    end)
-    
-    hook.add("drawhud", "", function()
+        DataConstraints = {
+            "rope",    
+            "rigid rope",
+            "elastic",
+            "axis",
+            "ballsocket",
+            "weld",
+            "nocollide",
+            "break constraints",
+            "", 
+            "rope to me",
+            "rigid rope to me",
+            "elastic to me",
+            "axis to me",
+            "ballsocket to me",
+            "weld to me",
+        }
+        DataPlayerFunctions = {
+            "function [spawnpoint]",
+            "function [healing]",
+            "function [ban weapons]",
+            "function [block moving]",
+            "function [block camera]",
+            "function [block PROPspawn]",
+            "function [block NPCspawn]",
+            "function [block Alt+E]",
+            "",
+            "remove function [spawnpoint]",
+            "remove function [healing]",
+            "remove function [ban weapons]",
+            "remove function [block moving]",
+            "remove function [block camera]",
+            "remove function [block PROPspawn]",
+            "remove function [block NPCspawn]",
+            "remove function [block Alt+E]",
+        }
+        DataVehicleFunctions = {
+            "function [kill drivers]",
+            "function [eject drivers]",
+            "function [strip drivers]",
+            "",
+            "remove function [kill drivers]",
+            "remove function [eject drivers]",
+            "remove function [strip drivers]",
+        }
+        DataMassVehicleFunctions = {
+            "function [vehicle can't froze]",
+            "remove function [vehicle can't froze]",
+        }
+        DataCustomPropFunctions = {
+            "make balloon",
+            "set supergravity",
+            "spining physics",
+            "wheel physics",
+            "thruster physics",
+            "set default physics",
+        }
+        DataSoundFunctions = {
+            "loop:ambient/water/water_flow_loop1.wav",
+            "loop:ambient/alarms/alarm_citizen_loop1.wav",
+            "loop:ambient/alarms/alarm1.wav",
+            "loop:ambient/alarms/siren.wav",
+            "loop:ambient/energy/force_field_loop1.wav",
+            "loop:ambient/energy/electric_loop.wav",
+        }
+        DataMassPropFunctions = {
+            "function [props can't froze]",
+            "remove function [props can't froze]",  
+        }
+        DataRemoteUseFunctions = {
+            "remote:KP_PGUP",
+            "remote:KP_UPARROW",
+            "remote:KP_HOME",
+            "remote:KP_RIGHTARROW",
+            "remote:KP_5",
+            "remote:KP_LEFTARROW",
+            "remote:KP_PGDN",
+            "remote:KP_DOWNARROW",
+            "remote:KP_END",   
+            "clear all buttons", 
+        }
+        DataEffectFunctions = {
+            "large light",
+            "explosion",   
+            "blood", 
+            "strider blood",
+            "cball explosion",
+            "smoke",
+            "water splash",
+            "fire",
+            "",
+            "remove all effects",
+        }
         
-        if ResX == nil then
-           ResX, ResY = render.getResolution() 
-        end
+        DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
         
-        if Ent != nil then
-            if Ent:isValid() then
-                local mouseX, mouseY = input.getCursorPos()
-                
-                render.setFont(Font1)
-                
-                local data = table.copy(getStorage())
-                local isJohn = data == Data["john"]
-                if not isJohn then
-                    if (Ent:getSkinCount() or 0) > 1 then
-                       table.insert(data, 1, "set skin =>") 
-                    end
-                end
-                
-                local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                render.setColor(BaseColor1 * 2)
-                render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                render.setColor(BaseColor2 * 2)
-                render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                render.setColor(Color(255, 255, 255))
-                render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
-                render.setFont(Font2)
-                
-                if checkTrees() == 0 then
-                    timer.unpause("check trees")
-                else
-                    timer.pause("check trees")
-                end
-                --print(num)
-                
-                if table.count(data) > 0 then
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if not isJohn and dat != "" then
-                            Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        if string.match(dat, "=>", nil) then
-                            render.setColor(Button[i] and ConstraintsColor3 or ConstraintsColor1)
-                            if dat == "constraints =>" then
-                                if isConstraints == false then
-                                    isConstraints = Button[i]
-                                    if isConstraints == true then
-                                        closeTrees()
-                                        isConstraints = true
-                                    end
-                                end
-                            elseif dat == "set skin =>" then
-                                if isSkins == false then
-                                    isSkins = Button[i]
-                                    if isSkins == true then
-                                        closeTrees()
-                                        isSkins = true
-                                    end
-                                end
-                            elseif dat == "player functions =>" then
-                                if isPlayerFunctions == false then
-                                    isPlayerFunctions = Button[i]
-                                    if isPlayerFunctions == true then
-                                        closeTrees()
-                                        isPlayerFunctions = true
-                                    end
-                                end
-                            elseif dat == "vehicle functions =>" then
-                                if isVehicleFunctions == false then
-                                    isVehicleFunctions = Button[i]
-                                    if isVehicleFunctions == true then
-                                        closeTrees()
-                                        isVehicleFunctions = true
-                                    end
-                                end
-                            elseif dat == "custom prop physics =>" then
-                                if isCustomPropFunctions == false then
-                                    isCustomPropFunctions = Button[i]
-                                    if isCustomPropFunctions == true then
-                                        closeTrees()
-                                        isCustomPropFunctions = true
-                                    end
-                                end
-                            elseif dat == "emit sound =>" then
-                                if isSoundFunctions == false then
-                                    isSoundFunctions = Button[i]
-                                    if isSoundFunctions == true then
-                                        closeTrees()
-                                        isSoundFunctions = true
-                                    end
-                                end
-                            elseif dat == "mass prop functions =>" then
-                                if isMassPropFunctions == false then
-                                    isMassPropFunctions = Button[i]
-                                    if isMassPropFunctions == true then
-                                        closeTrees()
-                                        isMassPropFunctions = true
-                                    end
-                                end
-                            elseif dat == "mass vehicle functions =>" then
-                                if isMassVehicleFunctions == false then
-                                    isMassVehicleFunctions = Button[i]
-                                    if isMassVehicleFunctions == true then
-                                        closeTrees()
-                                        isMassVehicleFunctions = true
-                                    end
-                                end
-                            elseif dat == "remote use =>" then
-                                if isRemoteUseFunctions == false then
-                                    isRemoteUseFunctions = Button[i]
-                                    if isRemoteUseFunctions == true then
-                                        closeTrees()
-                                        isRemoteUseFunctions = true
-                                    end
-                                end
-                            elseif dat == "add effect =>" then
-                                if isEffectFunctions == false then
-                                    isEffectFunctions = Button[i]
-                                    if isEffectFunctions == true then
-                                        closeTrees()
-                                        isEffectFunctions = true
-                                    end
-                                end
-                            end
-                        else
-                            render.setColor(Button[i] and BaseColor3 or BaseColor1)
-                        end
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(string.match(dat, "=>", nil) and ConstraintsColor2 or BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                else
-                    y = y + ButtonSize.y
-                    render.setColor(BaseColor1)
-                    render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                    render.setColor(BaseColor2)
-                    render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                    render.setColor(Color(255, 255, 255, 255))
-                    render.drawText(x + ButtonSize.x / 2, y + 5, "нет доступных функций", 1)
-                end
-                
-                if isConstraints then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataConstraints)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[100 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[100 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                elseif isSkins then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataSkins)
-                    for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[200 + i] and BaseColor3 or (tonumber(string.replace(dat, "skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[200 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
-                    end
-                elseif isPlayerFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataPlayerFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[300 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[300 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[300 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                elseif isVehicleFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataVehicleFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[400 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[400 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[400 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                elseif isCustomPropFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataCustomPropFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[500 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[500 + i] and BaseColor3 or (Ent["forces"] != dat and BaseColor1 or BaseColor4))
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[500 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, Ent["forces"] != dat and dat or "=> " .. dat .. " <=", 1)
-                    end
-                elseif isSoundFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataSoundFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[600 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[600 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[600 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, string.explode(":", dat, false)[2] or dat, 1)
-                    end
-                elseif isMassPropFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataMassPropFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[700 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[700 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[700 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                elseif isMassVehicleFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataMassVehicleFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[800 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[800 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[800 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                elseif isRemoteUseFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataRemoteUseFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[900 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        local text = string.explode(":", dat, false)[2] or dat
-                        render.setColor(Button[900 + i] and BaseColor3 or (RemoteUse[text] == nil and BaseColor1 or BaseColor4))
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[900 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, RemoteUse[text] == nil and text or "=[ " .. text .. " ]=", 1)
-                    end
-                elseif isEffectFunctions then
-                    local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
-                    local data = table.copy(DataEffectFunctions)
-                    for i = 1, table.count(data) do
-                        local dat = data[table.getKeys(data)[i]]
-                        y = y + ButtonSize.y
-                        if dat != "" then
-                            Button[1000 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                        end
-                        render.setColor(Button[1000 + i] and BaseColor3 or BaseColor1)
-                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(BaseColor2)
-                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                        render.setColor(Button[1000 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                        render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
-                    end
-                end
-            else
-                Ent = nil
-                input.enableCursor(false)
-                closeTrees()
-                Ply:emitSound("buttons/button8.wav", 75, 125, 0.75, CHAN_AUTO)
-            end
-        end
-        
-    end)
-    
-    function findTarget()
-        local Angles = Ply:getEyeAngles()
-        if Angles[1] == 89 and math.abs(Angles[3]) < 10 then
-            Ent = owner()
-            input.enableCursor(true)
-            Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
-        else
-            if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
-                Ent = Ply:getEyeTrace().Entity
-                --print(Ply:getEyeTrace().Entity:getClass())
-                input.enableCursor(true)
-                Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
-            end
-        end
-    end
-    
-    function sendData(data, i)
-        net.start("sendFunc")
-        net.writeTable({id = Ent:entIndex(), func = data[i]})
-        net.send(Ply)
-        Ent["forces"] = data[i]
+        Button = {}
         Ent = nil
-        input.enableCursor(false)
-        Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
-        closeTrees()
-    end
-    
-    net.receive("RemoteUseData", function(str)
-        RemoteUse = net.readTable()
-    end)
-    
-    hook.add("inputPressed", "", function(key)
-        if RemoteUse[input.getKeyName(key)] != nil then
-            net.start("RemoteUse")
-            net.writeTable({ent = RemoteUse[input.getKeyName(key)]})
-            net.send(owner())
-            Ply:emitSound("buttons/combine_button1.wav", 100, 150, 1, CHAN_AUTO)
+        Ply = owner()
+        RemoteUse = {}
+        
+        BaseColor1 = Color(50, 50, 100, 255)
+        BaseColor2 = Color(0, 0, 0, 255)
+        BaseColor3 = Color(100, 200, 100, 255)
+        BaseColor4 = Color(50, 100, 100, 255)
+        
+        ConstraintsColor1 = Color(50, 100, 50, 255)
+        ConstraintsColor2 = Color(0, 0, 0, 255)
+        ConstraintsColor3 = Color(200, 200, 100, 255)
+        
+        Font1 = render.createFont("Consolas", 15, 50, true)
+        Font2 = render.createFont("Consolas", 18, 50, true)
+        Font3 = render.createFont("Consolas", 14, 50, true)
+        ButtonSize = Vector(250, 30)
+        ButtonCorrector = 0.5
+        
+        Bind = {}
+        BindFunc = {}
+        
+        local function getStorage()
+            local data = {}
+            if (Ent:getOwner()!= nil and Ent:getOwner():getSteamID()) == John and owner():getSteamID() != John then
+                data = table.copy(Data["john"])
+            elseif Ent == owner() then
+                data = table.copy(Data["owner"])
+            elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
+                data = table.copy(Data["jail"])
+            elseif Data[string.replace(Ent:getClass(), " ", "_")] != nil then
+                data = table.copy(Data[string.replace(Ent:getClass(), " ", "_")])
+            elseif Ent:isNPC() then
+                data = table.copy(Data["npc"])
+            else
+                data = table.copy(Data["other"])
+            end
+            return data
         end
         
-        if key == 108 and Ent == nil then
-            if Ply:isValid() then
-                if Ply:getActiveWeapon():isValid() then
-                    if Ply:getActiveWeapon():getClass() == "weapon_empty_hands" then
-                        findTarget()
-                    end
-                else
-                    findTarget()
+        local function closeTrees()
+            isConstraints = false
+            isSkins = false
+            isPlayerFunctions = false
+            isVehicleFunctions = false
+            isCustomPropFunctions = false
+            isSoundFunctions = false
+            isMassPropFunctions = false
+            isMassVehicleFunctions = false
+            isRemoteUseFunctions = false
+            isEffectFunctions = false
+        end
+        closeTrees()
+        
+        function checkTrees()
+            local num = 0
+            if isConstraints == true then
+                for i = 1, table.count(DataConstraints) do
+                    num = num + (Button[100 + i] and 1 or 0)
+                end
+            elseif isSkins == true then
+                for i = 1, table.count(DataSkins) do
+                    num = num + (Button[200 + i] and 1 or 0)
+                end
+            elseif isPlayerFunctions == true then
+                for i = 1, table.count(DataPlayerFunctions) do
+                    num = num + (Button[300 + i] and 1 or 0)
+                end
+            elseif isVehicleFunctions == true then
+                for i = 1, table.count(DataVehicleFunctions) do
+                    num = num + (Button[400 + i] and 1 or 0)
+                end
+            elseif isCustomPropFunctions == true then
+                for i = 1, table.count(DataVehicleFunctions) do
+                    num = num + (Button[500 + i] and 1 or 0)
+                end
+            elseif isSoundFunctions == true then
+                for i = 1, table.count(DataSoundFunctions) do
+                    num = num + (Button[600 + i] and 1 or 0)
+                end
+            elseif isMassPropFunctions == true then
+                for i = 1, table.count(DataSoundFunctions) do
+                    num = num + (Button[700 + i] and 1 or 0)
+                end
+            elseif isMassVehicleFunctions == true then
+                for i = 1, table.count(DataMassVehicleFunctions) do
+                    num = num + (Button[800 + i] and 1 or 0)
+                end
+            elseif isRemoteUseFunctions == true then
+                for i = 1, table.count(DataRemoteUseFunctions) do
+                    num = num + (Button[900 + i] and 1 or 0)
+                end
+            elseif isEffectFunctions == true then
+                for i = 1, table.count(DataEffectFunctions) do
+                    num = num + (Button[1000 + i] and 1 or 0)
                 end
             end
-        elseif key == 108 and Ent != nil then
-            Ent = nil
-            input.enableCursor(false)
-            Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
-        elseif Ent == nil then
-            if key == 107 then
-                net.start("throw")
-                net.writeTable({func = "da"})
-                net.send(owner())
+            return num 
+        end
+        
+        timer.create("check trees", 1, 0, function()
+            if checkTrees() == 0 then
+                closeTrees()
+            end    
+        end)
+        
+        hook.add("drawhud", "", function()
+            
+            if ResX == nil then
+               ResX, ResY = render.getResolution() 
             end
-        elseif Ent != nil then
-            if key == 107 then
-                local data = getStorage()
-                if (Ent:getSkinCount() or 0) > 1 then
-                   table.insert(data, 1, "set skin =>") 
-                end
-                local mouseX, mouseY = input.getCursorPos()
-                local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions or isRemoteUseFunctions or isEffectFunctions
-                local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
-                if inmenu then
-                    for i = 1, table.count(data) do
-                        if Button[i] and not string.match(data[i], "=>", nil) then
-                            sendData(data, i)
+            
+            if Ent != nil then
+                if Ent:isValid() then
+                    local mouseX, mouseY = input.getCursorPos()
+                    
+                    render.setFont(Font1)
+                    
+                    local data = table.copy(getStorage())
+                    local isJohn = data == Data["john"]
+                    if not isJohn then
+                        if (Ent:getSkinCount() or 0) > 1 then
+                           table.insert(data, 1, "set skin =>") 
                         end
                     end
+                    
+                    local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
+                    render.setColor(BaseColor1 * 2)
+                    render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                    render.setColor(BaseColor2 * 2)
+                    render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                    render.setColor(Color(255, 255, 255))
+                    render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
+                    render.setFont(Font3)
+                    
+                    if checkTrees() == 0 then
+                        timer.unpause("check trees")
+                    else
+                        timer.pause("check trees")
+                    end
+                    --print(num)
+                    
+                    if table.count(data) > 0 then
+                        for i = 1, table.count(data) do
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if not isJohn and dat != "" then
+                                Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                            end
+                            if string.match(dat, "=>", nil) then
+                                render.setColor(Button[i] and ConstraintsColor3 or ConstraintsColor1)
+                                if dat == "constraints =>" then
+                                    if isConstraints == false then
+                                        isConstraints = Button[i]
+                                        if isConstraints == true then
+                                            closeTrees()
+                                            isConstraints = true
+                                        end
+                                    end
+                                elseif dat == "set skin =>" then
+                                    if isSkins == false then
+                                        isSkins = Button[i]
+                                        if isSkins == true then
+                                            closeTrees()
+                                            isSkins = true
+                                        end
+                                    end
+                                elseif dat == "player functions =>" then
+                                    if isPlayerFunctions == false then
+                                        isPlayerFunctions = Button[i]
+                                        if isPlayerFunctions == true then
+                                            closeTrees()
+                                            isPlayerFunctions = true
+                                        end
+                                    end
+                                elseif dat == "vehicle functions =>" then
+                                    if isVehicleFunctions == false then
+                                        isVehicleFunctions = Button[i]
+                                        if isVehicleFunctions == true then
+                                            closeTrees()
+                                            isVehicleFunctions = true
+                                        end
+                                    end
+                                elseif dat == "custom prop physics =>" then
+                                    if isCustomPropFunctions == false then
+                                        isCustomPropFunctions = Button[i]
+                                        if isCustomPropFunctions == true then
+                                            closeTrees()
+                                            isCustomPropFunctions = true
+                                        end
+                                    end
+                                elseif dat == "emit sound =>" then
+                                    if isSoundFunctions == false then
+                                        isSoundFunctions = Button[i]
+                                        if isSoundFunctions == true then
+                                            closeTrees()
+                                            isSoundFunctions = true
+                                        end
+                                    end
+                                elseif dat == "mass prop functions =>" then
+                                    if isMassPropFunctions == false then
+                                        isMassPropFunctions = Button[i]
+                                        if isMassPropFunctions == true then
+                                            closeTrees()
+                                            isMassPropFunctions = true
+                                        end
+                                    end
+                                elseif dat == "mass vehicle functions =>" then
+                                    if isMassVehicleFunctions == false then
+                                        isMassVehicleFunctions = Button[i]
+                                        if isMassVehicleFunctions == true then
+                                            closeTrees()
+                                            isMassVehicleFunctions = true
+                                        end
+                                    end
+                                elseif dat == "remote use =>" then
+                                    if isRemoteUseFunctions == false then
+                                        isRemoteUseFunctions = Button[i]
+                                        if isRemoteUseFunctions == true then
+                                            closeTrees()
+                                            isRemoteUseFunctions = true
+                                        end
+                                    end
+                                elseif dat == "add effect =>" then
+                                    if isEffectFunctions == false then
+                                        isEffectFunctions = Button[i]
+                                        if isEffectFunctions == true then
+                                            closeTrees()
+                                            isEffectFunctions = true
+                                        end
+                                    end
+                                end
+                            else
+                                render.setColor(Button[i] and BaseColor3 or BaseColor1)
+                            end
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(string.match(dat, "=>", nil) and ConstraintsColor2 or BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            local datbind = BindFunc[dat] == nil and "" or " [" .. input.getKeyName(tonumber(string.explode(":", BindFunc[dat])[2])) .. "]"
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat .. datbind, 1)
+                        end
+                    else
+                        y = y + ButtonSize.y
+                        render.setColor(BaseColor1)
+                        render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(BaseColor2)
+                        render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                        render.setColor(Color(255, 255, 255, 255))
+                        render.drawText(x + ButtonSize.x / 2, y + 5, "нет доступных функций", 1)
+                    end
+                    
                     if isConstraints then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataConstraints)
                         for i = 1, table.count(data) do
-                            if Button[100 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[100 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[100 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[100 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     elseif isSkins then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataSkins)
                         for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
-                            if Button[200 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[200 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[200 + i] and BaseColor3 or (tonumber(string.replace(dat, "skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[200 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat, 1)
                         end
                     elseif isPlayerFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataPlayerFunctions)
                         for i = 1, table.count(data) do
-                            if Button[300 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[300 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[300 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[300 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     elseif isVehicleFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataVehicleFunctions)
                         for i = 1, table.count(data) do
-                            if Button[400 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[400 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[400 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[400 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     elseif isCustomPropFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataCustomPropFunctions)
                         for i = 1, table.count(data) do
-                            if Button[500 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[500 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[500 + i] and BaseColor3 or (Ent["forces"] != dat and BaseColor1 or BaseColor4))
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[500 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, Ent["forces"] != dat and dat or "=> " .. dat .. " <=", 1)
                         end
                     elseif isSoundFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataSoundFunctions)
                         for i = 1, table.count(data) do
-                            if Button[600 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[600 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[600 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[600 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, string.explode(":", dat, false)[2] or dat, 1)
                         end
                     elseif isMassPropFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataMassPropFunctions)
                         for i = 1, table.count(data) do
-                            if Button[700 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[700 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[700 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[700 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     elseif isMassVehicleFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataMassVehicleFunctions)
                         for i = 1, table.count(data) do
-                            if Button[800 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[800 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[800 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[800 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     elseif isRemoteUseFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataRemoteUseFunctions)
                         for i = 1, table.count(data) do
-                            if Button[900 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[900 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            local text = string.explode(":", dat, false)[2] or dat
+                            render.setColor(Button[900 + i] and BaseColor3 or (RemoteUse[text] == nil and BaseColor1 or BaseColor4))
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[900 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, RemoteUse[text] == nil and text or "=[ " .. text .. " ]=", 1)
                         end
                     elseif isEffectFunctions then
+                        local x, y = ResX / 2 + 20 + ButtonSize.x, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                         local data = table.copy(DataEffectFunctions)
                         for i = 1, table.count(data) do
-                            if Button[1000 + i] then
-                                sendData(data, i)
+                            local dat = data[table.getKeys(data)[i]]
+                            y = y + ButtonSize.y
+                            if dat != "" then
+                                Button[1000 + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
+                            render.setColor(Button[1000 + i] and BaseColor3 or BaseColor1)
+                            render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(BaseColor2)
+                            render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                            render.setColor(Button[1000 + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                            render.drawText(x + ButtonSize.x / 2, y + 5, dat, 1)
                         end
                     end
                 else
                     Ent = nil
                     input.enableCursor(false)
                     closeTrees()
-                    Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+                    Ply:emitSound("buttons/button8.wav", 75, 125, 0.75, CHAN_AUTO)
                 end
-            end 
+            end
+            
+        end)
+        
+        function findTarget()
+            local Angles = Ply:getEyeAngles()
+            if Angles[1] == 89 and math.abs(Angles[3]) < 10 then
+                Ent = owner()
+                input.enableCursor(true)
+                Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+            else
+                if Ply:getEyeTrace().Entity:getClass() != "worldspawn" then
+                    Ent = Ply:getEyeTrace().Entity
+                    --print(Ply:getEyeTrace().Entity:getClass())
+                    input.enableCursor(true)
+                    Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+                end
+            end
         end
-    end)
+        
+        function sendData(data, i)
+            net.start("sendFunc")
+            net.writeTable({id = Ent:entIndex(), func = data[i]})
+            net.send(Ply)
+            Ent["forces"] = data[i]
+            Ent = nil
+            input.enableCursor(false)
+            Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+            closeTrees()
+        end
+        
+        function setBind(data, i, key, ent)
+            if Bind["key:" .. key] == nil then
+                Bind["key:" .. key] = {func = data[i], ent = ent}
+                BindFunc[data[i]] = "key:" .. key
+            else
+                for i = 1, table.count(BindFunc) do
+                    local func = table.getKeys(BindFunc)[i]
+                    if BindFunc[func] == "key:" .. key then
+                        BindFunc[func] = nil
+                    end
+                end
+                Bind["key:" .. key] = {func = data[i], ent = ent}
+                BindFunc[data[i]] = "key:" .. key
+            end
+            Ply:emitSound("buttons/combine_button1.wav", 100, 150, 0.75, CHAN_AUTO)
+        end
+        
+        function unbind(data, i, key)
+            BindFunc[data[i]] = nil
+            Bind["key:" .. key] = nil
+            Ply:emitSound("buttons/combine_button2.wav", 100, 150, 0.75, CHAN_AUTO)
+        end
+            
+        function checkButtons(data, type, key, ent)
+            for i = 1, table.count(data) do
+                if Button[i] and not string.match(data[i], "=>", nil) then
+                    if type == "func" then 
+                        sendData(data, i) 
+                    elseif type == "bind" then
+                        setBind(data, i, key, ent)
+                    elseif type == "unbind" then
+                        unbind(data, i, key)
+                    end
+                end
+            end
+            if isConstraints then
+                local data = table.copy(DataConstraints)
+                for i = 1, table.count(data) do
+                    if Button[100 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isSkins then
+                local data = table.copy(DataSkins)
+                for i = 1, math.min(table.count(data), Ent:getSkinCount()) do
+                    if Button[200 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isPlayerFunctions then
+                local data = table.copy(DataPlayerFunctions)
+                for i = 1, table.count(data) do
+                    if Button[300 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isVehicleFunctions then
+                local data = table.copy(DataVehicleFunctions)
+                for i = 1, table.count(data) do
+                    if Button[400 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isCustomPropFunctions then
+                local data = table.copy(DataCustomPropFunctions)
+                for i = 1, table.count(data) do
+                    if Button[500 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isSoundFunctions then
+                local data = table.copy(DataSoundFunctions)
+                for i = 1, table.count(data) do
+                    if Button[600 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isMassPropFunctions then
+                local data = table.copy(DataMassPropFunctions)
+                for i = 1, table.count(data) do
+                    if Button[700 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isMassVehicleFunctions then
+                local data = table.copy(DataMassVehicleFunctions)
+                for i = 1, table.count(data) do
+                    if Button[800 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isRemoteUseFunctions then
+                local data = table.copy(DataRemoteUseFunctions)
+                for i = 1, table.count(data) do
+                    if Button[900 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            elseif isEffectFunctions then
+                local data = table.copy(DataEffectFunctions)
+                for i = 1, table.count(data) do
+                    if Button[1000 + i] then
+                        if type == "func" then sendData(data, i) else setBind(data, i, key, ent) end
+                    end
+                end
+            end
+        end
+        
+        net.receive("RemoteUseData", function(str)
+            RemoteUse = net.readTable()
+        end)
+        
+        hook.add("inputPressed", "", function(key)
+            if Ent == nil then
+                for i = 1, table.count(Bind) do
+                    local bind = table.getKeys(Bind)[i]
+                    if key == tonumber(string.explode(":", bind)[2]) then
+                        if Bind[bind].ent:isValid() then
+                            net.start("sendFunc")
+                            net.writeTable({id = Bind[bind].ent:entIndex(), func = Bind[bind].func})
+                            net.send(Ply)    
+                        end
+                    end
+                end                
+            end
+
+            if RemoteUse[input.getKeyName(key)] != nil then
+                net.start("RemoteUse")
+                net.writeTable({ent = RemoteUse[input.getKeyName(key)]})
+                net.send(owner())
+                Ply:emitSound("buttons/combine_button1.wav", 100, 150, 1, CHAN_AUTO)
+            end
+            
+            if key == 108 and Ent == nil then
+                if Ply:isValid() then
+                    if Ply:getActiveWeapon():isValid() then
+                        if Ply:getActiveWeapon():getClass() == "weapon_empty_hands" then
+                            findTarget()
+                        end
+                    else
+                        findTarget()
+                    end
+                end
+            elseif key == 108 and Ent != nil then
+                Ent = nil
+                input.enableCursor(false)
+                Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+            elseif Ent == nil then
+                if key == 107 then
+                    net.start("throw")
+                    net.writeTable({func = "da"})
+                    net.send(owner())
+                end
+            elseif Ent != nil then
+                if key == 107 then
+                    local data = getStorage()
+                    if (Ent:getSkinCount() or 0) > 1 then
+                       table.insert(data, 1, "set skin =>") 
+                    end
+                    local mouseX, mouseY = input.getCursorPos()
+                    local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions or isRemoteUseFunctions or isEffectFunctions
+                    local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
+                    if inmenu then
+                        checkButtons(data, "func")
+                    else
+                        Ent = nil
+                        input.enableCursor(false)
+                        closeTrees()
+                        Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+                    end
+                elseif key == 28 and not owner():keyDown(131072) then
+                    local data = getStorage()
+                    if (Ent:getSkinCount() or 0) > 1 then
+                       table.insert(data, 1, "set skin =>") 
+                    end
+                    local mouseX, mouseY = input.getCursorPos()
+                    local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions or isRemoteUseFunctions or isEffectFunctions
+                    local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
+                    if inmenu then
+                        checkButtons(data, "unbind", key)
+                    else
+                        Ent = nil
+                        input.enableCursor(false)
+                        closeTrees()
+                        Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+                    end
+                else
+                    if owner():keyDown(131072) then
+                        local data = getStorage()
+                        if (Ent:getSkinCount() or 0) > 1 then
+                           table.insert(data, 1, "set skin =>") 
+                        end
+                        local mouseX, mouseY = input.getCursorPos()
+                        local isTrees = isConstraints or isSkins or isPlayerFunctions or isVehicleFunctions or isCustomPropFunctions or isSoundFunctions or isMassPropFunctions or isMassVehicleFunctions or isRemoteUseFunctions or isEffectFunctions
+                        local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
+                        if inmenu then
+                            checkButtons(data, "bind", key, Ent)
+                        else
+                            Ent = nil
+                            input.enableCursor(false)
+                            closeTrees()
+                            Ply:emitSound("buttons/button7.wav", 75, 50, 0.75, CHAN_AUTO)
+                        end
+                    end
+                    
+                end
+            end
+        end)
+        
+        DataMesh = nil
+        timer.create("custom", 1, 0, function()
+            if DataMesh != nil then
+                local ent = entity(DataMesh.entID)
+                local mat = DataMesh.mat[math.random(1, #DataMesh.mat)]
+                
+                if ent:isValid() then
+                    if ent:getPhysicsObject():isValid() then
+                        ent:setMeshMaterial(material.load(mat))
+                        local tbl = ent:getPhysicsObject():getMesh()
+                        mesh.generateUV(tbl, 0.1)
+                        mesh.generateNormals(tbl, true)
+                        mesh.generateTangents(tbl)
+                        ent:setMesh(mesh.createFromTable(tbl))
+                        DataMesh = nil
+                    end
+                end
+            end
+        end)
+        
+        net.receive("CustomProp+Material", function(str)
+            DataMesh = net.readTable()    
+        end)
+        
+    else
+        
+        DataMesh = nil
+        timer.create("custom", 1, 0, function()
+            if DataMesh != nil then
+                local ent = entity(DataMesh.entID)
+                local mat = DataMesh.mat[math.random(1, #DataMesh.mat)]
+                
+                if ent:isValid() then
+                    if ent:getPhysicsObject():isValid() then
+                        ent:setMeshMaterial(material.load(mat))
+                        local tbl = ent:getPhysicsObject():getMesh()
+                        mesh.generateUV(tbl, 0.1)
+                        mesh.generateNormals(tbl, true)
+                        mesh.generateTangents(tbl)
+                        ent:setMesh(mesh.createFromTable(tbl))
+                        DataMesh = nil
+                    end
+                end
+            end
+        end)
+        
+        net.receive("CustomProp+Material", function(str)
+            DataMesh = net.readTable()    
+        end)
+        
+    end
     
 end
