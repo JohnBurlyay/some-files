@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.78
+--@name EntityAdministrator-v0.79
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -7,7 +7,12 @@ John = "STEAM_0:1:98261831"
 
 if SERVER then
     
-    wire.adjustOutputs({"Grab"}, {"number"})
+    DataOutPuts = {
+        names = {"Grab"},
+        types = {"number"},
+    }
+    
+    wire.adjustOutputs(DataOutPuts.names, DataOutPuts.types)
     wire.ports.Grab = 0
     
     chip():setCollisionGroup(10)
@@ -350,7 +355,15 @@ if SERVER then
     --remote use
         ["remote"] = function(Ent, key) RemoteUse[key] = Ent net.start("RemoteUseData") net.writeTable(RemoteUse) net.send(owner()) end,
         ["clear all buttons"] = function(Ent) RemoteUse = {} net.start("RemoteUseData") net.writeTable(RemoteUse) net.send(owner()) end,
-        ["use"] = function(Ent) owner():setPos(Ent:localToWorld(Ent:isVehicle() and Vector(30, 30, 0) or Vector())) Ent:use() end,
+        ["use"] = function(Ent) 
+            if Ent:isVehicle() then
+                owner():setPos(Ent:localToWorld(Ent:isVehicle() and Vector(30, 30, 0) or Vector())) 
+            elseif Ent:getClass() == "item_suitcharger" or Ent:getClass() == "item_healthcharger" then
+            else
+                owner():setPos(Ent:localToWorld(Ent:isVehicle() and Vector(30, 30, 0) or Vector())) 
+            end
+            Ent:use() 
+        end,
     
     --effects
         ["large light"] = function(Ent) 
@@ -407,6 +420,16 @@ if SERVER then
                 Ent["effects"] = nil
             end
         end,
+        
+    --text screen
+        ["txt"] = function(Ent, txt)
+            table.add(DataOutPuts.names, {"Ent" .. Ent:entIndex()})
+            table.add(DataOutPuts.types, {"string"})
+            wire.adjustOutputs(DataOutPuts.names, DataOutPuts.types)
+            wire.ports["Ent" .. Ent:entIndex()] = txt
+            wire.create(Ent, chip(), "String", "Ent" .. Ent:entIndex())
+        end,
+        
             
     }
         
@@ -447,7 +470,7 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.78"
+        Ver = "v0.79"
         print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can Bind functions => Hold [sprint] key, move mouse on buntton and then press any [bind key].")  
         print("[EntAdmin][c 255, 155, 0]: to remove the binding, move the mouse over the button and click [reload]. + large optimization")  
         print("[EntAdmin][c 255, 155, 0]: + simple USE function. Visual updates.")  
@@ -785,6 +808,7 @@ elseif CLIENT then
                 "constraints =>",
                 "emit sound =>",
                 "add effect =>",
+                "set text =>",
                 "grab / stop grab",
                 "remove",
                 "no Collide",
@@ -804,6 +828,40 @@ elseif CLIENT then
                 "teleport to Vector(0)", 
                 "KeepUpRight",
                 "add/remove dissolving",
+            },
+            item_suitcharger = {
+                "emit sound =>",
+                "add effect =>",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "remove Trails",
+                "set NoDrag", 
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "convert to custom prop",
+                "use",
+            },
+            item_healthcharger = {
+                "emit sound =>",
+                "add effect =>",
+                "remove",
+                "no Collide",
+                "return Collide",
+                "make transparent",
+                "remove transparency",
+                "ignite",
+                "extinguish",
+                "remove Trails",
+                "set NoDrag", 
+                "teleport to ACID",
+                "teleport to Vector(0)", 
+                "convert to custom prop",
+                "use",
             }
             
         }
@@ -902,6 +960,26 @@ elseif CLIENT then
             "",
             "remove all effects",
         }
+        DataTextScreen = {
+            "txt:я лох",    
+            "txt:навалил кринжа на текстскрин",
+            "txt:Избушечка - лучший сервер!",
+            "txt:Владелец данного экрана - лох копченый",
+            "txt:Привет Джону!",
+            "txt:Сдесь начинается зона дерьма, не ходи, воняет!",
+            "txt:Чих - пук - рыг",
+            "txt:Здесь могла быть ваша реклама",
+            "txt:<3",
+            "txt:<=====3",
+            "txt:(✯◡✯)",
+            "txt:(╯✧▽✧)╯",
+            "txt:(ﾉ◕ヮ◕)ﾉ",
+            "txt:(◕‿◕)",
+            "txt:٩(｡•́‿•̀｡)۶",
+            "txt:( ͡° ͜ʖ ͡°)",
+            "txt:(づ｡◕‿‿◕｡)づ",
+            "txt:( ° ͜ʖ͡°)╭∩╮"
+        }
         
         DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
         
@@ -939,6 +1017,7 @@ elseif CLIENT then
             ["isMassVehicleFunctions"] = {value = false, buttonID = 800, data = DataMassVehicleFunctions, tree = "mass vehicle functions =>"},
             ["isRemoteUseFunctions"] = {value = false, buttonID = 900, data = DataRemoteUseFunctions, tree = "remote use =>"},
             ["isEffectFunctions"] = {value = false, buttonID = 1000, data = DataEffectFunctions, tree = "add effect =>"},
+            ["isTextScreenFunctions"] = {value = false, buttonID = 1100, data = DataTextScreen, tree = "set text =>"},
         }
 
         local function getStorage()
@@ -1173,9 +1252,9 @@ elseif CLIENT then
         end
         
         function unbind(data, i, key, ent)
-            if BindFunc[data[i]] != nil then
-                if Bind[BindFunc[data[i]]].ent == ent then
-                    BindFunc[data[i]] = nil
+            if ent[data[i]] != nil then
+                if Bind[ent[data[i]]].ent == ent then
+                    ent[data[i]] = nil
                     Bind["key:" .. key] = nil
                     Ply:emitSound("buttons/combine_button2.wav", 100, 150, 0.75, CHAN_AUTO)
                 end
