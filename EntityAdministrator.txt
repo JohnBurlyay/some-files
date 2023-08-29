@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.8
+--@name EntityAdministrator-v0.81
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -292,9 +292,9 @@ if SERVER then
             
     --player
         ["drop weapon"] = function(Ent) if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end,
-        ["modelSize: 0.5"] = function(Ent) Ent:setModelScale(0.5) end,
-        ["modelSize: 1.0"] = function(Ent) Ent:setModelScale(1) end,
-        ["modelSize: 2.0"] = function(Ent) Ent:setModelScale(2) end,
+        ["modelscale"] = function(Ent, func) Ent:setModelScale(tonumber(func)) end,    
+            
+            
         ["toss player"] = function(Ent) Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20)) end,
         ["kill"] = function(Ent) Ent:applyDamage(999999, entity(127), entity(127)) end,
         ["strip weapons"] = function(Ent) Ent:stripWeapons() end,
@@ -324,8 +324,12 @@ if SERVER then
             
         ["tp"] = function(Ent, adres) 
             local pos = DataTeleport[adres]
-            Ent:setPos(Vector(math.random(pos.min.x, pos.max.x), math.random(pos.min.y, pos.max.y), math.random(pos.min.z, pos.max.z)))
+            local pos2 = Vector(math.random(pos.min.x, pos.max.x), math.random(pos.min.y, pos.max.y), math.random(pos.min.z, pos.max.z))
+            Ent:setPos(pos2)
             Ent:emitSound("garrysmod/ui_click.wav", 100, 75, 1, CHAN_AUTO)
+            net.start("Teleport")
+            net.writeTable({pos = pos2})
+            net.send() 
         end,
          
             
@@ -489,8 +493,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.8"
-        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +teleport functions.")   
+        Ver = "v0.81"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +teleport functions, +player model scale.")   
         enableHud(nil, true)
         
         Data = {
@@ -502,13 +506,11 @@ elseif CLIENT then
                 "player functions =>",
                 "teleport to =>",
                 "emit sound =>",
+                "model scale ->",
                 "kill",
                 "drop weapon",
                 "drop all weapons",
                 "strip weapons",
-                "modelSize: 0.5",
-                "modelSize: 1.0",
-                "modelSize: 2.0",
                 "ignite",
                 "extinguish",
                 "toss me",
@@ -518,13 +520,11 @@ elseif CLIENT then
                 "player functions =>",
                 "teleport to =>",
                 "emit sound =>",
+                "model scale ->",
                 "kill",
                 "drop weapon",
                 "drop all weapons",
                 "strip weapons",
-                "modelSize: 0.5",
-                "modelSize: 1.0",
-                "modelSize: 2.0",
                 "ignite",
                 "extinguish",
                 "toss player",
@@ -1013,6 +1013,9 @@ elseif CLIENT then
         BaseColor3 = Color(100, 200, 100, 255)
         BaseColor4 = Color(50, 100, 100, 255)
         
+        SliderColor1 = Color(25, 50, 75, 255)
+        SliderColor2 = Color(125, 75, 0, 255)
+        
         ConstraintsColor1 = Color(50, 100, 50, 255)
         ConstraintsColor2 = Color(0, 0, 0, 255)
         ConstraintsColor3 = Color(200, 200, 100, 255)
@@ -1021,6 +1024,7 @@ elseif CLIENT then
         Font2 = render.createFont("Consolas", 18, 50, true)
         Font3 = render.createFont("Consolas", 14, 50, true)
         ButtonSize = Vector(250, 30)
+        SliderSize = ButtonSize - Vector(50, 0)
         ButtonCorrector = 0.5
         
         Bind = {}
@@ -1039,6 +1043,9 @@ elseif CLIENT then
             ["isEffectFunctions"] = {value = false, buttonID = 1000, data = DataEffectFunctions, tree = "add effect =>"},
             ["isTextScreenFunctions"] = {value = false, buttonID = 1100, data = DataTextScreen, tree = "set text =>"},
             ["isTeleportFunctions"] = {value = false, buttonID = 1200, data = DataTeleport, tree = "teleport to =>"},
+            ["isModelScaleFunctions"] = {value = false, buttonID = 1300, buttonSlider = 1301, data = {"modelscale:"}, tree = "model scale ->", values = {min = 0, max = 5}, name = "=> set model scale <=", type = "slider", text = "Curent model scale : ",
+                func = function(ent) return ent:getModelScale() end,
+            },
         }
 
         local function getStorage()
@@ -1073,7 +1080,11 @@ elseif CLIENT then
                 local key = table.getKeys(LogicData)[u]
                 if LogicData[key].value == true then
                     for i = 1, table.count(LogicData[key].data) do
-                        num = num + (Button[LogicData[key].buttonID + i] and 1 or 0)
+                        if LogicData[key].type == nil then
+                            num = num + (Button[LogicData[key].buttonID + i] and 1 or 0)
+                        elseif LogicData[key].type == "slider" then
+                            num = num + (Button[LogicData[key].buttonID] and 1 or 0)
+                        end
                     end
                 end
             end
@@ -1136,9 +1147,8 @@ elseif CLIENT then
                             if not isJohn and dat != "" then
                                 Button[i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
                             end
-                            if string.match(dat, "=>", nil) then
+                            if string.match(dat, ">", nil) then
                                 render.setColor(Button[i] and ConstraintsColor3 or ConstraintsColor1)
-                                
                                 for u = 1, table.count(LogicData) do
                                     local key = table.getKeys(LogicData)[u]
                                     if dat == LogicData[key].tree then
@@ -1156,7 +1166,7 @@ elseif CLIENT then
                             end
                             render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                             local datbind = getDatBind(dat)
-                            render.setColor(string.match(dat, "=>", nil) and ConstraintsColor2 or BaseColor2)
+                            render.setColor(string.match(dat, ">", nil) and ConstraintsColor2 or BaseColor2)
                             render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                             if datbind != "" then
                                 render.drawRectOutline(x + 2, y + 2, ButtonSize.x - 4, ButtonSize.y - 4, 2)
@@ -1181,43 +1191,68 @@ elseif CLIENT then
                             local data = LogicData[key].data
                             local butID = LogicData[key].buttonID
                             
-                            for i = 1, (key != "isSkins" and table.count(data) or math.min(table.count(data), Ent:getSkinCount())) do
-                                local dat = data[table.getKeys(data)[i]]
+                        --base trees   
+                            if LogicData[key].type == nil then
+                                for i = 1, (key != "isSkins" and table.count(data) or math.min(table.count(data), Ent:getSkinCount())) do
+                                    local dat = data[table.getKeys(data)[i]]
+                                    y = y + ButtonSize.y
+                                    if dat != "" then
+                                        Button[butID + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
+                                    end
+                                    
+                                    if key == "isSkins" then
+                                        render.setColor(Button[butID + i] and BaseColor3 or (tonumber(string.replace(dat, "skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
+                                    elseif key == "isCustomPropFunctions" then
+                                        render.setColor(Button[butID + i] and BaseColor3 or (Ent["forces"] != dat and BaseColor1 or BaseColor4))
+                                    elseif key == "isRemoteUseFunctions" then
+                                        text = string.explode(":", dat, false)[2] or dat
+                                        render.setColor(Button[butID + i] and BaseColor3 or (RemoteUse[text] == nil and BaseColor1 or BaseColor4))
+                                    else
+                                        render.setColor(Button[butID + i] and BaseColor3 or BaseColor1)
+                                    end
+                                    
+                                    render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                                    render.setColor(BaseColor2)
+                                    local datbind = getDatBind(dat)
+                                    render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
+                                    if datbind != "" then
+                                        render.drawRectOutline(x + 2, y + 2, ButtonSize.x - 4, ButtonSize.y - 4, 2)
+                                    end
+                                    render.setColor(Button[butID + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
+                                    
+                                    if key == "isSkins" then
+                                        render.drawText(x + ButtonSize.x / 2, y + 5, (tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat) .. datbind, 1)
+                                    elseif key == "isCustomPropFunctions" then
+                                        render.drawText(x + ButtonSize.x / 2, y + 5, (Ent["forces"] != dat and dat or "=> " .. dat .. " <=") .. datbind, 1)
+                                    elseif key == "isRemoteUseFunctions" then
+                                        render.drawText(x + ButtonSize.x / 2, y + 5, (RemoteUse[text] == nil and text or "=[ " .. text .. " ]=") .. datbind, 1)
+                                    else
+                                        render.drawText(x + ButtonSize.x / 2, y + 5, #string.explode(":", dat, false) == 1 and (dat .. datbind) or (string.explode(":", dat, false)[2] .. datbind), 1)
+                                    end
+                                end
+                            elseif LogicData[key].type == "slider" then
                                 y = y + ButtonSize.y
-                                if dat != "" then
-                                    Button[butID + i] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + ButtonSize)
-                                end
-                                
-                                if key == "isSkins" then
-                                    render.setColor(Button[butID + i] and BaseColor3 or (tonumber(string.replace(dat, "skin:", "")) != Ent:getSkin() and BaseColor1 or BaseColor4))
-                                elseif key == "isCustomPropFunctions" then
-                                    render.setColor(Button[butID + i] and BaseColor3 or (Ent["forces"] != dat and BaseColor1 or BaseColor4))
-                                elseif key == "isRemoteUseFunctions" then
-                                    text = string.explode(":", dat, false)[2] or dat
-                                    render.setColor(Button[butID + i] and BaseColor3 or (RemoteUse[text] == nil and BaseColor1 or BaseColor4))
-                                else
-                                    render.setColor(Button[butID + i] and BaseColor3 or BaseColor1)
-                                end
-                                
-                                render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
+                                Button[butID] = Vector(mouseX, mouseY):withinAABox(Vector(x + ButtonCorrector, y + ButtonCorrector), Vector(x - ButtonCorrector, y - ButtonCorrector) + Vector(ButtonSize.x, ButtonSize.y * 3))
+                                Button[LogicData[key].buttonSlider] = Vector(mouseX, mouseY):withinAABox(Vector(x + 25, y + ButtonSize.y), Vector(x + 25, y + ButtonSize.y) + SliderSize)
+                                render.setColor(SliderColor1)
+                                render.drawRect(x, y, ButtonSize.x, ButtonSize.y * 3)
                                 render.setColor(BaseColor2)
-                                local datbind = getDatBind(dat)
-                                render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
-                                if datbind != "" then
-                                    render.drawRectOutline(x + 2, y + 2, ButtonSize.x - 4, ButtonSize.y - 4, 2)
-                                end
-                                render.setColor(Button[butID + i] and Color(0, 0, 0, 255) or Color(255, 255, 255, 255))
-                                
-                                if key == "isSkins" then
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, (tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat) .. datbind, 1)
-                                elseif key == "isCustomPropFunctions" then
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, (Ent["forces"] != dat and dat or "=> " .. dat .. " <=") .. datbind, 1)
-                                elseif key == "isRemoteUseFunctions" then
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, (RemoteUse[text] == nil and text or "=[ " .. text .. " ]=") .. datbind, 1)
-                                else
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, #string.explode(":", dat, false) == 1 and (dat .. datbind) or (string.explode(":", dat, false)[2] .. datbind), 1)
-                                end
-                            end
+                                render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y * 3)
+                                render.setColor(Color(255, 255, 255, 255))
+                                render.drawText(x + ButtonSize.x / 2, y + 5, LogicData[key].name, 1)
+                                render.drawText(x + 10, y + ButtonSize.y * 1.25, tostring(LogicData[key].values.min), 0)
+                                render.drawText(x + ButtonSize.x - 10, y + ButtonSize.y * 1.25, tostring(LogicData[key].values.max), 2)
+                                render.drawLine(x + 25, y + ButtonSize.y * 1.5, x + ButtonSize.x - 25, y + ButtonSize.y * 1.5)
+                                render.setColor(SliderColor2)
+                                local delta = Ent:getModelScale() / LogicData[key].values.max
+                                render.drawLine(x + 25, y + ButtonSize.y * 1.5, x + 25 + SliderSize.x * delta, y + ButtonSize.y * 1.5)
+                                render.drawFilledCircle(x + 25 + SliderSize.x * delta, y + ButtonSize.y * 1.5, ButtonSize.y / 3)
+                                render.setColor(BaseColor2)
+                                render.drawCircle(x + 25 + SliderSize.x * delta, y + ButtonSize.y * 1.5, ButtonSize.y / 3)
+                                render.setColor(Color(255, 255, 255, 255))
+                                render.drawText(x + 10, y + 5 + ButtonSize.y * 2, LogicData[key].text .. "[" .. math.round(LogicData[key].func(Ent), 1, 6)  .. "]", 0)
+                
+                            end  
                         end                    
                     end
                         
@@ -1247,15 +1282,22 @@ elseif CLIENT then
             end
         end
         
-        function sendData(data, i)
-            net.start("sendFunc")
-            net.writeTable({id = Ent:entIndex(), func = data[i]})
-            net.send(Ply)
-            Ent["forces"] = data[i]
-            Ent = nil
-            input.enableCursor(false)
-            Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
-            closeTrees()
+        function sendData(data, i, type)
+            if type == nil then
+                net.start("sendFunc")
+                net.writeTable({id = Ent:entIndex(), func = data[i]})
+                net.send(Ply)
+                Ent["forces"] = data[i]
+                Ent = nil
+                input.enableCursor(false)
+                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+                closeTrees()
+            elseif type == "slider" then
+                net.start("sendFunc")
+                net.writeTable({id = Ent:entIndex(), func = data .. i})
+                net.send(Ply)
+                Ply:emitSound("buttons/button3.wav", 75, 125, 0.75, CHAN_AUTO)
+            end
         end
         
         function setBind(data, i, key, ent)
@@ -1280,9 +1322,9 @@ elseif CLIENT then
             end
         end
             
-        function checkButtons(data, type, key, ent)
+        function checkButtons(data, type, key, ent, mouseX, mouseY)
             for i = 1, table.count(data) do
-                if Button[i] and not string.match(data[i], "=>", nil) then
+                if Button[i] and not string.match(data[i], ">", nil) then
                     if type == "func" then 
                         sendData(data, i) 
                     elseif type == "bind" then
@@ -1295,16 +1337,23 @@ elseif CLIENT then
             for u = 1, table.count(LogicData) do
                 local keytable = table.getKeys(LogicData)[u]
                 if LogicData[keytable].value == true then
-                    local data = LogicData[keytable].data
-                    for i = 1, table.count(data) do
-                        if Button[LogicData[keytable].buttonID + i] then
-                            if type == "func" then 
-                                sendData(data, i) 
-                            elseif type == "bind" then
-                                setBind(data, i, key, ent)
-                            elseif type == "unbind" then
-                                unbind(data, i, key, ent)
+                    if LogicData[keytable].type == nil then
+                        local data = LogicData[keytable].data
+                        for i = 1, table.count(data) do
+                            if Button[LogicData[keytable].buttonID + i] then
+                                if type == "func" then 
+                                    sendData(data, i, "nil") 
+                                elseif type == "bind" then
+                                    setBind(data, i, key, ent)
+                                elseif type == "unbind" then
+                                    unbind(data, i, key, ent)
+                                end
                             end
+                        end
+                    elseif LogicData[keytable].type == "slider" and type == "func" then
+                        if Button[LogicData[keytable].buttonSlider] then
+                            local delta = (mouseX - (ResX / 2 + 45 + ButtonSize.x)) / SliderSize.x * LogicData[keytable].values.max
+                            sendData(LogicData[keytable].data[1], delta, "slider") 
                         end
                     end
                 end
@@ -1379,7 +1428,7 @@ elseif CLIENT then
 
                     local inmenu = Vector(mouseX, mouseY):withinAABox(Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)), Vector(ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)) + Vector(ButtonSize.x * (isTrees and 2 or 1), 1000))
                     if inmenu then
-                        checkButtons(data, "func")
+                        checkButtons(data, "func", key, Ent, mouseX, mouseY)
                     else
                         Ent = nil
                         input.enableCursor(false)
@@ -1429,56 +1478,44 @@ elseif CLIENT then
             end
         end)
         
-        DataMesh = nil
-        timer.create("custom", 1, 0, function()
-            if DataMesh != nil then
-                local ent = entity(DataMesh.entID)
-                local mat = DataMesh.mat[math.random(1, #DataMesh.mat)]
-                
-                if ent:isValid() then
-                    if ent:getPhysicsObject():isValid() then
-                        ent:setMeshMaterial(material.load(mat))
-                        local tbl = ent:getPhysicsObject():getMesh()
-                        mesh.generateUV(tbl, 0.1)
-                        mesh.generateNormals(tbl, true)
-                        mesh.generateTangents(tbl)
-                        ent:setMesh(mesh.createFromTable(tbl))
-                        DataMesh = nil
-                    end
-                end
-            end
-        end)
-        
-        net.receive("CustomProp+Material", function(str)
-            DataMesh = net.readTable()    
-        end)
-        
-    else
-        
-        DataMesh = nil
-        timer.create("custom", 1, 0, function()
-            if DataMesh != nil then
-                local ent = entity(DataMesh.entID)
-                local mat = DataMesh.mat[math.random(1, #DataMesh.mat)]
-                
-                if ent:isValid() then
-                    if ent:getPhysicsObject():isValid() then
-                        ent:setMeshMaterial(material.load(mat))
-                        local tbl = ent:getPhysicsObject():getMesh()
-                        mesh.generateUV(tbl, 0.1)
-                        mesh.generateNormals(tbl, true)
-                        mesh.generateTangents(tbl)
-                        ent:setMesh(mesh.createFromTable(tbl))
-                        DataMesh = nil
-                    end
-                end
-            end
-        end)
-        
-        net.receive("CustomProp+Material", function(str)
-            DataMesh = net.readTable()    
-        end)
-        
     end
+    
+end
+
+if CLIENT then
+    
+    --custom props materializer
+        DataMesh = nil
+        timer.create("custom", 1, 0, function()
+            if DataMesh != nil then
+                local ent = entity(DataMesh.entID)
+                local mat = DataMesh.mat[math.random(1, #DataMesh.mat)]
+                
+                if ent:isValid() then
+                    if ent:getPhysicsObject():isValid() then
+                        ent:setMeshMaterial(material.load(mat))
+                        local tbl = ent:getPhysicsObject():getMesh()
+                        mesh.generateUV(tbl, 0.1)
+                        mesh.generateNormals(tbl, true)
+                        mesh.generateTangents(tbl)
+                        ent:setMesh(mesh.createFromTable(tbl))
+                        DataMesh = nil
+                    end
+                end
+            end
+        end)
+        
+        net.receive("CustomProp+Material", function(str)
+            DataMesh = net.readTable()    
+        end)
+    
+    --particles init
+        TeleportEffect = particle.create(chip():getPos(), false)
+        TeleportMaterial = material.create("UnlitGeneric")
+        TeleportMaterial:setTexture("$basetexture", "sprites/strider_blackball")
+        net.receive("Teleport", function(str)
+            pos = net.readTable().pos
+            TeleportEffect:add(TeleportMaterial, pos + Vector(math.random(-5, 5), math.random(-5, 5), math.random(-5, 5)), 5, math.random(50, 75), 0, 0, 255, 0, math.random(1, 2))
+        end) 
     
 end
