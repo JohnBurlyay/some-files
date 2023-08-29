@@ -1342,7 +1342,7 @@ elseif CLIENT then
                         for i = 1, table.count(data) do
                             if Button[LogicData[keytable].buttonID + i] then
                                 if type == "func" then 
-                                    sendData(data, i, "nil") 
+                                    sendData(data, i, nil) 
                                 elseif type == "bind" then
                                     setBind(data, i, key, ent)
                                 elseif type == "unbind" then
