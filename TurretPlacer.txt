@@ -1,4 +1,4 @@
---@name TurretPlacer-v0.8
+--@name TurretPlacer-v0.81
 --@author JohnBurlyay
 --@model models/jaanus/thruster_flat.mdl
 --@shared
@@ -266,8 +266,8 @@ elseif CLIENT then
     net.send(O)
     
     ChipName = "[TurretPlacer] " 
-    Ver = "v0.8"
-    print("[TurretPlcaer][c 255, 155, 0]: loaded " .. Ver .. ". Use 'empty_hands' => [RMB] to spawn turrets. [E] to open turret menu.")  
+    Ver = "v0.81"
+    print("[TurretPlacer][c 255, 155, 0]: loaded " .. Ver .. ". Use 'empty_hands' => [RMB] to spawn turrets. [E] to open turret menu.")  
     
     O = owner()
     Swep = "weapon_empty_hands"
@@ -374,11 +374,11 @@ elseif CLIENT then
                     render.drawRect(x, y, MenuSize.x, MenuSize.y)
                     
                     render.setMaterial(MatTurret)
-                    render.setColor(Color(255, 255, 255, 255))
+                    render.setColor(Color(200, 200, 200, 255))
                     render.drawTexturedRect(x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y)
                     
                     render.setMaterial(MatFriends)
-                    render.setColor(Color(255, 255, 255, 255))
+                    render.setColor(Color(200, 200, 200, 255))
                     render.drawTexturedRect(x + SubMenuSize.x, y + BarSize.y, SubMenuSize.x, SubMenuSize.y)
                     
                     render.setColor(BaseColor2)
