@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.79
+--@name EntityAdministrator-v0.8
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -135,6 +135,19 @@ if SERVER then
         
     }
     RemoteUse = {}
+    DataTeleport = {
+        ["спавн"] = {min = Vector(30, 850, -11115), max = Vector(-1128, -3444, -11064)},
+        ["нулевой вектор"] = {min = Vector(0), max = Vector(0)},
+        ["зеленая поляна"] = {min = Vector(-9250, 12767, -11110), max = Vector(-12724, 9047, -11060)},
+        ["серая поляна"] = {min = Vector(-5958, 12039, -11118), max = Vector(2238, 8753, -11060)},
+        ["здание кислотки"] = {min = Vector(8800, 11199, -10870), max = Vector(9537, 9372, -10820)},
+        ["кислота"] = {min = Vector(11499, 8824, -11518), max = Vector(6893, 8158, -11333)},
+        ["гараж в углу"] = {min = Vector(13078, -13015, -11109), max = Vector(12587, -12520, -11060)},
+        ["неприметный угол карты"] = {min = Vector(-12493, -10645, -11110), max = Vector(-13190, -11979, -11060)},
+        ["высотка"] = {min = Vector(33, -7371, 473), max = Vector(-1642, -6488, 523)},
+        ["секретка"] = {min = Vector(2008, 1522, -9031), max = Vector(2287, 1304, -9081)},
+        ["подземка"] = {min = Vector(-8467, -3861, -11129), max = Vector(-9708, -5478, -11060)},
+    }
     
     hook.add("PlayerEnteredVehicle", "", function(ply, vehicle, num)
         if table.hasValue(VehicleFunctions.kill, vehicle) then
@@ -308,6 +321,12 @@ if SERVER then
         ["remove function [block NPCspawn]"] = function(Ent) PlayerFunctions.npcspawn[Ent:getSteamID()] = nil end,
         ["function [block Alt+E]"] = function(Ent) if table.count(PlayerFunctions.altenter[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.altenter[Ent:getSteamID()] = {id = Ent:getSteamID(), altenter = 1} end end,
         ["remove function [block Alt+E]"] = function(Ent) PlayerFunctions.altenter[Ent:getSteamID()] = nil end,
+            
+        ["tp"] = function(Ent, adres) 
+            local pos = DataTeleport[adres]
+            Ent:setPos(Vector(math.random(pos.min.x, pos.max.x), math.random(pos.min.y, pos.max.y), math.random(pos.min.z, pos.max.z)))
+            Ent:emitSound("garrysmod/ui_click.wav", 100, 75, 1, CHAN_AUTO)
+        end,
          
             
     --vehicle
@@ -470,10 +489,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.79"
-        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " now u can Bind functions => Hold [sprint] key, move mouse on buntton and then press any [bind key].")  
-        print("[EntAdmin][c 255, 155, 0]: to remove the binding, move the mouse over the button and click [reload]. + large optimization")  
-        print("[EntAdmin][c 255, 155, 0]: + simple USE function. Visual updates.")  
+        Ver = "v0.8"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +teleport functions.")   
         enableHud(nil, true)
         
         Data = {
@@ -483,6 +500,7 @@ elseif CLIENT then
             },
             owner = {
                 "player functions =>",
+                "teleport to =>",
                 "emit sound =>",
                 "kill",
                 "drop weapon",
@@ -495,11 +513,10 @@ elseif CLIENT then
                 "extinguish",
                 "toss me",
                 "full heal",
-                "teleport to ACID",
-                "teleport to Vector(0)",
             },
             player = {
                 "player functions =>",
+                "teleport to =>",
                 "emit sound =>",
                 "kill",
                 "drop weapon",
@@ -512,12 +529,11 @@ elseif CLIENT then
                 "extinguish",
                 "toss player",
                 "full heal",
-                "teleport to ACID",
-                "teleport to Vector(0)",
     
             },
             other = {
                 "constraints =>",
+                "teleport to =>",
                 "mass prop functions =>",
                 "emit sound =>",
                 "add effect =>",
@@ -540,8 +556,6 @@ elseif CLIENT then
                 "make spherical",
                 "set unbreakable",   
                 "set breakable",     
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "KeepUpRight",
                 "convert to custom prop",
                 "add/remove dissolving",
@@ -563,6 +577,7 @@ elseif CLIENT then
             },
             prop_vehicle_prisoner_pod = {
                 "constraints =>",
+                "teleport to =>",
                 "vehicle functions =>",
                 "mass vehicle functions =>",
                 "emit sound =>",
@@ -588,13 +603,12 @@ elseif CLIENT then
                 "froze",
                 "unfroze",
                 "toss prop",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "add/remove dissolving",
                 "use",
             },
             prop_vehicle_airboat = {
                 "constraints =>",
+                "teleport to =>",
                 "vehicle functions =>",
                 "mass vehicle functions =>",
                 "emit sound =>",
@@ -617,14 +631,13 @@ elseif CLIENT then
                 "set NoDrag",
                 "froze",
                 "unfroze",
-                "toss vehicle",
-                "teleport to ACID",
-                "teleport to Vector(0)",    
+                "toss vehicle", 
                 "add/remove dissolving",
                 "use",
             },
             prop_vehicle_jeep = {
                 "constraints =>",
+                "teleport to =>",
                 "vehicle functions =>",
                 "mass vehicle functions =>",
                 "emit sound =>",
@@ -650,12 +663,11 @@ elseif CLIENT then
                 "froze",
                 "unfroze",
                 "toss vehicle",
-                "teleport to ACID",
-                "teleport to Vector(0)",  
                 "add/remove dissolving",
                 "use",
             },
             npc = {
+                "teleport to =>",
                 "emit sound =>",
                 "like me",
                 "fear me",
@@ -667,6 +679,7 @@ elseif CLIENT then
             },
             npc_rollermine = {
                 "constraints =>",
+                "teleport to =>",
                 "emit sound =>",
                 "add effect =>",
                 "like me",
@@ -679,6 +692,7 @@ elseif CLIENT then
                 "add/remove dissolving",
             },
             prop_dynamic = {
+                "teleport to =>",
                 "emit sound =>",
                 "remove",
                 "make transparent",
@@ -686,10 +700,9 @@ elseif CLIENT then
                 "ignite",
                 "extinguish",
                 "set NoDrag",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
             },
             prop_physics_multiplayer = {
+                "teleport to =>",
                 "emit sound =>",
                 "grab / stop grab",
                 "remove",
@@ -703,11 +716,10 @@ elseif CLIENT then
                 "froze",
                 "unfroze",
                 "toss prop",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "add/remove dissolving",
             },
             acf_gun = {
+                "teleport to =>",
                 "constraints =>",
                 "emit sound =>",
                 --"unload gun",
@@ -730,6 +742,7 @@ elseif CLIENT then
                 
             },
             prop_door_rotating = {
+                "teleport to =>",
                 "emit sound =>",
                 --"remove",
                 "no Collide",
@@ -740,10 +753,9 @@ elseif CLIENT then
                 "extinguish",
                 "remove Trails",
                 "set NoDrag",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
             },
             func_breakable = {
+                "teleport to =>",
                 "emit sound =>",
                 "remove",
                 "no Collide",
@@ -754,12 +766,11 @@ elseif CLIENT then
                 "extinguish",
                 "remove Trails",
                 "set NoDrag",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "add/remove dissolving",
             },
             gmod_rttv = {
                 "constraints =>",
+                "teleport to =>",
                 "emit sound =>",
                 "grab / stop grab",
                 "remove",
@@ -777,13 +788,12 @@ elseif CLIENT then
                 "froze",
                 "unfroze",
                 "toss prop",
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "KeepUpRight",
                 "add/remove dissolving",
             },
             starfall_prop = {
                 "constraints =>",
+                "teleport to =>",
                 "custom prop physics =>",
                 "emit sound =>",
                 "add effect =>",
@@ -806,6 +816,7 @@ elseif CLIENT then
             },
             gmod_wire_textscreen = {
                 "constraints =>",
+                "teleport to =>",
                 "emit sound =>",
                 "add effect =>",
                 "set text =>",
@@ -824,12 +835,11 @@ elseif CLIENT then
                 "froze",
                 "unfroze",
                 "toss prop", 
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "KeepUpRight",
                 "add/remove dissolving",
             },
             item_suitcharger = {
+                "teleport to =>",
                 "emit sound =>",
                 "add effect =>",
                 "remove",
@@ -841,12 +851,11 @@ elseif CLIENT then
                 "extinguish",
                 "remove Trails",
                 "set NoDrag", 
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "convert to custom prop",
                 "use",
             },
             item_healthcharger = {
+                "teleport to =>",
                 "emit sound =>",
                 "add effect =>",
                 "remove",
@@ -858,8 +867,6 @@ elseif CLIENT then
                 "extinguish",
                 "remove Trails",
                 "set NoDrag", 
-                "teleport to ACID",
-                "teleport to Vector(0)", 
                 "convert to custom prop",
                 "use",
             }
@@ -980,6 +987,19 @@ elseif CLIENT then
             "txt:(づ｡◕‿‿◕｡)づ",
             "txt:( ° ͜ʖ͡°)╭∩╮"
         }
+        DataTeleport = {
+            "tp:спавн",
+            "tp:нулевой вектор",
+            "tp:зеленая поляна",
+            "tp:серая поляна",
+            "tp:здание кислотки",
+            "tp:кислота",
+            "tp:гараж в углу",
+            "tp:неприметный угол карты",
+            "tp:высотка",
+            "tp:секретка",
+            "tp:подземка",
+        }
         
         DataSkins = {}  for i = 0, 30 do DataSkins[i] = "skin:" .. i end
         
@@ -1018,6 +1038,7 @@ elseif CLIENT then
             ["isRemoteUseFunctions"] = {value = false, buttonID = 900, data = DataRemoteUseFunctions, tree = "remote use =>"},
             ["isEffectFunctions"] = {value = false, buttonID = 1000, data = DataEffectFunctions, tree = "add effect =>"},
             ["isTextScreenFunctions"] = {value = false, buttonID = 1100, data = DataTextScreen, tree = "set text =>"},
+            ["isTeleportFunctions"] = {value = false, buttonID = 1200, data = DataTeleport, tree = "teleport to =>"},
         }
 
         local function getStorage()
@@ -1191,12 +1212,10 @@ elseif CLIENT then
                                     render.drawText(x + ButtonSize.x / 2, y + 5, (tonumber(string.replace(dat, "skin:", "")) == Ent:getSkin() and " => " .. dat .. " <=" or dat) .. datbind, 1)
                                 elseif key == "isCustomPropFunctions" then
                                     render.drawText(x + ButtonSize.x / 2, y + 5, (Ent["forces"] != dat and dat or "=> " .. dat .. " <=") .. datbind, 1)
-                                elseif key == "isSoundFunctions" then
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, (string.explode(":", dat, false)[2] or dat) .. datbind, 1)
                                 elseif key == "isRemoteUseFunctions" then
                                     render.drawText(x + ButtonSize.x / 2, y + 5, (RemoteUse[text] == nil and text or "=[ " .. text .. " ]=") .. datbind, 1)
                                 else
-                                    render.drawText(x + ButtonSize.x / 2, y + 5, dat .. datbind, 1)
+                                    render.drawText(x + ButtonSize.x / 2, y + 5, #string.explode(":", dat, false) == 1 and (dat .. datbind) or (string.explode(":", dat, false)[2] .. datbind), 1)
                                 end
                             end
                         end                    
