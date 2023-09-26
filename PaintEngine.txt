@@ -28,7 +28,7 @@ if SERVER then
 elseif CLIENT then
     
     GameName = "[ PaintEngine ] "
-    Ver = "v0.7"
+    Ver = "v0.71"
     Path = "GarrysMod/garrysmod/data/sf_filedata/paintengine/datafiles/"
     Screen = chip():getLinkedComponents()[1]
     
@@ -92,6 +92,8 @@ elseif CLIENT then
         for i = 2, ColorPickerCount do ColorPicker[i] = table.copy({value = false, color = Color((size + 1) * i / 1.5, 1, 1):hsvToRGB()}) end
         for i = 1, ColorPickerCount do ColorPicker[ColorPickerCount + i] = table.copy({value = false, color = Color(DrawnData.basecolor[1] * (size * i / 512), DrawnData.basecolor[2] * (size * i / 512), DrawnData.basecolor[3] * (size * i / 512), DrawnData.basecolor[4])}) end
     
+    CanDraw = false
+    
     WorkType = "menu" --menu, browser, settings, draw, getfilename
     DynamicButtonSize = Vector(50, 18)
     DynamicPanelSize = Vector(400, 18)
@@ -119,9 +121,7 @@ elseif CLIENT then
             [3] = {text = "open image data", value = false, func = function() 
                 WorkType = "browser"
             end},
-            [4] = {text = "settings", value = false, func = function() 
-                WorkType = "settings"
-            end},
+            [4] = {text = "settings", value = false},
         },
         browser = {
             [1] = {text = "back to menu", value = false, func = function() 
@@ -274,7 +274,7 @@ elseif CLIENT then
         WorkType = "draw"
         MainFile[FileName .. ".txt"] = FileName .. ".png"
         file.write("/paintengine/main.txt", json.encode(MainFile))
-        
+        CanDraw = false
     end
     
     timer.create("autosave", 60, 0, function()
@@ -282,6 +282,13 @@ elseif CLIENT then
             Redraw = true
             File = true
             --print("autosaved!")
+        end
+    end)
+    
+    timer.create("CanDraw", 1, 0, function()
+        if CanDraw == false then
+            CanDraw = true
+            timer.pause("CanDraw")
         end
     end)
     
@@ -574,7 +581,7 @@ elseif CLIENT then
                             for i = 1, ColorPickerCount do
                                 local pos = Vector(size * (i - 1), size * 2)
                                 local basecolor = OpenPanel[4] and DrawData.backgroundbasecolor or DrawnData.basecolor
-                                ColorPicker[ColorPickerCount + i].color = Color(basecolor[1] * (size * i / 512), basecolor[2] * (size * i / 512), basecolor[3] * (size * i / 512), basecolor[4])
+                                ColorPicker[ColorPickerCount + i].color = Color((basecolor[1] or basecolor.r) * (size * i / 512), (basecolor[2] or basecolor.g) * (size * i / 512), (basecolor[3] or basecolor.b) * (size * i / 512), (basecolor[4] or basecolor.a))
                                 render.setColor(ColorPicker[ColorPickerCount + i].color)
                                 render.drawRect(pos.x, pos.y, size, size * 2)
                                 ColorPicker[ColorPickerCount + i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + Vector(size, size * 2))
@@ -602,6 +609,24 @@ elseif CLIENT then
                         DrawFuncs[DrawnType]({posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis})
                     end
                 end
+                
+            --player draw funcs
+                if CanDraw == true and input.isMouseDown(107) and DrawnType != 5 and (OLDmouseX != mouseX or OLDmouseY != mouseY) then
+                    if DrawnType == 6 then
+                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawData.backgroundcolor}}
+                    else
+                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawnData.color}}
+                    end
+                    Redraw = true
+                end
+                
+            OLDmouseX, OLDmouseY = mouseX, mouseY
+            
+            if OpenPanel[1] or OpenPanel[2] or OpenPanel[3] or OpenPanel[4] or OpenPanel[5] then
+                CanDraw = false
+            elseif CanDraw == false then
+                timer.unpause("CanDraw")
+            end
         end
     end)
     
@@ -611,7 +636,7 @@ elseif CLIENT then
         if O:getActiveWeapon():getClass() != Swep then return end
         if mouseX == nil or mouseY == nil then return end
 
-        if WorkType == "menu" or WorkType == "browser" or WorkType == "getfsilename" then
+        if WorkType == "menu" or WorkType == "browser" or WorkType == "getfilename" then
             
             if key == 107 then
                 if Buttons[WorkType] == nil then return end
@@ -638,6 +663,17 @@ elseif CLIENT then
                         WorkType = "draw"
                         Redraw = true
                         Screen:emitSound("buttons/button19.wav", 75, 125, 1, CHAN_AUTO)
+                        CanDraw = false
+                    end
+                end
+            elseif key == 108 then
+                for i = 1, table.count(MainFile) do
+                    if FileList[i].value then
+                        FileName = string.replace(table.getKeys(MainFile)[i], ".txt", "")
+                        file.delete("/paintengine/datafiles/" .. FileName .. ".txt")
+                        file.delete("/paintengine/" .. FileName .. ".png")
+                        Screen:emitSound("buttons/button6.wav", 75, 125, 1, CHAN_AUTO)
+                        MainFile[FileName .. ".txt"] = nil
                     end
                 end
             end
@@ -645,14 +681,7 @@ elseif CLIENT then
         elseif WorkType == "draw" and not OpenPanel[1] and not OpenPanel[2] and not OpenPanel[3]  and not OpenPanel[4] and not OpenPanel[5] then
         
             if key == 107 then
-                if DrawnType != 5 then
-                    if DrawnType == 6 then
-                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawData.backgroundcolor}}
-                    else
-                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawnData.color}}
-                    end
-                    Redraw = true
-                elseif DrawnType == 5 then
+                if DrawnType == 5 then
                     if DrawLineData.pos1 == nil then
                         DrawLineData.pos1 = Vector(mouseX, mouseY)
                     elseif DrawLineData.pos2 == nil then
@@ -660,6 +689,15 @@ elseif CLIENT then
                         DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {raduis = DrawnData.raduis, posX = DrawLineData.pos1.x, posY = DrawLineData.pos1.y, pos2X = DrawLineData.pos2.x, pos2Y = DrawLineData.pos2.y, color = DrawnData.color}}
                         Redraw = true
                         DrawLineData = {pos1 = nil, pos2 = nil}
+                    end
+                else
+                    if CanDraw == true and OLDmouseX == mouseX or OLDmouseY == mouseY then
+                        if DrawnType == 6 then
+                            DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawData.backgroundcolor}}
+                        else
+                            DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawnData.color}}
+                        end
+                        Redraw = true
                     end
                 end
             end
@@ -764,8 +802,3 @@ elseif CLIENT then
     end)
     
 end
-
-
-
-
-
