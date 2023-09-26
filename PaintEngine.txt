@@ -1,0 +1,771 @@
+--@name  PaintEngine
+--@author JohnBurlyay
+--@shared
+
+if SERVER then
+    
+    screen = prop.createComponent(chip():localToWorld(Vector(0, 0, 75)), chip():localToWorldAngles(Angle(0, 90, 90)), "starfall_screen","models/hunter/plates/plate3x3.mdl", 1)
+    screen:linkComponent(chip())
+    screen:setColor(Color(255, 255, 255, 100))
+    screen:setParent(chip())
+    screen:setMaterial("phoenix_storms/black_chrome")
+    
+    chip():setPersistent(true)
+    chip():setCollisionGroup(10)
+    chip():setColor(Color(255, 255, 255, 0))
+    
+    hook.add("PlayerSay", "", function(ply, text)
+        if ply != owner() then return end
+        if string.sub(text, 1, 1) != "!" then return end
+        
+        net.start("SetFileName")
+        net.writeTable({name = string.sub(text, 2, #text)})
+        net.send(owner())
+        
+        return ""
+    end)
+    
+elseif CLIENT then
+    
+    GameName = "[ PaintEngine ] "
+    Ver = "v0.7"
+    Path = "GarrysMod/garrysmod/data/sf_filedata/paintengine/datafiles/"
+    Screen = chip():getLinkedComponents()[1]
+    
+    if player() != owner() then return end
+    
+    --check dirs
+        if not file.exists("/paintengine") then 
+            file.createDir("/paintengine/")
+        end
+        if not file.exists("/paintengine/datafiles") then 
+            file.createDir("/paintengine/datafiles")
+        end
+        if not file.exists("/paintengine/main.txt") then 
+            file.write("/paintengine/main.txt", "[]")
+            MainFile = {}
+        else
+            MainFile = json.decode(file.read("/paintengine/main.txt") or "[]")
+            --printTable(MainFile)
+        end
+        
+    --check files
+        local KeysToRemove = {}
+        for i = 1, table.count(MainFile) do
+            local key = table.getKeys(MainFile)[i]
+            if not file.exists("/paintengine/datafiles/" .. key) then 
+                print(GameName .. " file : " .. Path .. key .. " does not extists! Removing ...")
+                table.add(KeysToRemove, {key})
+                Screen:emitSound("buttons/button10.wav", 75, 125, 1, CHAN_AUTO)
+            end
+        end
+        for i = 1, #KeysToRemove do
+            MainFile[KeysToRemove[i]] = nil
+            --print("=======")
+            --printTable(MainFile)
+        end
+        
+    Swep = "weapon_empty_hands"
+    O = player()
+    
+    Redraw = true
+    Layer = 2
+    MaxLayers = 3
+    BaseDrawData = {backgroundcolor = Color(0, 0, 0, 255), backgroundbasecolor = Color(255, 255, 255, 255)}
+        for i = 1, MaxLayers do BaseDrawData[i] = {} end
+    DrawData = table.copy(BaseDrawData)
+    Resolution = Vector(512, 512)
+    File = false
+    FileName = ""
+    WaitFileName = false
+    FileList = {}
+        for i = 1, 100 do FileList[i] = {openvalue = false, deletevalue = false} end
+    
+    DrawnType = 1
+    DrawnData = {size = 20, raduis = 10, color = Color(255, 255, 255, 255), basecolor = Color(255, 255, 255, 255)}
+    DrawLineData = {pos1 = nil, pos2 = nil}
+    
+    ColorPickerCount = 32
+    ColorPicker = {}
+        local size = 512 / ColorPickerCount
+        ColorPicker[1] = table.copy({value = false, color = Color(255, 255, 255)})
+        for i = 2, ColorPickerCount do ColorPicker[i] = table.copy({value = false, color = Color((size + 1) * i / 1.5, 1, 1):hsvToRGB()}) end
+        for i = 1, ColorPickerCount do ColorPicker[ColorPickerCount + i] = table.copy({value = false, color = Color(DrawnData.basecolor[1] * (size * i / 512), DrawnData.basecolor[2] * (size * i / 512), DrawnData.basecolor[3] * (size * i / 512), DrawnData.basecolor[4])}) end
+    
+    WorkType = "menu" --menu, browser, settings, draw, getfilename
+    DynamicButtonSize = Vector(50, 18)
+    DynamicPanelSize = Vector(400, 18)
+    MenuButtonSize = Vector(200, 30)
+    DynamicSizeBounds = {min = 1, max = 100}
+    
+    OpenPanel = {[1] = false, [2] = false, [3] = false, [4] = false, [5] = false}
+    
+    Font50 = render.createFont("Roboto", 50, 400, true)
+    Font40 = render.createFont("Roboto", 40, 400, true)
+    Font35 = render.createFont("Roboto", 35, 400, true)
+    Font30 = render.createFont("Akbar", 30, 400, true)
+    Font18 = render.createFont("Roboto", 18, 400, true)
+    Font13 = render.createFont("Roboto", 13, 400, true)
+    
+    Buttons = {
+        menu = {
+            [1] = {text = "resume", value = false, func = function() 
+                WorkType = "draw"
+            end},
+            [2] = {text = "new image", value = false, func = function() 
+                WorkType = "getfilename"
+                WaitFileName = true
+            end},
+            [3] = {text = "open image data", value = false, func = function() 
+                WorkType = "browser"
+            end},
+            [4] = {text = "settings", value = false, func = function() 
+                WorkType = "settings"
+            end},
+        },
+        browser = {
+            [1] = {text = "back to menu", value = false, func = function() 
+                WorkType = "menu"
+            end},
+        },
+        getfilename = {
+            [1] = {text = "back to menu", value = false, func = function() 
+                WorkType = "menu"
+                WaitFileName = false
+            end},
+        },
+    }
+    
+    DrawFuncs = {
+        [1] = function(data) render.drawRect(data.posX - data.size / 2, data.posY - data.size / 2, data.size, data.size) end,
+        [2] = function(data) render.drawRectOutline(data.posX - data.size / 2, data.posY - data.size / 2, data.size, data.size, 1) end,
+        [3] = function(data) render.drawFilledCircle(data.posX, data.posY, data.raduis) end,
+        [4] = function(data) render.drawCircle(data.posX, data.posY, data.raduis) end,
+        [5] = function(data) render.drawLine(data.posX, data.posY, data.pos2X, data.pos2Y) end,
+        [6] = function(data) render.drawFilledCircle(data.posX, data.posY, data.raduis) end,
+    }
+    
+    LowerPanelButtons = {
+        [1] = {buttonpos = Vector(68, 495), func = function() render.drawRect(70, 497, 14, 14) end, value = false},
+        [2] = {buttonpos = Vector(98, 495), func = function() render.drawRectOutline(100, 497, 14, 14, 1) end, value = false},
+        [3] = {buttonpos = Vector(128, 495), func = function() render.drawFilledCircle(137, 504, 7) end, value = false},
+        [4] = {buttonpos = Vector(158, 495), func = function() render.drawCircle(167, 504, 7) end, value = false},
+        [5] = {buttonpos = Vector(188, 495), func = function() render.drawLine(188, 497, 205, 509) end, value = false},
+        
+        [6] = {buttonpos = Vector(288, 495), func = function() 
+                render.drawRect(290, 503, 14, 8)
+                render.drawRectOutline(290, 497, 14, 6, 1)
+            end, 
+            value = false
+        },
+        [7] = {buttonpos = Vector(318, 495), func = function()
+                render.setFont(Font35) 
+                render.setColor(DrawnData.color)
+                render.drawText(327, 482, "⮌", 1)
+            end, value = false
+        },    
+        [8] = {buttonpos = Vector(394, 495), buttonsize = Vector(54, 18), func = function() 
+            render.setColor(Color(0, 0, 0, 255))
+            render.drawRect(394, 496, 54, 15)
+            render.setColor(DrawnData.color)
+            render.drawRect(396, 498, 50 * DrawnData.size / DynamicSizeBounds.max, 11)
+        end, value = false},
+    }
+    
+    LayerPanelButtons = {
+        [1] = {buttonpos = Vector(36, 495), func = function()
+            render.setColor(Layer == 1 and Color(125, 125, 125, 255) or Color(0, 0, 0, 255)) 
+            render.drawRect(38, 497, 14, 14) 
+            render.setColor(Color(255, 255, 255, 255)) 
+            render.setFont(Font18)
+            render.drawText(45, 495, "1", 1)
+        end, value = false},
+        [2] = {buttonpos = Vector(56, 495), func = function() 
+            render.setColor(Layer == 2 and Color(125, 125, 125, 255) or Color(0, 0, 0, 255)) 
+            render.drawRect(58, 497, 14, 14) 
+            render.setColor(Color(255, 255, 255, 255)) 
+            render.setFont(Font18)
+            render.drawText(65, 495, "2", 1)
+        end, value = false},
+        [3] = {buttonpos = Vector(76, 495), func = function() 
+            render.setColor(Layer == 3 and Color(125, 125, 125, 255) or Color(0, 0, 0, 255)) 
+            render.drawRect(78, 497, 14, 14) 
+            render.setColor(Color(255, 255, 255, 255)) 
+            render.setFont(Font18)
+            render.drawText(85, 495, "3", 1)
+        end, value = false},
+        [4] = {buttonpos = Vector(125, 495), buttonsize = Vector(100, 18), func = function() 
+            render.setColor(Color(0, 0, 0, 255))
+            render.drawRect(125, 496, 100, 15)
+            render.setColor(Color(125, 125, 125, 255))
+            render.drawRect(127, 498, 96, 11)
+            render.setColor(Color(0, 0, 0, 255))
+            render.setFont(Font13)
+            render.drawText(177, 497, "background color", 1)
+        end, value = false},
+    }
+    
+    MenuPanelButtons = {
+        [1] = {buttonpos = Vector(290, 495), buttonsize = Vector(50, 17),
+            func = function()
+                render.setColor(Color(0, 0, 0, 255))
+                render.drawRect(290, 496, 50, 15)
+                render.setColor(Color(125, 125, 125, 255))
+                render.drawRect(292, 498, 46, 11)
+                render.setColor(Color(0, 0, 0, 255))
+                render.setFont(Font13)
+                render.drawText(315, 497, "save", 1)
+            end, value = false,
+            click = function()
+                Redraw = true
+                File = true
+                Screen:emitSound("buttons/button24.wav", 75, 125, 1, CHAN_AUTO)
+            end,
+        },
+        [2] = {buttonpos = Vector(359, 495), buttonsize = Vector(50, 17),
+            func = function()
+                render.setColor(Color(0, 0, 0, 255))
+                render.drawRect(359, 496, 50, 15)
+                render.setColor(Color(125, 125, 125, 255))
+                render.drawRect(361, 498, 46, 11)
+                render.setColor(Color(0, 0, 0, 255))
+                render.setFont(Font13)
+                render.drawText(384, 497, "exit", 1)
+            end, value = false,
+            click = function()
+                WorkType = "menu"
+                Screen:emitSound("buttons/button24.wav", 75, 125, 1, CHAN_AUTO)
+            end,
+        },
+        [3] = {buttonpos = Vector(428, 495), buttonsize = Vector(50, 17),
+            func = function()
+                render.setColor(Color(0, 0, 0, 255))
+                render.drawRect(428, 496, 50, 15)
+                render.setColor(Color(125, 125, 125, 255))
+                render.drawRect(430, 498, 46, 11)
+                render.setColor(Color(0, 0, 0, 255))
+                render.setFont(Font13)
+                render.drawText(453, 497, "clear", 1)
+            end, value = false,
+            click = function()
+                Redraw = true
+                DrawData = table.copy(BaseDrawData) 
+                Screen:emitSound("buttons/button5.wav", 75, 125, 1, CHAN_AUTO)   
+            end,
+        },
+    }
+    
+    local function dynamicBackground(curtime)
+        for i = 1, 10 do
+            render.setColor(Color(math.random(0, 255), math.random(0, 255), math.random(0, 255), math.random(25, 50)))
+            local size = Vector(math.abs(math.sin(curtime)) * math.random(2, 18), math.abs(math.cos(curtime)) * math.random(2, 18))
+            render.drawRect(math.random(0, 512 - size.x), math.random(0, 512 - size.y), size.x, size.y) 
+        end
+    end
+    
+    local function setFileName(name)
+        --FileName = string.replace(data.name, "/", "_")
+        DrawData = table.copy(BaseDrawData)
+        while table.hasValue(MainFile, name .. ".png") do
+            name = "_" .. name
+        end
+        FileName = name
+        file.write("/paintengine/datafiles/" .. FileName .. ".txt", json.encode(DrawData))
+        WorkType = "draw"
+        MainFile[FileName .. ".txt"] = FileName .. ".png"
+        file.write("/paintengine/main.txt", json.encode(MainFile))
+        
+    end
+    
+    timer.create("autosave", 60, 0, function()
+        if WorkType == "draw" then
+            Redraw = true
+            File = true
+            --print("autosaved!")
+        end
+    end)
+    
+    render.createRenderTarget("image")
+    
+    hook.add("render", "", function()
+        
+        mouseX, mouseY = render.cursorPos(O, chip():getLinkedComponents()[1])
+        
+        if Redraw and WorkType == "draw" then
+            render.selectRenderTarget("image")
+            render.clear(Color(0, 0, 0, 0))
+            
+            --draw background
+                render.setColor(DrawData.backgroundcolor)
+                render.drawRect(0, 0, Resolution.x, Resolution.y)
+                
+            --draw objects
+                for u = 1, MaxLayers do
+                    for i = 1, #DrawData[u] do
+                        local data = DrawData[u][i]
+                        render.setColor(data[2].color)
+                        DrawFuncs[data[1]](data[2])
+                    end
+                end
+                        
+            if File == true then
+                image = render.captureImage({"png", 0, 0, 0, 0, 1, false})
+                file.write("/paintengine/" .. FileName .. ".png", image)
+                file.write("/paintengine/datafiles/" .. FileName .. ".txt", json.encode(DrawData))
+                File = false
+            end
+            
+            Redraw = false
+            render.selectRenderTarget()
+        end
+        
+        if WorkType == "getfilename" then
+            --dynamic background
+                local curtime = timer.curtime() / 15
+                dynamicBackground(curtime)
+                
+            --description
+                render.setColor(Color(math.random(100, 255), math.random(100, 255), math.random(100, 255), 255))
+                render.setFont(Font40)
+                render.drawText(256, 100, "Enter in chat filename...", 1)
+                render.drawText(256, 150, "example: !MyFirstImage", 1)
+                
+            --buttons
+                render.setFont(Font30)
+                local freaker = math.abs(math.sin(curtime * 10)) * 15
+                for i = 1, #Buttons[WorkType] do
+                    local button = Buttons[WorkType][i]
+                    local size = Vector(MenuButtonSize.x + math.abs(math.sin(curtime)) * math.random(0, freaker), MenuButtonSize.y + math.abs(math.cos(curtime)) * math.random(0, freaker))
+                    local pos = Vector(256 - size.x / 2, 390 + size.y / 2 + (i * MenuButtonSize.y * 2))
+                    local aim = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                    render.setColor(Color(math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), 255))
+                    render.drawRect(pos.x, pos.y, size.x, size.y)
+                    render.setColor(Color(0, 0, 0, 255))
+                    render.drawText(pos.x + MenuButtonSize.x / 2, pos.y - MenuButtonSize.y / 6, button.text, 1)
+                    if aim then
+                        render.setColor(Color(255, 255, 255, 255))
+                        render.drawRectOutline(pos.x, pos.y, size.x, size.y, 2) 
+                    end
+                    Buttons[WorkType][i].value = aim
+                end
+                
+        elseif WorkType == "browser" then
+            --dynamic background
+                local curtime = timer.curtime() / 15
+                dynamicBackground(curtime)
+                
+            --buttons
+                render.setFont(Font30)
+                local freaker = math.abs(math.sin(curtime * 10)) * 15
+                for i = 1, #Buttons[WorkType] do
+                    local button = Buttons[WorkType][i]
+                    local size = Vector(MenuButtonSize.x + math.abs(math.sin(curtime)) * math.random(0, freaker), MenuButtonSize.y + math.abs(math.cos(curtime)) * math.random(0, freaker))
+                    local pos = Vector(256 - size.x / 2, 390 + size.y / 2 + (i * MenuButtonSize.y * 2))
+                    local aim = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                    render.setColor(Color(math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), 255))
+                    render.drawRect(pos.x, pos.y, size.x, size.y)
+                    render.setColor(Color(0, 0, 0, 255))
+                    render.drawText(pos.x + MenuButtonSize.x / 2, pos.y - MenuButtonSize.y / 6, button.text, 1)
+                    if aim then
+                        render.setColor(Color(255, 255, 255, 255))
+                        render.drawRectOutline(pos.x, pos.y, size.x, size.y, 2) 
+                    end
+                    Buttons[WorkType][i].value = aim
+                end
+            
+            --description
+                render.setColor(Color(math.random(100, 255), math.random(100, 255), math.random(100, 255), 255))
+                render.setFont(Font35)
+                render.drawText(256, 5, "[LMB] - open file, [RMB] - remove file", 1)
+            
+            --file list
+                for i = 1, table.count(MainFile) do
+                    local datafile = table.getKeys(MainFile)[i]
+                    local image = MainFile[datafile]
+                    
+                    local size = Vector(46, 46)
+                    local int, fr = math.modf(i / 10) if fr == 0 then int = int - 1 end
+                    local pos = Vector(5.0 * (fr == 0 and 1 or fr) * 10, 50) + Vector(size.x * (((i - 1) % 10)), 5.0 * (int + 1) + size.y * int)
+                    local aim = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                    
+                    render.setColor(aim and Color(255, 255, 255, 255) or Color(125, 125, 125, 255))
+                    render.drawRect(pos.x, pos.y, size.x, size.y)
+                    render.setColor(aim and Color(0, 255, 255, 255) or Color(125, 125, 125, 255))
+                    render.drawRectOutline(pos.x, pos.y, size.x, size.y, 1)
+                    render.setColor(Color(0, 0, 0, 255))
+                    render.setFont(Font13)
+                    local str = string.replace(datafile, ".txt", "")
+                    for u = 1, math.round(#str / 6) + 1 do
+                        render.drawText(pos.x + size.x / 2, -2 + pos.y + 10 * (u - 1), string.sub(str, 1 + ((u - 1) * 6), 6 + ((u - 1) * 6)), 1)
+                    end
+                    
+                    FileList[i].value = aim
+                end
+        
+        elseif WorkType == "menu" then
+            --dynamic background
+                local curtime = timer.curtime() / 15
+                dynamicBackground(curtime)
+                
+            --main menu
+                --name + ver
+                    render.setColor(Color(math.random(100, 255), math.random(100, 255), math.random(100, 255), 255))
+                    render.setFont(Font50)
+                    render.drawText(256, 100, GameName .. Ver, 1)
+                --buttons
+                    render.setFont(Font30)
+                    local freaker = math.abs(math.sin(curtime * 10)) * 15
+                    for i = (FileName == "" and 2 or 1), #Buttons[WorkType] do
+                        local button = Buttons[WorkType][i]
+                        local size = Vector(MenuButtonSize.x + math.abs(math.sin(curtime)) * math.random(0, freaker), MenuButtonSize.y + math.abs(math.cos(curtime)) * math.random(0, freaker))
+                        local pos = Vector(256 - size.x / 2, 100 + size.y / 2 + (i * MenuButtonSize.y * 2))
+                        local aim = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        render.setColor(Color(math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), math.random(100, aim and 255 or 150), 255))
+                        render.drawRect(pos.x, pos.y, size.x, size.y)
+                        render.setColor(Color(0, 0, 0, 255))
+                        render.drawText(pos.x + MenuButtonSize.x / 2, pos.y - MenuButtonSize.y / 6, button.text, 1)
+                        if aim then
+                            render.setColor(Color(255, 255, 255, 255))
+                            render.drawRectOutline(pos.x, pos.y, size.x, size.y, 2) 
+                        end
+                        Buttons[WorkType][i].value = aim
+                    end
+                
+        elseif WorkType == "draw" then
+            --draw render
+                render.setColor(Color(255, 255, 255, 255))
+                render.setRenderTargetTexture("image")
+                render.drawTexturedRect(0, 0, Resolution.x * 2, Resolution.y * 2)
+                
+            --layers menu
+                if not OpenPanel[1] and not OpenPanel[2] and not OpenPanel[4] and not OpenPanel[5] then
+                    local pos = Vector(Resolution.x / 4 - DynamicButtonSize.x / 2, Resolution.y - DynamicButtonSize.y * 0.75)
+                    local size = DynamicButtonSize
+                    if OpenPanel[3] == false then 
+                        OpenPanel[3] = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        if OpenPanel[3] == true then 
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        end
+                    end
+                    render.setColor(Color(50, 125, 100, 255))
+                    render.drawRoundedBox(4, pos.x, pos.y - (OpenPanel[3] and 18 or 0), size.x, size.y)
+                    render.drawRoundedBox(4, Resolution.x / 4 - DynamicPanelSize.x / 4, pos.y - (OpenPanel[3] and 22 or 0) + DynamicPanelSize.y, DynamicPanelSize.x / 2, DynamicPanelSize.y)
+                    render.setFont(Font18)
+                    render.setColor(Color(0, 0, 0, 150))
+                    render.drawText(Resolution.x / 4, Resolution.y - DynamicButtonSize.y - (OpenPanel[3] and 16 or -2), "layers", 1)
+                    
+                    if OpenPanel[3] and mouseY and mouseY < 492 then
+                        OpenPanel[3] = false
+                    elseif OpenPanel[3] then
+                        for i = 1, #LayerPanelButtons do
+                            local data = LayerPanelButtons[i]
+                            local pos = data.buttonpos
+                            local size = (LayerPanelButtons[i].buttonsize or Vector(18))
+                            data.func()
+                            --draw button bounds
+                                --render.setColor(Color(0, 0, 0, 255))
+                                --render.drawRectOutline(pos.x, pos.y, size.x, size.y, 1)
+                            LayerPanelButtons[i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        end
+                    end
+                end
+                
+            --menu menu
+                if not OpenPanel[1] and not OpenPanel[2] and not OpenPanel[3] and not OpenPanel[4] then
+                    local pos = Vector(Resolution.x * 0.75 - DynamicButtonSize.x / 2, Resolution.y - DynamicButtonSize.y * 0.75)
+                    local size = DynamicButtonSize
+                    if OpenPanel[5] == false then 
+                        OpenPanel[5] = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        if OpenPanel[5] == true then 
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        end
+                    end
+                    render.setColor(Color(50, 125, 100, 255))
+                    render.drawRoundedBox(4, pos.x, pos.y - (OpenPanel[5] and 18 or 0), size.x, size.y)
+                    render.drawRoundedBox(4, Resolution.x * 0.75 - DynamicPanelSize.x / 4, pos.y - (OpenPanel[5] and 22 or 0) + DynamicPanelSize.y, DynamicPanelSize.x / 2, DynamicPanelSize.y)
+                    render.setFont(Font18)
+                    render.setColor(Color(0, 0, 0, 150))
+                    render.drawText(Resolution.x * 0.75, Resolution.y - DynamicButtonSize.y - (OpenPanel[5] and 16 or -2), "menu", 1)
+                    
+                    if OpenPanel[5] and mouseY and mouseY < 492 then
+                        OpenPanel[5] = false
+                    elseif OpenPanel[5] then
+                        for i = 1, #MenuPanelButtons do
+                            render.setColor(DrawnType == i and DrawnData.color or Color(150, 150, 150, 255))
+                            local data = MenuPanelButtons[i]
+                            local pos = data.buttonpos
+                            local size = (MenuPanelButtons[i].buttonsize or Vector(18))
+                            data.func()
+                           --draw button bounds
+                                --render.setColor(Color(255, 255, 255, 255))
+                                --render.drawRectOutline(pos.x, pos.y, size.x, size.y, 1)
+                            MenuPanelButtons[i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        end
+                    end
+                end
+                
+            --lower menu
+                if not OpenPanel[2] and not OpenPanel[3] and not OpenPanel[4] and not OpenPanel[5] then
+                    local pos = Vector(Resolution.x / 2 - DynamicButtonSize.x / 2, Resolution.y - DynamicButtonSize.y * 0.75)
+                    local size = DynamicButtonSize
+                    if OpenPanel[1] == false then 
+                        OpenPanel[1] = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        if OpenPanel[1] == true then 
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        end
+                    end
+                    render.setColor(Color(50, 125, 100, 255))
+                    render.drawRoundedBox(4, pos.x, pos.y - (OpenPanel[1] and 18 or 0), size.x, size.y)
+                    render.drawRoundedBox(4, Resolution.x / 2 - DynamicPanelSize.x / 2, pos.y - (OpenPanel[1] and 22 or 0) + DynamicPanelSize.y, DynamicPanelSize.x, DynamicPanelSize.y)
+                    render.setFont(Font30)
+                    render.setColor(Color(0, 0, 0, 150))
+                    render.drawText(Resolution.x / 2, Resolution.y - DynamicButtonSize.y - (OpenPanel[1] and 18 or 0), "▲", 1)
+                    
+                    if OpenPanel[1] and mouseY and mouseY < 492 then
+                        OpenPanel[1] = false
+                    elseif OpenPanel[1] then
+                        for i = 1, #LowerPanelButtons do
+                            render.setColor(DrawnType == i and DrawnData.color or Color(150, 150, 150, 255))
+                                                                
+                            local data = LowerPanelButtons[i]
+                            local pos = data.buttonpos
+                            local size = (LowerPanelButtons[i].buttonsize or Vector(18))
+                            data.func()
+                            --draw button bounds
+                                --render.setColor(Color(255, 255, 255, 255))
+                                --render.drawRectOutline(pos.x, pos.y, size.x, size.y, 1)
+                            LowerPanelButtons[i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        end
+                    end
+                end
+            
+            --upper menu
+                if not OpenPanel[1] and not OpenPanel[3] and not OpenPanel[5] then
+                    local pos = Vector(Resolution.x / 2 - DynamicButtonSize.x / 2, -5)
+                    local size = DynamicButtonSize
+                    if OpenPanel[2] == false then 
+                        OpenPanel[2] = Vector(mouseX, mouseY):withinAABox(pos, pos + size)
+                        if OpenPanel[2] == true then 
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        end
+                    end
+                    render.setColor(Color(50, 125, 100, 255))
+                    render.drawRoundedBox(4, pos.x, (OpenPanel[2] or OpenPanel[4]) and -20 or pos.y, size.x, size.y)
+                    render.setFont(Font30)
+                    render.setColor(Color(0, 0, 0, 150))
+                    render.drawText(Resolution.x / 2, (OpenPanel[2] or OpenPanel[4]) and -20 or -14, "▼", 1)
+                    
+                    local size = 512 / ColorPickerCount
+                    if OpenPanel[2] and not OpenPanel[4] and mouseY and mouseY > size * 4 then
+                        OpenPanel[2] = false
+                    elseif OpenPanel[2] or OpenPanel[4] then
+                        --basecolors
+                            for i = 1, ColorPickerCount do
+                                local pos = Vector(size * (i - 1), 0)
+                                render.setColor(ColorPicker[i].color)
+                                render.drawRect(pos.x, pos.y, size, size * 2)
+                                ColorPicker[i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + Vector(size, size * 2))
+                                if ColorPicker[i].value then 
+                                    render.setColor(Color(255, 255, 255, 255))
+                                    render.drawRectOutline(pos.x, pos.y, size, size * 2, 1) 
+                                end
+                            end
+                        --bright
+                            for i = 1, ColorPickerCount do
+                                local pos = Vector(size * (i - 1), size * 2)
+                                local basecolor = OpenPanel[4] and DrawData.backgroundbasecolor or DrawnData.basecolor
+                                ColorPicker[ColorPickerCount + i].color = Color(basecolor[1] * (size * i / 512), basecolor[2] * (size * i / 512), basecolor[3] * (size * i / 512), basecolor[4])
+                                render.setColor(ColorPicker[ColorPickerCount + i].color)
+                                render.drawRect(pos.x, pos.y, size, size * 2)
+                                ColorPicker[ColorPickerCount + i].value = Vector(mouseX, mouseY):withinAABox(pos, pos + Vector(size, size * 2))
+                                if ColorPicker[ColorPickerCount + i].value then 
+                                    render.setColor(Color(255, 255, 255, 255))
+                                    render.drawRectOutline(pos.x, pos.y, size, size * 2, 1) 
+                                end
+                            end
+                    end
+                end
+                
+            --daw lines
+                if DrawLineData.pos1 != nil and mouseX and mouseY then
+                    render.setColor(DrawnData.color)
+                    render.drawLine(DrawLineData.pos1.x, DrawLineData.pos1.y, mouseX, mouseY)
+                end
+            
+            --draw cursor
+                if mouseX and mouseY and not OpenPanel[2] and not OpenPanel[1] and not OpenPanel[3] and not OpenPanel[4] and not OpenPanel[5] then
+                    if DrawnType < 5 then
+                        render.setColor(Color(DrawnData.color[1], DrawnData.color[2], DrawnData.color[3], 100))
+                        DrawFuncs[DrawnType]({posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis})
+                    elseif DrawnType == 6 then
+                        render.setColor(DrawData.backgroundcolor)
+                        DrawFuncs[DrawnType]({posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis})
+                    end
+                end
+        end
+    end)
+    
+    hook.add("inputPressed", "", function(key)
+        if not O:isValid() then return end
+        if not O:getActiveWeapon():isValid() then return end
+        if O:getActiveWeapon():getClass() != Swep then return end
+        if mouseX == nil or mouseY == nil then return end
+
+        if WorkType == "menu" or WorkType == "browser" or WorkType == "getfsilename" then
+            
+            if key == 107 then
+                if Buttons[WorkType] == nil then return end
+                for i = 1, #Buttons[WorkType] do
+                    if Buttons[WorkType] == nil then return end
+                    if Buttons[WorkType][i] == nil then return end
+                    if Buttons[WorkType][i].value then
+                        if Buttons[WorkType][i].func == nil then return end
+                        Buttons[WorkType][i].func()
+                        Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                    end
+                end
+            end
+            
+        end
+            
+        if WorkType == "browser" then
+            
+            if key == 107 then
+                for i = 1, table.count(MainFile) do
+                    if FileList[i].value then
+                        FileName = string.replace(table.getKeys(MainFile)[i], ".txt", "")
+                        DrawData = json.decode(file.read("/paintengine/datafiles/" .. FileName .. ".txt") or "[]")
+                        WorkType = "draw"
+                        Redraw = true
+                        Screen:emitSound("buttons/button19.wav", 75, 125, 1, CHAN_AUTO)
+                    end
+                end
+            end
+            
+        elseif WorkType == "draw" and not OpenPanel[1] and not OpenPanel[2] and not OpenPanel[3]  and not OpenPanel[4] and not OpenPanel[5] then
+        
+            if key == 107 then
+                if DrawnType != 5 then
+                    if DrawnType == 6 then
+                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawData.backgroundcolor}}
+                    else
+                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawnData.color}}
+                    end
+                    Redraw = true
+                elseif DrawnType == 5 then
+                    if DrawLineData.pos1 == nil then
+                        DrawLineData.pos1 = Vector(mouseX, mouseY)
+                    elseif DrawLineData.pos2 == nil then
+                        DrawLineData.pos2 = Vector(mouseX, mouseY)
+                        DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {raduis = DrawnData.raduis, posX = DrawLineData.pos1.x, posY = DrawLineData.pos1.y, pos2X = DrawLineData.pos2.x, pos2Y = DrawLineData.pos2.y, color = DrawnData.color}}
+                        Redraw = true
+                        DrawLineData = {pos1 = nil, pos2 = nil}
+                    end
+                end
+            end
+            
+        elseif WorkType == "draw" and OpenPanel[1] then
+            
+            if key == 107 then
+                for i = 1, #LowerPanelButtons do
+                    if LowerPanelButtons[i].value then
+                        if i < 7 then
+                            DrawnType = i
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                            DrawLineData = {pos1 = nil, pos2 = nil}
+                        elseif i == 7 then
+                            table.remove(DrawData[Layer], #DrawData[Layer])
+                            Redraw = true
+                            Screen:emitSound("buttons/button15.wav", 75, 125, 1, CHAN_AUTO)
+                        elseif i == 8 then
+                            DrawnData.size = math.round(DynamicSizeBounds.max * ((mouseX - 394) / 54))
+                            if DrawnData.size > DynamicSizeBounds.max then 
+                                DrawnData.size = DynamicSizeBounds.max
+                            elseif DrawnData.size < DynamicSizeBounds.min then 
+                                DrawnData.size = DynamicSizeBounds.min 
+                            end
+                            DrawnData.raduis = DrawnData.size / 2
+                            Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        end
+                    end
+                end
+            end
+            
+        elseif WorkType == "draw" and (OpenPanel[2] or OpenPanel[4]) then
+            
+            if key == 107 then
+                for i = 1, ColorPickerCount do
+                    if ColorPicker[i].value then
+                        Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        if OpenPanel[2] then
+                            DrawnData.basecolor = ColorPicker[i].color
+                            DrawnData.color = ColorPicker[i].color
+                        elseif OpenPanel[4] then
+                            DrawData.backgroundbasecolor = ColorPicker[i].color
+                            DrawData.backgroundcolor = ColorPicker[i].color
+                            Redraw = true
+                        end
+                    end
+                end
+                for i = ColorPickerCount + 1, ColorPickerCount * 2 do
+                    if ColorPicker[i].value then
+                        Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                        if OpenPanel[2] then
+                            DrawnData.color = ColorPicker[i].color
+                        elseif OpenPanel[4] then
+                            DrawData.backgroundcolor = ColorPicker[i].color
+                            OpenPanel[4] = false
+                            Redraw = true
+                        end
+                    end
+                end
+            end
+            
+        elseif WorkType == "draw" and OpenPanel[3] then
+            
+            if key == 107 then
+                for i = 1, MaxLayers do
+                    if LayerPanelButtons[i].value then
+                        Layer = i
+                        Screen:emitSound("buttons/lightswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                    end
+                end
+                
+                if LayerPanelButtons[4].value then
+                    OpenPanel[3] = false
+                    OpenPanel[4] = true
+                    Screen:emitSound("buttons/lisghtswitch2.wav", 75, 125, 1, CHAN_AUTO)
+                end
+            end
+            
+        elseif WorkType == "draw" and OpenPanel[5] then
+            
+            if key == 107 then
+                for i = 1, #MenuPanelButtons do
+                    if MenuPanelButtons[i].value then
+                        MenuPanelButtons[i].click()
+                    end
+                end
+            end
+            
+        end
+        
+    end)    
+    
+    net.receive("SetFileName", function(str)
+        if WaitFileName then
+            local data = net.readTable()
+            setFileName(data.name)
+        end
+    end)
+    
+    hook.add("Removed", "", function()
+        file.write("/paintengine/main.txt", json.encode(MainFile))
+    end)
+    
+end
+
+
+
+
+
