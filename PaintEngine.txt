@@ -167,7 +167,8 @@ elseif CLIENT then
         [8] = {buttonpos = Vector(394, 495), buttonsize = Vector(54, 18), func = function() 
             render.setColor(Color(0, 0, 0, 255))
             render.drawRect(394, 496, 54, 15)
-            render.setColor(DrawnData.color)
+            --render.setColor(DrawnData.color)
+            render.setColor(Color(150, 150, 150, 255))
             render.drawRect(396, 498, 50 * DrawnData.size / DynamicSizeBounds.max, 11)
         end, value = false},
     }
@@ -611,7 +612,7 @@ elseif CLIENT then
                 end
                 
             --player draw funcs
-                if CanDraw == true and input.isMouseDown(107) and DrawnType != 5 and (OLDmouseX != mouseX or OLDmouseY != mouseY) then
+                if mouseX and mouseY and CanDraw == true and input.isMouseDown(107) and DrawnType != 5 and (OLDmouseX != mouseX or OLDmouseY != mouseY) then
                     if DrawnType == 6 then
                         DrawData[Layer][#DrawData[Layer] + 1] = {DrawnType, {posX = mouseX, posY = mouseY, size = DrawnData.size, raduis = DrawnData.raduis, color = DrawData.backgroundcolor}}
                     else
