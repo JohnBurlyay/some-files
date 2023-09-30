@@ -1,0 +1,434 @@
+--@name Ruletka-v0.62
+--@author JohnBurlyay
+--@shared
+--@model models/sprops/misc/games/d20.mdl
+
+if SERVER then
+    
+    PSmodule = 1
+    Logs = {}
+    
+    if prop.canSpawn() then
+        screen = prop.createComponent(chip():localToWorld(Vector(0, 15, 60)), chip():localToWorldAngles(Angle(90, 0, 0)), "starfall_screen", "models/hunter/plates/plate2x2.mdl", 1)
+        screen:linkComponent(chip())
+        screen:setMaterial("phoenix_storms/black_chrome")
+        screen:setColor(Color(255, 255, 255, 100))
+        screen:setParent(chip())
+        screen:setCollisionGroup(10)
+    else
+        error("can't spawn necessary ents!", 1) 
+    end
+    
+    if prop.canSpawn() then
+        hud = prop.createComponent(chip():localToWorld(Vector(0, 90, 60)), chip():localToWorldAngles(Angle(90, 0, 0)), "starfall_hud", "models/bull/dynamicbuttonflat.mdl", 1)
+        hud:linkComponent(chip())
+        hud:setParent(chip())
+    else
+        error("can't spawn necessary ents!", 1) 
+    end
+    
+    chip():setCollisionGroup(10)
+    
+    
+    if PSmodule == 1 and prop.canSpawn() then
+        wire.adjustOutputs({"DataOut"}, {"table"})
+        wire.adjustInputs({"DataIn"}, {"table"})
+        
+        wire.ports.DataOut = {}
+        
+        DataExpression = {
+            _name = "",
+            _original = "@name PSmodule_v1.1\n@inputs DataIn:table \n@outputs DataOut:table \nnoDuplications() runOnPS(1) setName(\"PSmodule_v1.1\") if (changed(DataIn[\"id\", number]) | changed(DataIn[\"count\", number])) {local Type = DataIn[\"refund\", string] local Ply = entity(DataIn[\"id\", number]) local Count = DataIn[\"count\", number] if (Ply:isPlayer() & Count > 0 & Type == \"base\") {Ply:psTake(Count)} elseif (Ply:isPlayer() & Count > 0 & Type == \"refund\") {Ply:psGive(Count)}} if (psSuccess() & psClk()) {local Ply = psClkEnt() local Count = psCount() DataOut = table(\"id\" = Ply:id(), \"count\" = Count) timer(\"reload\", 0)} if (clk(\"reload\")) {DataOut = table(\"id\" = 0, \"count\" = 0)}",
+            inc_files = {},
+            Model = "models/sprops/misc/games/d12.mdl",
+        }
+    
+        local expression2 = prop.createSent(chip():localToWorld(Vector(0, 30, 0)), Angle(), "gmod_wire_expression2", 1, DataExpression)
+        expression2:setCollisionGroup(10)
+        expression2:setParent(chip())
+        
+        wire.create(chip(), expression2, "DataIn", "DataOut")
+        wire.create(expression2, chip(), "DataIn", "DataOut")
+        
+        LastData = {}
+        --check for success point geting
+        hook.add("think", "", function()
+
+            if LastData != wire.ports.DataIn then
+                
+                LastData = wire.ports.DataIn
+                
+                if LastData.id != 0 and LastData.id != nil then
+                
+                    local ply = entity(LastData.id)
+                    local count = LastData.count
+                    
+                    net.start("getPoints")
+                    net.writeTable({ply = ply, count = count})
+                    net.send(ply)
+                    
+                    print("[PR]: " .. ply:getName() .. " donate " .. count .. " points")
+                    
+                end
+            end
+            
+        end)
+        
+        --send request to player
+        net.receive("sendTrade", function(str)
+            local data = net.readTable()
+            
+            wire.ports.DataOut = {id = data.id, count = data.count, refund = data.refund}
+            wire.ports.DataOut = {}
+            
+            if data.refund == "refund" then
+                if #Logs > 12 then
+                   table.remove(Logs, 1) 
+                end
+                Logs[#Logs + 1] = {count = data.count, name = data.name, mul = data.mul, color = data.color, points = data.points}
+                net.start("sendLogs")
+                net.writeTable(Logs)
+                net.send()
+            end
+        end)
+    else
+        error("can't spawn necessary ents!", 1) 
+    end
+    
+elseif CLIENT then
+    
+    Font1 = render.createFont("Consolas", 20, 50, true)
+    Font2 = render.createFont("Consolas", 30, 50, true)
+    Font3 = render.createFont("Consolas", 18, 50, true)
+    Font4 = render.createFont("Consolas", 40, 50, true)
+    Font5 = render.createFont("Consolas", 15, 50, true)
+    Font6 = render.createFont("Consolas", 12, 50, true)
+    HUD = false
+    Ver = " v0.62"
+    Text1 = "После выбора кол-ва поинтов запустится рулетка"
+    Text2 = "в зависимости от кратности выпавшего множителя"
+    Text3 = "ты получишь обратно полученную сумму."
+    Button = {}
+    Points = 0
+    Speed = 0
+    Random = 0
+    Logs = {}
+    TotalDonate = 0
+    TotalRefund = 0
+    
+    ButtonsBaseData = {
+        [1] = {pos = Vector(46, 145), size = Vector(120, 25), text = "1 points", points = 1},    
+        [2] = {pos = Vector(196, 145), size = Vector(120, 25), text = "5 points", points = 5},   
+        [3] = {pos = Vector(346, 145), size = Vector(120, 25), text = "10 points", points = 10},   
+        [4] = {pos = Vector(46, 185), size = Vector(120, 25), text = "25 points", points = 25},    
+        [5] = {pos = Vector(196, 185), size = Vector(120, 25), text = "50 points", points = 50},   
+        [6] = {pos = Vector(346, 185), size = Vector(120, 25), text = "100 points", points = 100}, 
+        [7] = {pos = Vector(46, 225), size = Vector(120, 25), text = "250 points", points = 250},    
+        [8] = {pos = Vector(196, 225), size = Vector(120, 25), text = "500 points", points = 500},   
+        [9] = {pos = Vector(346, 225), size = Vector(120, 25), text = "1000 points", points = 1000}, 
+    }
+    ButtonsData = {}
+    
+    local count = 10
+    MultiplierBad = {}
+        for i = 1, count do
+            MultiplierBad[#MultiplierBad + 1] = {mul = -(1 / count) + (1 / count) * i, color = Color(255, (255 / count) * i, (255 / count) * i)}
+        end
+    MultiplierGood = {}
+        for i = 1, count do
+            MultiplierGood[#MultiplierGood + 1] = {mul = 1 + (1 / count) * i, color = Color(255 - (255 / count) * i, 255, 255 - (255 / count) * i)}
+        end
+    Plys = {}
+    
+    local function randomStavka()
+        --init stavka buttons
+            table.empty(ButtonsData)
+            local Stavka = math.random(3, 9)
+            local Data = table.copy(ButtonsBaseData)
+            for i = 1, Stavka do
+                local button = math.random(1, #Data)
+                ButtonsData[#ButtonsData + 1] = Data[table.getKeys(Data)[button]]
+                table.remove(Data, button)
+            end
+            --printTable(ButtonsData)
+        --init ruletka muls
+            table.empty(Plys)
+            local mul_count = math.random(3, 7)
+            local Data = table.copy(MultiplierBad)
+            for i = 1, mul_count do
+                local mul = math.random(1, #Data)
+                Plys[#Plys + 1] = Data[table.getKeys(Data)[mul]]
+                table.remove(Data, mul)
+            end
+            Plys[#Plys + 1] = {mul = 1.0, color = Color(255, 255, 255)}
+            local Data = table.copy(MultiplierGood)
+            for i = 1, mul_count do
+                local mul = math.random(1, #Data)
+                Plys[#Plys + 1] = Data[table.getKeys(Data)[mul]]
+                table.remove(Data, mul)
+            end
+            Plys[#Plys + 1] = {mul = 1.0, color = Color(255, 255, 255)}
+            --printTable(Plys)
+    end
+    randomStavka()
+    
+    hook.add("hudconnected", "", function(ent, ply)
+        HUD = true
+        chip():emitSound("buttons/button3.wav", 100, 100, 1, CHAN_AUTO)
+    end)
+    hook.add("huddisconnected", "", function(ent, ply)
+        HUD = false
+        chip():emitSound("buttons/button8.wav", 100, 100, 1, CHAN_AUTO)
+    end)
+    
+    hook.add("render", "", function()
+        
+        if HUD == false then
+            render.setFont(Font1)
+            render.setColor(Color(255, 0, 0))
+            render.drawText(256, 235, "Справа висит HUD ==>", 1)
+            render.drawText(256, 250, "нужно ткнуть на него [E]", 1)
+            render.drawText(256, 265, "чтобы мы могли продолжить <3", 1)
+            render.setColor(Color(255, 50, 0))
+            render.drawRectOutline(56, 210, 400, 100, 4)
+            render.setColor(Color(255, 100, 0))
+            render.drawRectOutline(62, 216, 388, 88, 2)
+            render.setColor(Color(255, 150, 0))
+            render.drawRectOutline(66, 220, 380, 80, 1)        
+        else
+            render.setFont(Font2)
+            render.setColor(Color(100, 150, 255))
+            render.drawText(256, 50, "[PointRoulette]" .. Ver, 1)
+            render.setFont(Font1)
+            render.setColor(Color(150, 200, 255))
+            render.drawText(256, 80, Text1, 1)
+            render.drawText(256, 95, Text2, 1)
+            render.drawText(256, 110, Text3, 1)
+            
+            local d = math.sin(timer.curtime() * 5) * 10
+            render.setColor(Color(100, 150, 255))
+            render.drawRectOutline(10 + d, 10 + d, 492 - d * 2, 492 - d * 2, 2)
+            render.setColor(Color(150, 200, 255))
+            render.drawRectOutline(10 - d, 10 - d, 492 + d * 2, 492 + d * 2, 2)
+            render.setColor(Color(200, 200, 255))
+            render.drawRectOutline(10 - d / 2, 10 - d / 2, 492 + d, 492 + d, 2)
+            
+            --logs and scores
+            render.setFont(Font1)
+            render.setColor(Color(100, 150, 255))
+            render.drawText(30, 275, "Logs : ", 0)
+            if TotalDonate > 0 then
+                local donate = "-" .. TotalDonate
+                local refund = "+" .. TotalRefund
+                local total = TotalRefund - TotalDonate
+                render.setColor(Color(100, 150, 255))
+                render.drawText(30, 255, "Your total score : ", 0)
+                render.setColor(Color(255, 100, 0))
+                render.drawText(30 + string.len("Your total score : ") * 9, 255, donate, 0)
+                render.setColor(Color(0, 255, 175))
+                render.drawText(30 + string.len("Your total score : ") * 9 + string.len(donate) * 10, 255, refund, 0)
+                render.setColor(Color(100, 150, 255))
+                render.drawText(30 + string.len("Your total score : ") * 9 + string.len(donate) * 10 + string.len(refund) * 9, 255, " = ", 0)
+                render.setColor(total > 0 and Color(0, 255, 0) or Color(255, 0, 0))
+                render.drawText(30 + string.len("Your total score : = ") * 9 + string.len(donate) * 10 + string.len(refund) * 9.5, 255, total .. "", 0)
+            end
+            
+            render.setFont(Font5)
+            
+            for i = 1, #Logs do
+                local data = Logs[i]
+                render.setColor(data.color)
+                render.drawText(25, 285 + 14 * i, data.name .. " " .. data.points .. " pts * " .. data.mul .. "x => + " .. data.count .. " pts", 0)
+            end
+            
+            if Points == 0 then
+                local x, y = render.cursorPos(player(), chip():getLinkedComponents()[1])
+                for i = 1, table.count(ButtonsData) do 
+                    local Butt = ButtonsData[table.getKeys(ButtonsData)[i]]
+                    Button[i] = Vector(x, y):withinAABox(Butt.pos, Butt.pos + Butt.size)
+                    render.setColor(!Button[i] and Color(100, 150, 255) or Color(100, 255, 100))
+                    render.setFont(Font3)
+                    render.drawRect(Butt.pos.x, Butt.pos.y, Butt.size.x, Butt.size.y)
+                    render.setColor(!Button[i] and Color(200, 200, 255) or Color(255, 255, 255))
+                    render.drawRectOutline(Butt.pos.x, Butt.pos.y, Butt.size.x, Butt.size.y, 2)
+                    render.setColor(!Button[i] and Color(150, 50, 0) or Color(0, 0, 0))
+                    render.drawText(Butt.pos.x + Butt.size.x / 2, Butt.pos.y + 3, Butt.text, 1)
+                end
+            else
+                Button = {}
+            end
+            
+            --john
+                render.setFont(Font6)
+                render.setColor(Color(50, 175, 255))
+                render.drawText(485, 23, "by JohnBurlyay", 2)
+                render.drawText(485, 30, "all rights reserved <3", 2)
+            --points
+--[[
+                render.setFont(Font5)
+                render.setColor(Color(50, 175, 255))
+                render.drawText(40, 23, "your points:", 2)
+                render.drawText(40, 30, "all rights reserved <3", 2)
+]]
+        end
+    end)
+    
+    hook.add("drawhud", "", function()
+        
+--[[
+        for i = 1, #MultiplierBad do
+            local dat = MultiplierBad[i]
+            render.setColor(dat.color)
+            render.drawRect(20 * i, 20 * i, 20, 20)
+        end
+        for i = 1, #MultiplierGood do
+            local dat = MultiplierGood[i]
+            render.setColor(dat.color)
+            render.drawRect(20 + 20 * i, 20 * i, 20, 20)
+        end
+]]
+        
+        if Points != 0 then
+        --draw circle
+            local x, y = render.getResolution()
+            local CirclePos = Vector(x, y) / 2
+            local Radius = y / 4
+            local Size = 360 / #Plys
+            local RadPos = 90
+            local Min = -Size + 180
+            local Max = Size + 180
+            local Debug = false
+            local ChetA, ChetB = math.modf(#Plys / 2)
+
+            render.setColor(Color(0, 150, 255))
+            render.drawFilledCircle(CirclePos.x, CirclePos.y, Radius + 10)
+            render.setColor(Color(255, 255, 255))
+            render.drawFilledCircle(CirclePos.x, CirclePos.y, Radius + 5)
+            
+            local M = Vector(0, 0):getQuaternion():getMatrix()
+            M:translate(Vector(CirclePos.x, CirclePos.y))
+            M:rotate(Angle(0, -5 + Random + timer.curtime() * Speed, 0))
+            
+            render.setFont(Font1)
+            
+            render.pushMatrix(M)
+            --pieces
+            for i = 1, table.count(Plys) do
+                local poly =  {
+                    {x = 0, y = 0},
+                    {x = math.sin(math.rad(RadPos + Size)) * Radius, y = math.cos(math.rad(RadPos + Size)) * Radius},
+                    {x = math.sin(math.rad(RadPos + Size * 0.75)) * Radius, y = math.cos(math.rad(RadPos + Size * 0.75)) * Radius},
+                    {x = math.sin(math.rad(RadPos + Size * 0.5)) * Radius, y = math.cos(math.rad(RadPos + Size * 0.5)) * Radius},
+                    {x = math.sin(math.rad(RadPos + Size * 0.25)) * Radius, y = math.cos(math.rad(RadPos + Size * 0.25)) * Radius},
+                    {x = math.sin(math.rad(RadPos)) * Radius, y = math.cos(math.rad(RadPos)) * Radius},
+                }
+                RadPos = RadPos + Size
+                --local P = Plys[math.round((#Plys / 2 + i - 1) % #Plys) + (ChetB == 0 and 1 or 0)] or 1          
+                
+                --render.setColor(P.color)
+                render.setColor(Plys[table.getKeys(Plys)[math.round((table.count(Plys) / 2 + i - 1) % table.count(Plys)) + (ChetB == 0 and 1 or 0)]].color)
+                render.drawPoly(poly)
+            end 
+            
+            Mang = math.round((M:getAngles()[2] + 180 + (ChetB == 0 and Size / 2 or 0)) / Size)
+            Target = Plys[table.getKeys(Plys)[Mang == 0 and Multiplier or Mang]]
+            if LastTarget != Target then
+                chip():emitSound("buttons/lightswitch2.wav", 75, 80, 0.75, CHAN_AUTO)
+            end
+            LastTarget = Target
+            
+            render.popMatrix(M)
+            
+            local M1 = Angle(0, 0, 0):getQuaternion():getMatrix()
+            M1:translate(Vector(CirclePos.x, CirclePos.y))
+            --names
+            render.setFont(Font2)
+            for i = 1, #Plys do
+                M1:setAngles(M:getAngles() - Angle(0, Size * (#Plys / 2 + i), 0))
+                render.pushMatrix(M1)
+                    render.setColor(Color(0, 0, 0))
+                    render.drawText(Radius / 3, ChetB == 0 and 0 or 0, Plys[i].mul .. "x", 0)
+                render.popMatrix(M1)
+            end
+            
+            --arrow
+            local M2 = Angle(0, 0, 0):getQuaternion():getMatrix()
+            M2:translate(Vector(CirclePos.x, CirclePos.y))
+            local poly =  {
+                    {x = Radius - 15, y = 0},
+                    {x = Radius + 20, y = -20},
+                    {x = Radius + 270, y = -20},
+                    {x = Radius + 270, y = 20},
+                    {x = Radius + 20, y = 20},
+            }
+            render.pushMatrix(M2)
+                render.setColor(Color(0, 0, 0))
+                render.drawPoly(poly)
+            render.popMatrix(M2)
+            
+            --draw Target
+            if Target != nil then
+                render.setColor(Target.color)
+                render.drawText(CirclePos.x + 135 + Radius, CirclePos.y - 20, Target.mul .. "x", 1)
+            end
+        end
+    end)
+    
+    hook.add("inputPressed", "", function(key)
+        if key == 107 or key == 15 then
+            for i = 1, #ButtonsData do
+                if Button[i] then
+                    chip():emitSound("buttons/button15.wav", 100, 100, 1, CHAN_AUTO)
+                    net.start("sendTrade")
+                    net.writeTable({id = player():entIndex(), count = ButtonsData[i].points, refund = "base"})
+                    net.send(owner())
+                end
+            end
+        end
+    end)
+    
+    hook.add("think", "", function()
+        if Speed > 0.00001 then
+            Speed = Speed * 0.9875
+            if Speed <= 0.00001 then 
+                Speed = 0 
+                timer.simple(1, function()
+                    net.start("sendTrade")
+                    net.writeTable({id = player():entIndex(), count = Points * Target.mul, refund = "refund", color = Target.color, mul = Target.mul, points = Points, name = player():getName()})
+                    net.send(owner())
+                    
+                    --print("give + " .. Points * Target.mul .. " points")
+                    randomStavka()
+                    TotalRefund = TotalRefund + Points * Target.mul
+                    Points = 0
+                    chip():emitSound("buttons/button24.wav", 75, 80, 0.75, CHAN_AUTO)
+                end)
+            end
+        end
+    end)
+    
+    net.receive("getPoints", function(str)
+        local data = net.readTable()
+        local ply = data.ply
+        local count = data.count
+        
+        if ply == player() then
+            Points = count
+            TotalDonate = TotalDonate + Points
+            chip():emitSound("buttons/button17.wav", 75, 80, 0.75, CHAN_AUTO)
+        end
+        
+        timer.simple(0.5, function()
+            Speed = 0.15 
+            Random = math.random(0, 359)  
+        end)
+    end)
+    
+    net.receive("sendLogs", function(str)
+        local data = net.readTable()
+        Logs = data
+    end)
+        
+end
+
+ 
