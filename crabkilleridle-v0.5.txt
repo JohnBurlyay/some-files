@@ -1,0 +1,1836 @@
+--@name CrabKillerIdle
+--@author JohnBurlyay
+--@shared
+
+    O = owner()
+    E = chip()
+    Ver = 0.5
+
+if SERVER then
+    
+    Model = "models/hunter/plates/plate05x05.mdl"
+    MapSize = 24
+    Holo = {}
+    Entitys = {}
+    Effect = effect.create()
+    PlayerData = {
+        currency = {
+            tree = 100,
+            stone = 100,
+            plasma = 100,
+        },
+        globalbonus = {},
+    }
+    Build = false
+    BuildKey = nil
+    Move = false
+    MoveEnt = nil
+        
+    function holo(id, model, pos, ang, scale, mat, color, parent)
+        if Holo[id] and Holo[id]:isValid() then Holo[id]:remove() end
+        Holo[id] = holograms.create(pos, ang, model, scale)
+        Holo[id]:setMaterial(mat)
+        Holo[id]:setColor(color)
+        Holo[id]:setParent(parent)
+        return Holo[id]
+    end
+    
+    BuildHolo = holo(777, Model, Vector(7777, 7777, 7777), Angle(0, 0, 0), Vector(1, 1, 1), "models/wireframe", Color(255, 255, 255, 255), Holo[777])
+            
+    Block = class("Block")
+    
+    local function PosToGrid(pos)
+        local vec = pos
+        vec = Vector(math.round(math.round(vec[1] / MapSize) * MapSize), math.round(math.round(vec[2] / MapSize) * MapSize), E:getPos()[3])
+        return vec 
+    end
+    
+    function Block:initialize(type, pos)
+        self.id = self
+        self.data = table.copy(BlockData[type].data)
+        self.holo = nil
+        self.plate = nil
+        self.pos = PosToGrid(pos)
+    
+        self:spawn()
+    end
+    
+    function Block:spawn()
+        local pos = self.pos
+        local zposer = self.data.zposer or 0
+        self.plate = prop.create(pos, Angle(), Model, true)
+        self.plate:setParent(chip())
+        self.plate:setMaterial(self.data.basematerial)
+        self.holo = holo(self.plate:entIndex(), self.data.holomodel[math.random(1, #self.data.holomodel)], pos + Vector(0, 0, 1 + zposer), Angle(0, math.random(359), 0), Vector(0.1, 0.1, 0.1), "", Color(255, 255, 255, 255), self.plate)
+        local obb = self.holo:obbSize()
+        local max = math.max(obb[1], obb[2], obb[3])
+        self.holo:setScale(Vector(MapSize / max, MapSize / max, MapSize / max))
+        if self.data.animations then
+            self.holo:setAnimation(self.data.animations.idle1, 0, 1)
+        elseif self.data.anim then
+            self.holo:setAnimation(self.data.anim, 0, 1)
+        end
+        
+        if self.data.holoweapon then
+            local weaponpos, weaponang = self.holo:getAttachment(self.holo:lookupAttachment("anim_attachment_RH"))
+            self.holoweapon = holo(self.plate:entIndex() + 1000, self.data.holoweapon, weaponpos, weaponang, Vector(0.1, 0.1, 0.1), "", Color(255, 255, 255, 255), self.holo)
+            self.holoweapon:setAngles(self.holoweapon:localToWorldAngles(Angle(0, 180, 0)))
+            self.holoweapon:setPos(self.holoweapon:localToWorld(Vector(-3.5, 0.5, 0)))
+            self.holoweapon:setParent(nil)
+            self.holoweapon:setParent(self.holo, "anim_attachment_RH")
+            
+            local obb = self.holoweapon:obbSize()
+            local max = math.max(obb[1], obb[2], obb[3]) * 1.5
+            self.holoweapon:setScale(Vector(MapSize / max, MapSize / max, MapSize / max))
+        end
+        
+        self.plate.hit = self.data.hit or false
+        self.plate.id = self.id
+        
+        self.plate:emitSound("buttons/button24.wav", 75, 50, 0.75, CHAN_AUTO)
+        Effect:setOrigin(self.plate:getPos() + Vector(0, 0, MapSize / 2))
+        Effect:play("cball_explode")
+    end
+    
+    function Block:takedamage(damage, attacker)
+        if self.data.health <= 0 then return end
+        
+        self.data.health = self.data.health - damage
+        
+        if self.data.health <= 0 then
+            if attacker.id != nil then
+                attacker.id.data.experience = math.min(attacker.id.data.experiencemax, attacker.id.data.experience + 10 + (PlayerData.globalbonus["Experience: "] or 0))
+            end
+            
+            self.data.health = 0
+            self.data.active = true
+            self.holo:setAnimation(self.data.animations.death, 0, 3)
+            timer.simple(0.25, function() self.holo:setAnimation(self.data.animations.death, 0, 1) end)
+            
+            if self.data.enemy then
+                self.holo:setColor(Color(0, 0, 0, 0))
+            end
+                
+            Effect:setOrigin(self.plate:getPos() + Vector(0, 0, MapSize / 2))
+            Effect:setNormal(Vector(0, 0, 1))
+            Effect:setScale(1)
+            Effect:play("HL1Gib")
+            
+            PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.reward + (self.data.rewardbonus or 0) + (PlayerData.globalbonus["Reward: "] or 0)
+        else
+            self.holo:setAnimation(self.data.animations.hit, 0, 2)
+            timer.simple(0.25, function() self.holo:setAnimation(math.random(1, 2) == 1 and self.data.animations.idle1 or self.data.animations.idle2, 0, 1) end)
+        end
+    end
+    
+    function Block:tick()
+        if self.data.active then
+            self.data.tickvalue = (self.data.tickvalue or 0) + 1
+            
+            if self.data.tickvalue >= self.data.tickvaluemax then
+                self.data.tickvalue = self.data.tickvaluemax
+                BlockData[self.data.type].func(self.plate, self.data.level, self)
+            end 
+        end
+    end
+    
+    function Block:revive()
+        self.holo:setAnimation(self.data.animations.revive, 0, 2)
+        timer.simple(0.25, function() self.holo:setAnimation(math.random(1, 2) == 1 and self.data.animations.idle1 or self.data.animations.idle2, 0, 1) end)
+        self.holo:setAngles(Angle(0, math.random(359), 0))
+        self.data.active = false
+        self.data.maxhealth = math.round(self.data.maxhealth * (self.data.healthmodifer or 1))
+        self.data.tickvaluemax = math.round(self.data.tickvaluemax * (self.data.tickmodifer or 1))
+        self.data.reward = math.round(self.data.reward * (self.data.rewardmodifer or 1))
+        self.data.tickvalue = 0
+        self.data.health = self.data.maxhealth
+        self.data.level = self.data.level + (self.data.levelmodifer or 0)
+        self.holo:setColor(Color(255, 255, 255, 255))
+    end
+    
+    function Block:attack()
+        local range = self.data.range > 1 and (self.data.range + (PlayerData.globalbonus["Range: "] or 0)) or self.data.range
+        local Find = find.inSphere(self.plate:localToWorld(Vector()), range * MapSize, function(ent)
+            if  
+                ent:getModel() == Model and
+                ent:getClass() == "prop_physics" and 
+                ent:getOwner() == O and
+                ent.id.data.hit and
+                ent.id.data.health > 0 and
+                
+                ((ent.id.data.air and self.data.range > 1) or not ent.id.data.air) and
+                
+                ((self.data.job == "warrior" and ent.id.data.enemy) or (self.data.job == "worker" and ent.id.data.resource))
+            then
+                return true
+            end            
+        end)
+        local Target = Find[math.random(1, #Find)]
+        if Target then
+            self.holo:setAnimation(self.data.animations.attack, 0, 2)
+            timer.simple(0.25, function() self.holo:setAnimation(math.random(1, 2) == 1 and self.data.animations.idle1 or self.data.animations.idle2, 0, 1) end)
+            self.holo:setAngles((Target:getPos() - self.plate:getPos()):getAngle())
+            Target:applyDamage(self.data.damage + (self.data.damagebonus or 0) + (PlayerData.globalbonus["Damage: "] or 0), self.plate, O)
+            Target:emitSound(Target.id.data.impactsound.snd .. math.random(1, Target.id.data.impactsound.num) .. ".wav", 75, 150, 0.75, CHAN_AUTO)
+            self.data.tickvalue = 0
+            
+            if self.holoweapon then
+                Effect:setOrigin(Target:localToWorld(Vector(0, 0, MapSize / 2.5 + (Target.id.data.zposer or 0))))
+                Effect:setStart(self.plate:localToWorld(Vector(0, 0, MapSize / 1.5)))
+                Effect:setScale(3000)
+                Effect:play("AirboatGunTracer") 
+            end
+        end
+    end
+    
+    function Block:upgrade(key, modifer, type, cost)
+        
+        local done = false
+        
+        if type == "+" then
+            self.data.level = self.data.level + 1
+            if self.data.experiencemax then
+                self.data.experience = 0
+                self.data.experiencemax = math.round(self.data.experiencemax + self.data.experiencemodifer)
+            end
+            self.data[key] = math.round(self.data[key] + modifer)
+            self.plate:emitSound("buttons/button5.wav", 75, 150, 0.75, CHAN_AUTO)
+            done = true
+        else
+            if math.round(self.data[key] * modifer) != self.data[key] then
+                self.data.level = self.data.level + 1
+                if self.data.experiencemax then
+                    self.data.experience = 0
+                    self.data.experiencemax = math.round(self.data.experiencemax * self.data.experiencemodifer)
+                end
+                self.data[key] = math.round(self.data[key] * modifer)
+                self.plate:emitSound("buttons/button5.wav", 75, 150, 0.75, CHAN_AUTO)
+                done = true
+            end
+        end
+        
+        if done then
+            local costcount = table.count(cost)
+            for i = 1, costcount do
+                local cur =  table.getKeys(cost)[i]
+                PlayerData.currency[cur] = PlayerData.currency[cur] - cost[cur] * (self.data.level - 1)
+                self.data.cost[cur] = (self.data.cost[cur] or 0) + cost[cur]
+            end
+        end
+    end
+    
+    function Block:research(key, type)
+        
+        local research = BlockData[type].research[key]
+        local costcount = table.count(research.cost)
+        local costaccess = 0
+        for i = 1, costcount do
+            local cur =  table.getKeys(research.cost)[i]
+            if research.cost[cur] * ((PlayerData.globalbonus[key] or 0) + 1) <= PlayerData.currency[cur] then
+                costaccess = costaccess + 1
+            end
+        end
+        
+        if costaccess == costcount then
+            for i = 1, costcount do
+                local cur =  table.getKeys(research.cost)[i]
+                PlayerData.currency[cur] = PlayerData.currency[cur] - research.cost[cur] * ((PlayerData.globalbonus[key] or 0) + 1)
+            end
+            PlayerData.globalbonus[key] = (PlayerData.globalbonus[key] or 0) + research.modifer
+            self.plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+        end
+        
+    end
+    
+    BlockData = {
+    --buildings
+        Base = {
+            data = {
+                type = "Base",
+                level = 1,
+                holomodel = {"models/props_combine/combine_tptimer.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Base",
+                tickvaluemax = 1000,
+                funcname = "cooldown",
+                active = true,
+                income = 1,
+                currency = "chip",
+                anim = "loop",
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                cost = {},
+                upgrades = {
+                    ["Income: "] = {text = "+1 per upgrade", key = "income", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 250, chip = 10}},    
+                },
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+            build = {
+                units = {"Worker", "Warrior"},
+                buildings = {"Generator", "Lumber_mill", "Stone_factory", "Barracks"},
+                support = {"Charger"},
+            },
+        },
+        Generator = {
+            data = {
+                type = "Generator",
+                level = 1,
+                holomodel = {"models/items/combine_rifle_ammo01.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Generator",
+                tickvaluemax = 1000,
+                funcname = "cooldown",
+                active = true,
+                income = 1,
+                currency = "plasma",
+                anim = "",
+                cost = {plasma = 50, tree = 250, stone = 250, chip = 5},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Serves for the production of resources. Can't be moved.",
+                upgrades = {
+                    ["Income: "] = {text = "+1 per upgrade", key = "income", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 250, chip = 10}},    
+                },
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+            build = {
+                support = {"Instructor"},
+                resources = {"Energy_battery"},
+                buildings = {"Research_center"},
+            },
+        },
+        Lumber_mill = {
+            data = {
+                type = "Lumber_mill",
+                level = 1,
+                holomodel = {"models/props_lab/generator.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Lumber mill",
+                tickvaluemax = 1000,
+                funcname = "cooldown",
+                active = true,
+                income = 1,
+                currency = "tree",
+                cost = {plasma = 125, tree = 100, stone = 300, chip = 10},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Serves for the production of resources. Can't be moved.",
+                upgrades = {
+                    ["Income: "] = {text = "+1 per upgrade", key = "income", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 250, chip = 10}},    
+                },
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+            build = {
+                units = {"Loader"},
+                support = {"IncomeEmpower"},
+                resources = {"Tree"},
+            },
+        },
+        Stone_factory = {
+            data = {
+                type = "Stone_factory",
+                level = 1,
+                holomodel = {"models/props_lab/crystalbulk.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Stone factory",
+                tickvaluemax = 1000,
+                funcname = "cooldown",
+                active = true,
+                income = 1,
+                currency = "stone",
+                cost = {plasma = 125, tree = 300, stone = 100, chip = 10},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Serves for the production of resources. Can't be moved.",
+                upgrades = {
+                    ["Income: "] = {text = "+1 per upgrade", key = "income", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 250, chip = 10}},    
+                },
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+            build = {
+                support = {"RewardEmpower"},
+                resources = {"Stone"},
+            },
+        },
+        Barracks = {
+            data = {
+                type = "Barracks",
+                level = 1,
+                holomodel = {"models/props_rooftop/dome004.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Barracks",
+                cost = {plasma = 50, tree = 400, stone = 500, chip = 10},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Can train strong warriors. Can't be moved.",
+            },
+            build = {
+                buildings = {"Coaching_point"},
+                units = {"Submachine_gunner"},
+                support = {"PowerBooster"},
+                enemy = {"Crab"},
+            },
+        },
+        Research_center = {
+            data = {
+                type = "Research_center",
+                level = 1,
+                holomodel = {"models/props_combine/combine_dispenser.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Research center",
+                cost = {energy = 2500, tree = 1000, stone = 1000, chip = 500, plasma = 500},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Contains global improvements for buildings, units, and resources. Can't be moved.",
+            },
+            research = {
+                ["Damage: "] = {text = "+1 damage to all units", modifer = 1, type = "+", cost = {tree = 500, stone = 250, plasma = 125, chip = 25, energy = 10, mutagen = 25}},     
+                ["Range: "] = {text = "+1 range to ranged units", modifer = 1, type = "+", cost = {tree = 1000, stone = 2000, plasma = 750, chip = 125, energy = 50, mutagen = 25}}, 
+                ["Income: "] = {text = "+1 income to structures", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 200, chip = 10, energy = 5, mutagen = 25}}, 
+                ["Reward: "] = {text = "+1 income to structures", modifer = 1, type = "+", cost = {tree = 250, stone = 250, plasma = 200, chip = 10, energy = 5, mutagen = 25}}, 
+                ["Experience: "] = {text = "+1 exp gain", modifer = 1, type = "+", cost = {tree = 100, stone = 200, plasma = 500, chip = 50, energy = 15, mutagen = 25}}, 
+            },
+        },
+        Coaching_point = {
+            data = {
+                type = "Coaching_point",
+                level = 1,
+                holomodel = {"models/props_trainstation/trainstation_ornament001.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Coaching point",
+                cost = {plasma = 500, tree = 1000, stone = 1000, chip = 1000, energy = 500},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Can build enemies. Can't be moved.",
+            },
+            build = {
+                units = {},
+                support = {},
+                enemy = {"Antlion", "Dropship"},
+            },
+        },
+        Stone_processor = {
+            data = {
+                type = "Stone_processor",
+                level = 1,
+                holomodel = {"models/props_canal/generator02.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Stone processor",
+                tickvaluemax = 5000,
+                funcname = "cooldown",
+                active = true,
+                income = 100,
+                currency = "stone",
+                cost = {plasma = 1500, tree = 4000, stone = 2000, chip = 150, energy = 500},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Produces a 100 stone. Can't be moved.",
+                upgrades = {
+                    ["Income: "] = {text = "+25 per upgrade", key = "income", modifer = 1, type = "+", cost = {energy = 500, chip = 500}},    
+                },
+                zposer = MapSize * 0.3
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+        },
+        Sawmill = {
+            data = {
+                type = "Sawmill",
+                level = 1,
+                holomodel = {"models/props_canal/generator01.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Sawmill",
+                tickvaluemax = 5000,
+                funcname = "cooldown",
+                active = true,
+                income = 100,
+                currency = "tree",
+                cost = {plasma = 1500, tree = 2000, stone = 4000, chip = 150, energy = 500},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Produces a 100 tree. Can't be moved.",
+                upgrades = {
+                    ["Income: "] = {text = "+25 per upgrade", key = "income", modifer = 1, type = "+", cost = {energy = 500, chip = 500}},    
+                },
+                zposer = MapSize * 0.3
+            },
+            func = function(plate, level, self)
+                    Effect:setOrigin(plate:getPos() + Vector(0, 0, MapSize / 2))
+                    Effect:setNormal(Vector(0, 0, 1))
+                    Effect:play("MetalSpark")
+                plate:emitSound("buttons/combine_button1.wav", 75, 150, 0.75, CHAN_AUTO)
+                PlayerData.currency[self.data.currency] = (PlayerData.currency[self.data.currency] or 0) + self.data.income + (self.data.incomebonus or 0) + (PlayerData.globalbonus["Income: "] or 0)
+                self.data.tickvalue = 0
+            end,
+        },
+    --enemys
+        Crab = {
+            data = {
+                type = "Crab",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/headcrabclassic.mdl"},
+                basematerial = "sprops/textures/gear_metal",
+                animations = {idle1 = "idle01", idle2 = "idleb", hit = "jumpattack_broadcast", death = "burrowin", revive = "burrowout"},
+                maxhealth = 100,
+                health = 100,
+                healthmodifer = 1.1,
+                hit = true,
+                name = "Crab",
+                tickvaluemax = 250,
+                tickmodifer = 1.05,
+                funcname = "reborn",
+                active = false,
+                enemy = true,
+                reward = 10,
+                rewardmodifer = 1.1,
+                currency = "plasma",
+                impactsound = {snd = "physics/flesh/flesh_impact_bullet", num = 5},
+                drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
+                cost = {plasma = 500},
+                description = "A simple enemy, for getting plasma resource. Can't be moved.",
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+        Antlion = {
+            data = {
+                type = "Antlion",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/AntLion.mdl"},
+                basematerial = "sprops/textures/gear_metal",
+                animations = {idle1 = "idle", idle2 = "distractidle2", hit = "drown", death = "digin", revive = "digout"},
+                maxhealth = 1500,
+                health = 1500,
+                healthmodifer = 1.1,
+                hit = true,
+                name = "Antlion",
+                tickvaluemax = 250,
+                tickmodifer = 1.05,
+                funcname = "reborn",
+                active = false,
+                enemy = true,
+                reward = 300,
+                rewardmodifer = 1.1,
+                currency = "plasma",
+                impactsound = {snd = "physics/flesh/flesh_impact_bullet", num = 5},
+                drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
+                cost = {plasma = 2000, tree = 500, stone = 500, energy = 500, chip = 100},
+                description = "A simple enemy, for getting plasma resource. Can't be moved.",
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+        Dropship = {
+            data = {
+                type = "Dropship",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/combine_dropship.mdl"},
+                basematerial = "sprops/textures/gear_metal",
+                animations = {idle1 = "hover", idle2 = "cargo_hover", hit = "bodyflex", death = "bodyflex_bodyonly", revive = "dogdropship_approach"},
+                maxhealth = 5000,
+                health = 5000,
+                healthmodifer = 1.1,
+                hit = true,
+                name = "Dropship",
+                tickvaluemax = 5000,
+                tickmodifer = 1.05,
+                funcname = "reborn",
+                active = false,
+                enemy = true,
+                air = true,
+                reward = 100,
+                rewardmodifer = 1.1,
+                currency = "mutagen",
+                impactsound = {snd = "physics/flesh/flesh_impact_bullet", num = 5},
+                drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
+                cost = {plasma = 3000, tree = 750, stone = 750, energy = 2500, chip = 1000},
+                description = "A air enemy, for getting matagen resource. Can't be moved.",
+                zposer = MapSize * 1.5,
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+    --units
+        Warrior = {
+            data = {
+                type = "Warrior",
+                job = "warrior",
+                level = 1,
+                holomodel = {"models/humans/group03/male_02.mdl", "models/humans/group03/male_04.mdl", "models/humans/group03/male_05.mdl", "models/humans/group03/male_07.mdl", "models/humans/group03/male_06.mdl"},
+                basematerial = "phoenix_storms/metalset_1-2",
+                animations = {idle1 = "idle_angry", idle2 = "idle_angry_melee", attack = "swing"},
+                name = "Warrior",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                range = 1,
+                damage = 25,
+                experience = 0,
+                experiencemax = 100,
+                experiencemodifer = 1.25,
+                cost = {plasma = 50, tree = 50, stone = 50},
+                drawntype = {name = "unit", clr = Color(255, 255, 0, 200)},
+                description = "A melee warrior, will attack nearby ground enemies. Can be moved",
+                upgrades = {
+                    ["Damage: "] = {text = "+10% damage per upgrade", key = "damage", modifer = 1.1},    
+                    ["Speed: "] = {text = "-10% cooldown per upgrade", key = "tickvaluemax", modifer = 0.9},
+                },
+            },
+            func = function(plate, level, self)
+                self:attack()
+            end,
+        },
+        Submachine_gunner = {
+            data = {
+                type = "Submachine_gunner",
+                job = "warrior",
+                level = 1,
+                holomodel = {"models/humans/group03/male_02.mdl", "models/humans/group03/male_04.mdl", "models/humans/group03/male_05.mdl", "models/humans/group03/male_07.mdl", "models/humans/group03/male_06.mdl"},
+                holoweapon = "models/weapons/w_irifle.mdl",
+                basematerial = "phoenix_storms/metalset_1-2",
+                animations = {idle1 = "idle_angry_ar2", idle2 = "idle_alert_02", attack = "shoot_smg1"},
+                name = "Submachine gunner",
+                tickvaluemax = 50,
+                funcname = "cooldown",
+                active = true,
+                range = 3,
+                damage = 50,
+                experience = 0,
+                experiencemax = 100,
+                experiencemodifer = 1.25,
+                cost = {plasma = 500, tree = 250, stone = 100},
+                drawntype = {name = "unit", clr = Color(255, 255, 0, 200)},
+                description = "A ranged warrior, will attack nearby air/ground enemies. Can be moved",
+                upgrades = {
+                    ["Damage: "] = {text = "+10% damage per upgrade", key = "damage", modifer = 1.1},    
+                    ["Speed: "] = {text = "-10% cooldown per upgrade", key = "tickvaluemax", modifer = 0.9},
+                    ["Range: "] = {text = "+25% range per upgrade", key = "range", modifer = 1.25},
+                },
+            },
+            func = function(plate, level, self)
+                self:attack()
+            end,
+        },
+        Worker = {
+            data = {
+                type = "Worker",
+                job = "worker",
+                level = 1,
+                holomodel = {"models/Humans/Group02/male_03.mdl", "models/Humans/Group02/Male_01.mdl"},
+                basematerial = "phoenix_storms/metalset_1-2",
+                animations = {idle1 = "idle_angry", idle2 = "idle_angry_melee", attack = "swing"},
+                name = "Worker",
+                tickvaluemax = 50,
+                funcname = "cooldown",
+                active = true,
+                range = 1,
+                damage = 10,
+                experience = 0,
+                experiencemax = 100,
+                experiencemodifer = 1.25,
+                cost = {plasma = 50, tree = 50, stone = 50},
+                drawntype = {name = "unit", clr = Color(255, 255, 0, 200)},
+                description = "Simple workforce, knows how to extract resources. Can be moved.",
+                upgrades = {
+                    ["Damage: "] = {text = "+10% damage per upgrade", key = "damage", modifer = 1.1},    
+                    ["Speed: "] = {text = "-10% cooldown per upgrade", key = "tickvaluemax", modifer = 0.9},
+                },
+            },
+            func = function(plate, level, self)
+                self:attack()
+            end,
+        },
+        Loader = {
+            data = {
+                type = "Loader",
+                job = "worker",
+                level = 1,
+                holomodel = {"models/perftest/loader.mdl"},
+                basematerial = "phoenix_storms/metalset_1-2",
+                animations = {idle1 = "heroidle", idle2 = "heroidle", attack = "herodie"},
+                name = "Loader",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                range = 1,
+                damage = 100,
+                experience = 0,
+                experiencemax = 100,
+                experiencemodifer = 1.25,
+                cost = {plasma = 400, tree = 150, stone = 250, chip = 10},
+                drawntype = {name = "unit", clr = Color(255, 255, 0, 200)},
+                description = "Powered workforce, knows how to extract resources. Can be moved.",
+                upgrades = {
+                    ["Damage: "] = {text = "+10% damage per upgrade", key = "damage", modifer = 1.1},    
+                    ["Speed: "] = {text = "-10% cooldown per upgrade", key = "tickvaluemax", modifer = 0.9},
+                },
+            },
+            func = function(plate, level, self)
+                self:attack()
+            end,
+            build = {
+                buildings = {"Stone_processor", "Sawmill"},
+            },
+        },
+    --resources
+        Tree = {
+            data = {
+                type = "Tree",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/props_foliage/tree_deciduous_01a.mdl", "models/props_foliage/tree_deciduous_01a-lod.mdl", "models/props_foliage/tree_deciduous_03a.mdl", "models/props_foliage/tree_deciduous_03b.mdl"},
+                basematerial = "models/props_foliage/tree_deciduous_01a_trunk",
+                animations = {idle1 = "", idle2 = "", hit = "", death = "", revive = ""},
+                maxhealth = 100,
+                health = 100,
+                healthmodifer = 1.05,
+                hit = true,
+                name = "Tree",
+                tickvaluemax = 1,
+                funcname = "reborn",
+                active = false,
+                resource = true,
+                reward = 10,
+                rewardmodifer = 1.05,
+                currency = "tree",
+                impactsound = {snd = "physics/wood/wood_solid_impact_bullet", num = 5},
+                drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
+                cost = {tree = 500},
+                description = "A simple tree, for getting resources. Can't be moved.",
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+        Stone = {
+            data = {
+                type = "Stone",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/props_wasteland/rockgranite03c.mdl", "models/props_wasteland/rockgranite03a.mdl", "models/props_wasteland/rockgranite02a.mdl", "models/props_wasteland/rockcliff_cluster02a.mdl"},
+                basematerial = "models/props_foliage/tree_deciduous_01a_trunk",
+                animations = {idle1 = "", idle2 = "", hit = "", death = "", revive = ""},
+                maxhealth = 100,
+                health = 100,
+                healthmodifer = 1.05,
+                hit = true,
+                name = "Stone",
+                tickvaluemax = 1,
+                funcname = "reborn",
+                active = false,
+                resource = true,
+                reward = 10,
+                rewardmodifer = 1.05,
+                currency = "stone",
+                impactsound = {snd = "physics/concrete/concrete_impact_bullet", num = 4},
+                drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
+                cost = {stone = 500},
+                description = "A simple stone, for getting resources. Can't be moved.",
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+        Energy_battery = {
+            data = {
+                type = "Energy_battery",
+                level = 1,
+                levelmodifer = 1,
+                holomodel = {"models/items/battery.mdl"},
+                basematerial = "models/props_foliage/tree_deciduous_01a_trunk",
+                animations = {idle1 = "", idle2 = "", hit = "", death = "", revive = ""},
+                maxhealth = 2000,
+                health = 2000,
+                healthmodifer = 1.05,
+                hit = true,
+                name = "Energy battery",
+                tickvaluemax = 1,
+                funcname = "reborn",
+                active = false,
+                resource = true,
+                reward = 10,
+                rewardmodifer = 1.05,
+                currency = "energy",
+                impactsound = {snd = "physics/concrete/concrete_impact_bullet", num = 4},
+                drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
+                cost = {stone = 1000, tree = 1000, chip = 500, plasma = 100},
+                description = "A simple energy structure, for getting resources. Can't be moved.",
+            },
+            func = function(plate, level, self)
+                self:revive()
+                plate:emitSound("buttons/combine_button7.wav", 75, 150, 0.75, CHAN_AUTO)
+            end,
+        },
+    --support
+        Charger = {
+            data = {
+                type = "Charger",
+                level = 1,
+                holomodel = {"models/cheeze/buttons2/charge.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Charger",
+                tickvaluemax = 11,
+                funcname = "cooldown",
+                active = true,
+                anim = "",
+                range = 1,
+                cost = {plasma = 250, tree = 100, stone = 100, chip = 50},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "+3 ticks per second to nearby structures and units. Can't be moved.",
+                upgrades = {
+                    ["Range: "] = {text = "+1 per upgrade", key = "range", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 500, chip = 50}},    
+                },
+            },
+            func = function(plate, level, self)
+                self.data.tickvalue = 0
+                
+                local Find = find.inSphere(self.plate:localToWorld(Vector()), self.data.range * MapSize, function(ent)
+                    if  
+                        ent:getModel() == Model and
+                        ent:getClass() == "prop_physics" and 
+                        ent:getOwner() == O and
+                        (ent.id.data.tickvaluemax or 0) > 0 and
+                        ent != plate
+                    then
+                        return true
+                    end            
+                end)
+                
+                for i = 1, #Find do
+                    local ent = Find[i]
+                    ent.id.data.tickvalue = math.min((ent.id.data.tickvaluemax or 0), (ent.id.data.tickvalue or 0) + 1)
+                end
+            end,
+        },
+        PowerBooster = {
+            data = {
+                type = "PowerBooster",
+                level = 1,
+                holomodel = {"models/cheeze/buttons2/power.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "PowerBooster",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                anim = "",
+                range = 1,
+                boost = 10,
+                time = 10,
+                cost = {plasma = 100, tree = 250, stone = 100, chip = 50},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Boosts damage parameter of nearby units. Can't be moved.",
+                upgrades = {
+                    ["Range: "] = {text = "+1 per upgrade", key = "range", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 500, chip = 50}},    
+                    ["Boost: "] = {text = "+10% damage per upgrade", key = "boost", modifer = 10, type = "+", cost = {tree = 500, stone = 500, plasma = 100, chip = 25}, text2 = "%"}, 
+                    ["Time: "] = {text = "+2 seconds per upgrade", key = "time", modifer = 2, type = "+", cost = {tree = 750, stone = 750, plasma = 750, chip = 75}},  
+                },
+            },
+            func = function(plate, level, self)
+                self.data.tickvalue = 0
+                
+                local Find = find.inSphere(self.plate:localToWorld(Vector()), self.data.range * MapSize, function(ent)
+                    if  
+                        ent:getModel() == Model and
+                        ent:getClass() == "prop_physics" and 
+                        ent:getOwner() == O and
+                        (ent.id.data.damage or 0) > 0
+                    then
+                        return true
+                    end            
+                end)
+                
+                for i = 1, #Find do
+                    local ent = Find[i]
+                    local bonus = math.round(ent.id.data.damage * (self.data.boost / 100))
+                    ent.id.data.damagebonus = (ent.id.data.damagebonus or 0) + bonus
+                    timer.simple(self.data.time, function() ent.id.data.damagebonus = ent.id.data.damagebonus - bonus end)
+                end
+            end,
+        },
+        IncomeEmpower = {
+            data = {
+                type = "IncomeEmpower",
+                level = 1,
+                holomodel = {"models/cheeze/buttons/button_plus.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "IncomeEmpower",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                anim = "",
+                range = 1,
+                boost = 1,
+                time = 10,
+                cost = {plasma = 100, tree = 100, stone = 255, chip = 50},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Boosts income parameter of nearby structures. Can't be moved.",
+                upgrades = {
+                    ["Range: "] = {text = "+1 per upgrade", key = "range", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 500, chip = 50}},    
+                    ["Boost: "] = {text = "+1 resource per upgrade", key = "boost", modifer = 1, type = "+", cost = {tree = 500, stone = 500, plasma = 100, chip = 25}, text2 = " resource"}, 
+                    ["Time: "] = {text = "+2 seconds per upgrade", key = "time", modifer = 2, type = "+", cost = {tree = 750, stone = 750, plasma = 750, chip = 75}},  
+                },
+            },
+            func = function(plate, level, self)
+                self.data.tickvalue = 0
+                
+                local Find = find.inSphere(self.plate:localToWorld(Vector()), self.data.range * MapSize, function(ent)
+                    if  
+                        ent:getModel() == Model and
+                        ent:getClass() == "prop_physics" and 
+                        ent:getOwner() == O and
+                        (ent.id.data.income or 0) > 0
+                    then
+                        return true
+                    end            
+                end)
+                
+                for i = 1, #Find do
+                    local ent = Find[i]
+                    local bonus = self.data.boost
+                    ent.id.data.incomebonus = (ent.id.data.incomebonus or 0) + bonus
+                    timer.simple(self.data.time, function() ent.id.data.incomebonus = ent.id.data.incomebonus - bonus end)
+                end
+            end,
+        },
+        RewardEmpower = {
+            data = {
+                type = "RewardEmpower",
+                level = 1,
+                holomodel = {"models/cheeze/buttons2/activate.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "RewardEmpower",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                anim = "",
+                range = 1,
+                boost = 10,
+                time = 10,
+                cost = {plasma = 150, tree = 150, stone = 150, chip = 50},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Boosts reward parameter of nearby resources/enemys. Can't be moved.",
+                upgrades = {
+                    ["Range: "] = {text = "+1 per upgrade", key = "range", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 500, chip = 50}},    
+                    ["Boost: "] = {text = "+10% reward per upgrade", key = "boost", modifer = 10, type = "+", cost = {tree = 500, stone = 500, plasma = 100, chip = 25}, text2 = "%"}, 
+                    ["Time: "] = {text = "+2 seconds per upgrade", key = "time", modifer = 2, type = "+", cost = {tree = 750, stone = 750, plasma = 750, chip = 75}},  
+                },
+            },
+            func = function(plate, level, self)
+                self.data.tickvalue = 0
+                
+                local Find = find.inSphere(self.plate:localToWorld(Vector()), self.data.range * MapSize, function(ent)
+                    if  
+                        ent:getModel() == Model and
+                        ent:getClass() == "prop_physics" and 
+                        ent:getOwner() == O and
+                        (ent.id.data.reward or 0) > 0
+                    then
+                        return true
+                    end            
+                end)
+                
+                for i = 1, #Find do
+                    local ent = Find[i]
+                    local bonus = math.round(ent.id.data.reward * (self.data.boost / 100))
+                    ent.id.data.rewardbonus = (ent.id.data.rewardbonus or 0) + bonus
+                    timer.simple(self.data.time, function() ent.id.data.rewardbonus = ent.id.data.rewardbonus - bonus end)
+                end
+            end,
+        },
+        Instructor = {
+            data = {
+                type = "Instructor",
+                level = 1,
+                holomodel = {"models/cheeze/buttons2/pwr_blue.mdl"},
+                basematerial = "sprops/textures/hex_dark_bump",
+                name = "Instructor",
+                tickvaluemax = 100,
+                funcname = "cooldown",
+                active = true,
+                anim = "",
+                range = 1,
+                boost = 1,
+                cost = {tree = 500, stone = 500, chip = 250, energy = 50},
+                drawntype = {name = "structure", clr = Color(255, 255, 0, 200)},
+                description = "Gives experience to nearby units. Can't be moved.",
+                upgrades = {
+                    ["Range: "] = {text = "+1 per upgrade", key = "range", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 500, chip = 50}},    
+                    ["Boost: "] = {text = "+1 experience per upgrade", key = "boost", modifer = 1, type = "+", cost = {tree = 1000, stone = 1000, plasma = 250, chip = 25}, text2 = " experience"}, 
+                },
+            },
+            func = function(plate, level, self)
+                self.data.tickvalue = 0
+                
+                local Find = find.inSphere(self.plate:localToWorld(Vector()), self.data.range * MapSize, function(ent)
+                    if  
+                        ent:getModel() == Model and
+                        ent:getClass() == "prop_physics" and 
+                        ent:getOwner() == O and
+                        (ent.id.data.experiencemax or 0) > 0 and
+                        ent != plate
+                    then
+                        return true
+                    end            
+                end)
+                
+                for i = 1, #Find do
+                    local ent = Find[i]
+                    ent.id.data.experience = math.min((ent.id.data.experiencemax or 0), (ent.id.data.experience or 0) + self.data.boost + (PlayerData.globalbonus["Experience: "] or 0))
+                end
+            end,
+        },
+        
+    }
+        
+    E:setCollisionGroup(10)
+    
+    Entitys[#Entitys + 1] = Block:new("Base", E:getPos())
+    --Entitys[#Entitys + 1] = Block:new("Antlion", E:getPos() + Vector(-50, 50, 0))
+    
+    timer.simple(0.25, function() Entitys[#Entitys + 1] = Block:new("Crab", E:getPos() + Vector(-100, 100, 0)) end)
+    timer.simple(0.5, function() Entitys[#Entitys + 1] = Block:new("Tree", E:getPos() + Vector(100, 100, 0)) end)
+    timer.simple(0.75, function() Entitys[#Entitys + 1] = Block:new("Stone", E:getPos() + Vector(100, -100, 0)) end)
+    
+    hook.add("EntityTakeDamage", "", function(target, attacker, inflictor, amount, type, position, force)
+        if target.hit == true and inflictor:isPlayer() and not attacker:isPlayer() then
+            target.id:takedamage(math.round(amount), attacker)
+        end
+    end)
+        
+    hook.add("Tick", "", function()
+        
+        --entitys ticks
+            local IDToRemove = nil
+            for i = 1, #Entitys do
+                if Entitys[i].plate:isValid() then
+                    Entitys[i]:tick()
+                else
+                    IDToRemove = i
+                end
+            end
+            
+            if IDToRemove != nil then table.remove(Entitys, IDToRemove) end
+            
+        --player builds
+            if Build then
+                local pos = PosToGrid(O:getEyeTrace().HitPos)            
+                local Find = find.inSphere(pos, MapSize / 3, function(ent)
+                    if ent:getModel() == Model and ent:getClass() == "prop_physics" then return true end            
+                end)
+                
+                Holo[777]:setPos(pos)
+                Holo[777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
+                
+                if O:keyDown(1) then        
+                    if #Find == 0 then
+                        Entitys[#Entitys + 1] = Block:new(BuildKey, pos)
+                                                
+                        net.start("build")
+                        net.writeTable({key = nil})
+                        net.send(owner()) 
+                        
+                        Holo[777]:setPos(Vector(7777, 7777, 7777))
+                        
+                        local costcount = table.count(BlockData[BuildKey].data.cost)
+                        for i = 1, costcount do
+                            local cur =  table.getKeys(BlockData[BuildKey].data.cost)[i]
+                            PlayerData.currency[cur] = PlayerData.currency[cur] - BlockData[BuildKey].data.cost[cur]
+                        end
+                        
+                        Build = false
+                        BuildKey = nil
+                    end
+                end
+            end
+            
+        --move units
+            if Move then
+                local pos = PosToGrid(O:getEyeTrace().HitPos)
+                local Find = find.inSphere(pos, MapSize / 3, function(ent)
+                    if ent:getModel() == Model and ent:getClass() == "prop_physics" then return true end            
+                end)
+                
+                Holo[777]:setPos(pos)
+                Holo[777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
+                
+                if MoveType != "auto" then
+                    if O:keyDown(1) or MoveType == "place" then   
+                        if #Find == 0 then
+                            MoveEnt:setParent(nil)
+                            MoveEnt:setPos(pos)
+                            MoveEnt:setParent(E)
+                            MoveEnt:emitSound("buttons/button19.wav", 75, 150, 0.75, CHAN_AUTO)
+                            
+                            Holo[777]:setPos(Vector(7777, 7777, 7777))
+                            
+                            net.start("move")
+                            net.writeTable({ent = nil})
+                            net.send(owner()) 
+                                                    
+                            Move = false
+                            MoveEnt = nil
+                        end
+                    end
+                end
+            end
+            
+    end)
+    
+    function sendData()
+        local data = {}
+        local aim = O:getEyeTrace().Entity
+        data[#data + 1] = {id = aim:entIndex(), data = aim.id == nil and {} or aim.id.data}
+        
+        net.start("sendData")
+        net.writeTable({data = data, playerdata = PlayerData})
+        net.send(owner()) 
+    end
+    
+    timer.create("sendData", 0.25, 0, function()
+        sendData()
+    end)
+    
+    timer.create("sendBlockData", 1, 1, function()
+        local data = table.copy(BlockData)
+        for i = 1, table.count(data) do
+            local key = table.getKeys(data)[i]
+            data[key].func = nil
+        end
+        
+        net.start("sendBlockData")
+        net.writeTable(data)
+        net.send(owner()) 
+    end)
+    
+    net.receive("build", function(str)
+        local data = net.readTable()
+        BuildKey = data.key
+        if BuildKey == nil then
+            Build = false
+            Holo[777]:setPos(Vector(7777, 7777, 7777))
+        else
+            Build = true
+        end
+    end)
+    
+    net.receive("move", function(str)
+        local data = net.readTable()
+        MoveEnt = data.ent
+        MoveType = data.type
+        if MoveEnt == nil then
+            Move = false
+            Holo[777]:setPos(Vector(7777, 7777, 7777))
+        else
+            Move = true
+        end
+    end)
+    
+    net.receive("sell", function(str)
+        SellEnt = net.readTable().ent
+        local data = SellEnt.id.data.cost
+        for i = 1, table.count(data) do
+            local cur = table.getKeys(data)[i]
+            local cost = data[cur]
+            PlayerData.currency[cur] = PlayerData.currency[cur] + math.round(cost / 2)
+        end
+        SellEnt:remove()
+        O:emitSound("buttons/button3.wav", 75, 150, 0.75, CHAN_AUTO)
+    end)
+    
+    net.receive("upgrade", function(str)
+        local data = net.readTable()
+        data.ent.id:upgrade(data.key, data.modifer, data.type, data.cost)
+    end)
+    
+    net.receive("research", function(str)
+        local data = net.readTable()
+        data.ent.id:research(data.key, data.type)
+    end)
+        
+elseif CLIENT then
+    
+    if player() != O then return end
+    enableHud(nil, true)
+    
+    InfoBarSize = Vector(400, 25)
+    HealthBarSize = Vector(300, 25)
+    CurrencyBarSize = Vector(200, 35)
+    CurrencyIconSize = Vector(25, 25)
+    MenuSize = Vector(400, 400)
+    BuildIconSize = Vector(50, 50)
+    BuildMenuSize = Vector(300, 300)
+    MoveButtonSize = Vector(100, 50)
+    UpgradeButtonSize = Vector(75, 25)
+    UpgradeCostSize = Vector(250, 0)
+    
+    Font20 = render.createFont("Consolas", 20, 50, true)
+    Font18 = render.createFont("Consolas", 18, 50, true)
+    
+    Materials = {
+        --resources
+            stone = "spawnicons/models/props_debris/concrete_chunk04a.png",
+            tree = "spawnicons/models/props_foliage/tree_cliff_02a.png",
+            plasma = "spawnicons/models/healthvial.png",
+            chip = "spawnicons/models/bull/gates/processor.png",
+            energy = "spawnicons/models/Items/battery.png",      
+            mutagen = "spawnicons/models/gibs/gunship_gibs_eye.png",
+        --buildings/units
+            Worker = "spawnicons/models/humans/group02/male_03.png",
+            Warrior = "spawnicons/models/humans/group03/male_02.png",
+            Submachine_gunner = "spawnicons/models/humans/group03/male_07.png",
+            Generator = "spawnicons/models/items/combine_rifle_ammo01.png",
+            Lumber_mill = "spawnicons/models/props_lab/generator.png",
+            Stone_factory = "spawnicons/models/props_lab/crystalbulk.png",
+            Loader = "spawnicons/models/perftest/loader.png",
+            Barracks = "spawnicons/models/props_rooftop/dome004.png",
+            Research_center = "spawnicons/models/props_combine/combine_dispenser.png",
+            Coaching_point = "spawnicons/models/props_trainstation/trainstation_ornament001.png",
+            Stone_processor = "spawnicons/models/props_canal/generator02.png",
+            Sawmill = "spawnicons/models/props_canal/generator01.png",
+        --support
+            Charger = "spawnicons/models/cheeze/buttons2/charge.png",
+            PowerBooster = "spawnicons/models/cheeze/buttons2/power.png",
+            IncomeEmpower = "spawnicons/models/cheeze/buttons/button_plus.png",
+            RewardEmpower = "spawnicons/models/cheeze/buttons2/activate.png",
+            Instructor = "spawnicons/models/cheeze/buttons2/pwr_blue.png",
+        --resource structures
+            Tree = "spawnicons/models/props_foliage/shrub_01a.png",
+            Stone = "spawnicons/models/props_wasteland/rockcliff_cluster02a.png",
+            Energy_battery = "spawnicons/models/items/battery.png",
+        --enemy
+            Crab = "spawnicons/models/Lamarr.png",
+            Antlion = "spawnicons/models/AntLion.png",
+            Dropship = "spawnicons/models/combine_dropship.png",
+    }
+    
+    AimRange = 350
+    MenuOpen = false
+    MenuEntity = nil
+    Button = {}
+    Build = false
+    Move = false
+    
+    hook.add("drawhud", "", function()
+        
+        if ResX == nil then ResX, ResY = render.getResolution() end
+                
+    --draw unit info
+        AimEntity = O:getEyeTrace().Entity
+        if AimEntity:isValid() and table.count(AimEntity.data or {}) > 0 and AimEntity:getPos():getDistance(O:getPos()) < AimRange then
+            local HP = (AimEntity.data.health or 0) > 0 and true or false
+            local TICK = (AimEntity.data.tickvalue or 0) >= 0 and AimEntity.data.active or false
+            local RANGE = AimEntity.data.range and true or false
+            local ATTACK = AimEntity.data.damage and true or false
+            local INCOME = AimEntity.data.income and true or false
+            local EXP = (AimEntity.data.experiencemax or 0) > 0 and true or false
+            local REWARD = (AimEntity.data.reward or 0) > 0 and true or false
+            local BOOST = (AimEntity.data.boost or 0) > 0 and true or false
+            local TIME = (AimEntity.data.time or 0) > 0 and true or false
+            
+            local size = Vector(InfoBarSize.x, InfoBarSize.y + (EXP and 25 or 0) + (HP and 25 or 0) + (TICK and 25 or 0) + (ATTACK and 25 or 0) + (INCOME and 25 or 0) + (REWARD and 25 or 0) + (RANGE and 25 or 0) + (TIME and 25 or 0) + (BOOST and 25 or 0))
+            
+            render.setFont(Font18)
+            render.setColor(Color(50, 100, 125, 200))
+            render.drawRect(ResX / 2 - InfoBarSize.x / 2, ResY / 2 + 200, size.x, size.y)
+            render.setColor(Color(0, 0, 0, 200))
+            render.drawRectOutline(ResX / 2 - InfoBarSize.x / 2, ResY / 2 + 200, size.x, size.y, 2)
+            render.setColor(Color(255, 175, 100, 200))
+            render.drawText(ResX / 2, ResY / 2 + 200, (AimEntity.data.name or "") .. " [lvl " .. (AimEntity.data.level or 0) .. "]", 1)
+            
+            local drawtype = AimEntity.data.drawntype
+            render.setColor(drawtype.clr)
+            render.drawText(ResX / 2 - InfoBarSize.x / 2 + 4, ResY / 2 + 200, "[" .. drawtype.name .. "]", 0)
+            
+            if drawtype.clr == Color(255, 255, 0, 200) then
+                render.setColor(Color(0, 0, 0, 175))
+                render.drawText(ResX / 2 + InfoBarSize.x / 2 - 5, ResY / 2 + 200, "[E]=>menu", 2)
+            end
+            
+            render.setFont(Font20)
+            
+            local y = 200
+            if TICK then
+                y = y + 25
+                local delta = (AimEntity.data.tickvalue or 1) / (AimEntity.data.tickvaluemax or 1)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, AimEntity.data.funcname .. ":", 0)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 85, ResY / 2 + y, HealthBarSize.x, HealthBarSize.y)
+                render.setColor(Color(100, 200, 200, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 87, ResY / 2 + 2 + y, (HealthBarSize.x - 4) * delta, HealthBarSize.y - 4)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 + 35, ResY / 2 + y, (AimEntity.data.tickvalue or 0) .. " / " .. (AimEntity.data.tickvaluemax or 0), 1)
+            end
+            if EXP then
+                y = y + 25
+                local delta = (AimEntity.data.experience or 1) / (AimEntity.data.experiencemax or 1)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "exp :", 0)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 85, ResY / 2 + y, HealthBarSize.x, HealthBarSize.y)
+                render.setColor(Color(200, 200, 100, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 87, ResY / 2 + 2 + y, (HealthBarSize.x - 4) * delta, HealthBarSize.y - 4)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 + 35, ResY / 2 + y, AimEntity.data.experience .. " / " .. AimEntity.data.experiencemax, 1)
+            end
+            if HP then
+                y = y + 25
+                local delta = AimEntity.data.health / AimEntity.data.maxhealth
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "health : ", 0)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 85, ResY / 2 + y, HealthBarSize.x, HealthBarSize.y)
+                render.setColor(Color(255 - 255 * delta, 255 * delta, 0, 200))
+                render.drawRect(ResX / 2 - InfoBarSize.x / 2 + 87, ResY / 2 + 2 + y, (HealthBarSize.x - 4) * delta, HealthBarSize.y - 4)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 + 35, ResY / 2 + y, AimEntity.data.health .. " / " .. AimEntity.data.maxhealth, 1)
+            end
+            if RANGE then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, 
+                    "Range : " 
+                    .. AimEntity.data.range 
+                    .. (AimEntity.data.range > 1 and ((PlayerData.globalbonus["Range: "] or 0) > 0 and (" + " .. PlayerData.globalbonus["Range: "]) or "") or ""),
+                    0
+                )
+            end
+            if ATTACK then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, 
+                    "Damage : " 
+                    .. AimEntity.data.damage 
+                    .. ((AimEntity.data.damagebonus or 0) > 0 and (" + " .. AimEntity.data.damagebonus) or "") 
+                    .. ((PlayerData.globalbonus["Damage: "] or 0) > 0 and (" + " .. PlayerData.globalbonus["Damage: "]) or ""), 
+                    0
+                )
+            end
+            if INCOME then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5 + CurrencyIconSize.x * 1.5, ResY / 2 + y, 
+                    "Income : " 
+                    .. AimEntity.data.income 
+                    .. ((AimEntity.data.incomebonus or 0) > 0 and (" + " .. AimEntity.data.incomebonus) or "") 
+                    .. ((PlayerData.globalbonus["Income: "] or 0) > 0 and (" + " .. PlayerData.globalbonus["Income: "]) or "") 
+                    .. " " .. AimEntity.data.currency, 
+                    0
+                )
+                render.setMaterial(material.createFromImage(Materials[AimEntity.data.currency], ""))
+                render.drawTexturedRect(ResX / 2 - InfoBarSize.x / 2 + 10, ResY / 2 + y, CurrencyIconSize.x, CurrencyIconSize.y)
+            end
+            if REWARD then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5 + CurrencyIconSize.x * 1.5, ResY / 2 + y, 
+                    "Reward : " 
+                    .. AimEntity.data.reward 
+                    .. ((AimEntity.data.rewardbonus or 0) > 0 and (" + " .. AimEntity.data.rewardbonus) or "") 
+                    .. ((PlayerData.globalbonus["Reward: "] or 0) > 0 and (" + " .. PlayerData.globalbonus["Reward: "]) or "") 
+                    .. " " .. AimEntity.data.currency, 
+                    0
+                )
+                render.setMaterial(material.createFromImage(Materials[AimEntity.data.currency], ""))
+                render.drawTexturedRect(ResX / 2 - InfoBarSize.x / 2 + 10, ResY / 2 + y, CurrencyIconSize.x, CurrencyIconSize.y)
+            end
+            if TIME then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "Time : " .. AimEntity.data.time .. " seconds", 0)
+            end
+            if BOOST then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "Boost : " .. AimEntity.data.boost .. AimEntity.data.upgrades["Boost: "].text2, 0)
+            end
+        end
+        
+    --draw player currency
+        if PlayerData != nil then
+            local count = table.count(PlayerData.currency)
+            if count > 0 then
+                render.setFont(Font20)
+                render.setColor(Color(50, 100, 125, 200))
+                render.drawRect(ResX - CurrencyBarSize.x, ResY / 2, CurrencyBarSize.x, CurrencyBarSize.y + 25 * count)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRectOutline(ResX - CurrencyBarSize.x, ResY / 2, CurrencyBarSize.x, CurrencyBarSize.y + 25 * count, 2)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX - CurrencyBarSize.x + 5, ResY / 2 + 2, "Resources:", 0)
+                for i = 1, count do
+                    local cur = table.getKeys(PlayerData.currency)[i]
+                    local pos = Vector(ResX - CurrencyBarSize.x + 5, ResY / 2 + 2) + Vector(0, CurrencyIconSize.y * i)
+                    render.setColor(Color(255, 255, 255, 255))
+                    render.setMaterial(material.createFromImage(Materials[cur], ""))
+                    render.drawTexturedRect(pos.x, pos.y, CurrencyIconSize.x, CurrencyIconSize.y)
+                    render.setColor(Color(255, 255, 255, 200))
+                    render.drawText(pos.x + CurrencyIconSize.x + 5, pos.y, PlayerData.currency[cur] .. " " .. cur, 0)
+                end
+            end
+        end
+    
+    --menu opened
+        if MenuOpen and MenuEntity != nil then
+            local mouseX, mouseY = input.getCursorPos()
+            local pos = Vector(ResX / 2 - MenuSize.x / 2, ResY / 2 - MenuSize.y / 2)
+            
+            render.setFont(Font20)
+            render.setColor(Color(50, 100, 125, 200))
+            render.drawRect(pos.x, pos.y, MenuSize.x, MenuSize.y)
+            render.setColor(Color(0, 0, 0, 200))
+            render.drawRectOutline(pos.x, pos.y, MenuSize.x, MenuSize.y, 2)
+            
+            local builddata = BlockData[MenuEntity.data.type].build
+            local researchdata = BlockData[MenuEntity.data.type].research
+            
+            local BUILD = table.count(builddata or {}) > 0 and true or false
+            local MOVED = (MenuEntity.data.drawntype.name or "") == "unit" and true or false
+            local SELL = ((MenuEntity.data.drawntype.clr or Color(255, 255, 255, 255)) == Color(255, 255, 0, 200) and MenuEntity.data.type != "Base") and true or false
+            local LEVEL = MenuEntity.data.level
+            local RESEARCH = table.count(researchdata or {}) > 0 and true or false
+            
+            Button = {}
+            
+            if RESEARCH then
+                render.setColor(Color(255, 175, 100, 200))
+                render.drawText(pos.x + MenuSize.x / 2, pos.y + 2, "[Researches]", 1)
+                
+                local upd = 0
+                for i = 1, table.count(researchdata) do
+                    local key = table.getKeys(researchdata)[i]
+                    local lvl = PlayerData.globalbonus[key] or 0
+                    
+                    render.setColor(Color(255, 255, 255, 200))
+                    render.drawText(pos.x + 5, pos.y + 25 * i, "[" .. lvl .. "]" .. key .. researchdata[key].text, 0) 
+                    
+                    local costcount = table.count(researchdata[key].cost)
+                    local costaccess = 0
+                    for u = 1, costcount do
+                        local cur = table.getKeys(researchdata[key].cost)[u]
+                        if researchdata[key].cost[cur] * lvl <= (PlayerData.currency[cur] or 0) then
+                            costaccess = costaccess + 1
+                        end
+                    end
+                    
+                    render.setColor(costaccess == costcount and Color(100, 150, 150, 255) or Color(50, 75, 75, 255))
+                    render.drawRect(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y)
+                    render.setColor(Color(0, 0, 0, 200))
+                    render.drawRectOutline(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y, 1)
+                    render.setColor(costaccess == costcount and Color(255, 255, 255, 200) or Color(125, 125, 125, 200))
+                    render.drawText(pos.x + MenuSize.x - UpgradeButtonSize.x / 2 - 5, pos.y + 25 * i, "research", 1)
+                    
+                    if Vector(mouseX, mouseY):withinAABox(Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i), Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i) + UpgradeButtonSize) then
+                        upd = i
+                        if costaccess == costcount then
+                            Button[key] = true
+                        end
+                    end
+                end
+                
+                if upd > 0 then
+                    local key = table.getKeys(researchdata)[upd]
+                    local lvl = PlayerData.globalbonus[key] or 0
+                    local costaccess = 0
+                    local costcount = table.count(researchdata[key].cost)
+                    for u = 1, costcount do
+                        local cur = table.getKeys(researchdata[key].cost)[u]
+                        if researchdata[key].cost[cur] * lvl <= (PlayerData.currency[cur] or 0) then
+                            costaccess = costaccess + 1
+                        end
+                    end      
+                    UpgradeCostSize.y = costcount * 25
+                    render.setColor(Color(50, 75, 75, 225))
+                    render.drawRect(mouseX + 5, mouseY + 5, UpgradeCostSize.x, UpgradeCostSize.y)
+                    render.setColor(Color(0, 0, 0, 225))
+                    render.drawRectOutline(mouseX + 5, mouseY + 5, UpgradeCostSize.x, UpgradeCostSize.y, 1)
+                    render.setColor(Color(255, 255, 255, 225))
+                    render.drawText(mouseX + 10, mouseY + 5, "cost:", 0)
+                    
+                    for u = 1, costcount do
+                        local cur = table.getKeys(researchdata[key].cost)[u]
+                        render.setColor(researchdata[key].cost[cur] * (lvl + 1) <= (PlayerData.currency[cur] or 0) and Color(255, 255, 255, 225) or Color(255, 0, 0, 225))
+                        render.setMaterial(material.createFromImage(Materials[cur], ""))
+                        render.drawTexturedRect(mouseX + 60, mouseY + 5 + 25 * (u - 1), CurrencyIconSize.x, CurrencyIconSize.y)
+                        render.drawText(mouseX + 70 + CurrencyIconSize.x, mouseY + 5 + 25 * (u - 1), researchdata[key].cost[cur] * (lvl + 1) .. " " .. cur, 0)
+                    end
+                end
+            end
+            
+            if MOVED then
+                render.setColor(Color(100, 150, 150, 255))
+                render.drawRect(pos.x + 5, pos.y + MenuSize.y - MoveButtonSize.y - 5, MoveButtonSize.x, MoveButtonSize.y)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRectOutline(pos.x + 5, pos.y + MenuSize.y - MoveButtonSize.y  - 5, MoveButtonSize.x, MoveButtonSize.y, 1)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(pos.x + MoveButtonSize.x / 2 + 5, pos.y + MenuSize.y - MoveButtonSize.y * 0.75 - 5, "move unit", 1)
+                Button.moved = Vector(mouseX, mouseY):withinAABox(Vector(pos.x + 5, pos.y + MenuSize.y - MoveButtonSize.y - 5), Vector(pos.x + 5, pos.y + MenuSize.y - MoveButtonSize.y - 5) + MoveButtonSize)
+                
+                render.setColor(Color(255, 175, 100, 200))
+                render.drawText(pos.x + MenuSize.x / 2, pos.y + 2, "[Attributes]", 1)
+                    
+                local upgrades = MenuEntity.data.upgrades
+                local exp = MenuEntity.data.experience == MenuEntity.data.experiencemax
+                for i = 1, table.count(upgrades) do
+                    local key = table.getKeys(upgrades)[i]
+                    render.setColor(Color(255, 255, 255, 200))
+                    render.drawText(pos.x + 5, pos.y + 25 * i, key .. upgrades[key].text, 0)    
+                    
+                    render.setColor(exp and Color(100, 150, 150, 255) or Color(50, 75, 75, 255))
+                    render.drawRect(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y)
+                    render.setColor(Color(0, 0, 0, 200))
+                    render.drawRectOutline(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y, 1)
+                    render.setColor(exp and Color(255, 255, 255, 200) or Color(125, 125, 125, 200))
+                    render.drawText(pos.x + MenuSize.x - UpgradeButtonSize.x / 2 - 5, pos.y + 25 * i, "level up", 1)
+                    
+                    if exp then
+                        Button[key] = Vector(mouseX, mouseY):withinAABox(Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i), Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i) + UpgradeButtonSize)                
+                    end
+                end
+            else
+                local upgrades = MenuEntity.data.upgrades or {}
+                pos.y = pos.y + 25 + table.count(builddata or {}) * 50
+                if table.count(upgrades) > 0 then
+                    render.setColor(Color(255, 175, 100, 200))
+                    render.drawText(pos.x + MenuSize.x / 2, pos.y + 2, "[Upgrades]", 1)
+                    
+                    local upd = 0
+                    for i = 1, table.count(upgrades) do
+                        local key = table.getKeys(upgrades)[i]
+                        render.setColor(Color(255, 255, 255, 200))
+                        render.drawText(pos.x + 5, pos.y + 25 * i, key .. upgrades[key].text, 0)
+                        
+                        local costcount = table.count(upgrades[key].cost)
+                        local costaccess = 0
+                        for u = 1, costcount do
+                            local cur = table.getKeys(upgrades[key].cost)[u]
+                            if upgrades[key].cost[cur] * LEVEL <= (PlayerData.currency[cur] or 0) then
+                                costaccess = costaccess + 1
+                            end
+                        end
+                                                
+                        render.setColor(costaccess == costcount and Color(100, 150, 150, 255) or Color(50, 75, 75, 255))
+                        render.drawRect(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y)
+                        render.setColor(Color(0, 0, 0, 200))
+                        render.drawRectOutline(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i, UpgradeButtonSize.x, UpgradeButtonSize.y, 1)
+                        render.setColor(costaccess == costcount and Color(255, 255, 255, 200) or Color(125, 125, 125, 200))
+                        render.drawText(pos.x + MenuSize.x - UpgradeButtonSize.x / 2 - 5, pos.y + 25 * i, "upgrade", 1)
+                        
+                        if Vector(mouseX, mouseY):withinAABox(Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i), Vector(pos.x + MenuSize.x - UpgradeButtonSize.x - 5, pos.y + 25 * i) + UpgradeButtonSize) then
+                            upd = i
+                            if costaccess == costcount then
+                                Button[key] = true
+                            end
+                        end
+                    end
+                    
+                    if upd > 0 then
+                        local key = table.getKeys(upgrades)[upd]
+                        local costcount = table.count(upgrades[key].cost)
+                        local costaccess = 0
+                        for u = 1, costcount do
+                            local cur = table.getKeys(upgrades[key].cost)[u]
+                            if upgrades[key].cost[cur] * LEVEL <= (PlayerData.currency[cur] or 0) then
+                                costaccess = costaccess + 1
+                            end
+                        end        
+                        UpgradeCostSize.y = costcount * 25
+                        render.setColor(Color(50, 75, 75, 225))
+                        render.drawRect(mouseX + 5, mouseY + 5, UpgradeCostSize.x, UpgradeCostSize.y)
+                        render.setColor(Color(0, 0, 0, 225))
+                        render.drawRectOutline(mouseX + 5, mouseY + 5, UpgradeCostSize.x, UpgradeCostSize.y, 1)
+                        render.setColor(Color(255, 255, 255, 225))
+                        render.drawText(mouseX + 10, mouseY + 5, "cost:", 0)
+                        
+                        for u = 1, costcount do
+                            local cur = table.getKeys(upgrades[key].cost)[u]
+                            render.setColor(upgrades[key].cost[cur] * LEVEL <= (PlayerData.currency[cur] or 0) and Color(255, 255, 255, 225) or Color(255, 0, 0, 225))
+                            render.setMaterial(material.createFromImage(Materials[cur], ""))
+                            render.drawTexturedRect(mouseX + 60, mouseY + 5 + 25 * (u - 1), CurrencyIconSize.x, CurrencyIconSize.y)
+                            render.drawText(mouseX + 70 + CurrencyIconSize.x, mouseY + 5 + 25 * (u - 1), upgrades[key].cost[cur] * LEVEL .. " " .. cur, 0)
+                        end
+                    end
+                    
+                end
+                pos.y = pos.y - 25 - table.count(builddata or {}) * 50
+            end 
+               
+            if SELL then
+                render.setColor(Color(100, 150, 150, 255))
+                render.drawRect(pos.x + MenuSize.x - MoveButtonSize.x - 5, pos.y + MenuSize.y - MoveButtonSize.y - 5, MoveButtonSize.x, MoveButtonSize.y)
+                render.setColor(Color(0, 0, 0, 200))
+                render.drawRectOutline(pos.x + MenuSize.x - MoveButtonSize.x - 5, pos.y + MenuSize.y - MoveButtonSize.y - 5, MoveButtonSize.x, MoveButtonSize.y, 1)
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(pos.x + MenuSize.x - MoveButtonSize.x / 2 - 5, pos.y + MenuSize.y - MoveButtonSize.y * 0.75 - 5, "sell [50%]", 1)
+                Button.sell = Vector(mouseX, mouseY):withinAABox(Vector(pos.x + MenuSize.x - MoveButtonSize.x - 5, pos.y + MenuSize.y - MoveButtonSize.y * 0.75 - 5), Vector(pos.x + MenuSize.x - MoveButtonSize.x - 5, pos.y + MenuSize.y - MoveButtonSize.y * 0.75 - 5) + MoveButtonSize)
+            end
+            
+            if BUILD then
+                if MOVED then
+                    pos.y = pos.y + 25 + table.count(MenuEntity.data.upgrades) * 25
+                end
+                
+                render.setColor(Color(255, 175, 100, 200))
+                render.drawText(pos.x + MenuSize.x / 2, pos.y + 2, "[Building]", 1)
+                                
+                for u = 1, table.count(builddata) do
+                    local key = table.getKeys(builddata)[u]
+                    local y = pos.y + 25 + 50 * (u - 1)
+                    render.setColor(Color(255, 255, 255, 255))
+                    render.drawText(pos.x + 5, y, key .. ":", 0)
+                    
+                    for i = 1, #builddata[key] do
+                        render.setColor(Color(100, 150, 150, 255))
+                        render.drawRect(pos.x + 50 + BuildIconSize.x * i, y, BuildIconSize.x, BuildIconSize.y)
+                        render.setColor(Color(255, 255, 255, 255))
+                        render.setMaterial(material.createFromImage(Materials[builddata[key][i]], ""))
+                        render.drawTexturedRect(pos.x + 50 + BuildIconSize.x * i, y, BuildIconSize.x, BuildIconSize.y)
+                        render.setColor(Color(0, 0, 0, 255))
+                        render.drawRectOutline(pos.x + 50 + BuildIconSize.x * i, y, BuildIconSize.x, BuildIconSize.y, 1)
+                        Button[builddata[key][i]] = Vector(mouseX, mouseY):withinAABox(Vector(pos.x + 51 + BuildIconSize.x * i, y + 1), Vector(pos.x + 50 + BuildIconSize.x * i, y) + BuildIconSize)
+                    end
+                end
+                
+                for i = 1, table.count(BlockData) do
+                    local key = table.getKeys(BlockData)[i]
+                    if Button[key] then
+                        local data = BlockData[key]
+                        local pos = Vector(mouseX + 5, mouseY + 5)
+                        local costcount = table.count(data.data.cost)
+                        local strlen = 32
+                        local descriprioncount = (string.len(data.data.description) / strlen) + 1
+                        local range = (data.data.range or 0) > 0
+                        
+                        render.setFont(Font20)
+                        render.setColor(Color(50, 75, 75, 225))
+                        render.drawRect(pos.x, pos.y, BuildMenuSize.x, 60 + 25 * costcount + 25 * descriprioncount + (range and 25 or 0))
+                        render.setColor(Color(0, 0, 0, 225))
+                        render.drawRectOutline(pos.x, pos.y, BuildMenuSize.x, 60 + 25 * costcount + 25 * descriprioncount + (range and 25 or 0), 2)
+                        
+                        render.setColor(Color(255, 175, 100, 225))
+                        render.drawText(pos.x + BuildMenuSize.x / 2, pos.y + 2, data.data.name, 1)
+                        render.setColor(Color(255, 255, 255, 225))
+                        render.drawText(pos.x + 5, pos.y + 25, "cost:", 0)
+                        
+                        for i = 1, costcount do
+                            local cur = table.getKeys(data.data.cost)[i]
+                            render.setColor(data.data.cost[cur] <= (PlayerData.currency[cur] or 0) and Color(255, 255, 255, 225) or Color(255, 0, 0, 225))
+                            render.setMaterial(material.createFromImage(Materials[cur], ""))
+                            render.drawTexturedRect(pos.x + 60, pos.y + 25 * i, CurrencyIconSize.x, CurrencyIconSize.y)
+                            render.drawText(pos.x + 70 + CurrencyIconSize.x, pos.y + 25 * i, data.data.cost[cur] .. " " .. cur, 0)
+                        end
+                        
+                        render.setColor(Color(255, 255, 255, 225))
+                        if data.data.income != nil then
+                            render.drawText(pos.x + 5, pos.y + 50 + 25 * costcount, "income: " .. data.data.income .. " " .. data.data.currency .. " (" .. data.data.funcname .. " " .. data.data.tickvaluemax .. ")", 0)
+                        end
+                        if data.data.damage != nil then
+                            render.drawText(pos.x + 5, pos.y + 50 + 25 * costcount, "damage: " .. data.data.damage .. " (" .. data.data.funcname .. " " .. data.data.tickvaluemax .. ")", 0)
+                        end
+                        if data.data.range != nil then
+                            render.drawText(pos.x + 5, pos.y + 75 + 25 * costcount, "range: " .. data.data.range, 0)
+                        end
+                        
+                        render.setColor(Color(255, 255, 0, 225))
+                        for i = 1, descriprioncount do
+                            render.drawText(pos.x + 5, pos.y + 50 + 25 * costcount + 25 * i + (range and 25 or 0), string.sub(data.data.description, 1 + (i - 1) * strlen, strlen * i), 0)
+                        end 
+                        
+                    end
+                end
+            end           
+        end
+        
+    end)
+    
+    net.receive("sendData", function(str)
+        local data = net.readTable()
+        Entitys = data.data
+        PlayerData = data.playerdata
+        for i = 1, #Entitys do
+           entity(Entitys[i].id).data = Entitys[i].data
+        end
+    end)
+    
+    net.receive("sendBlockData", function(str)
+        BlockData = net.readTable()
+    end)
+    
+    net.receive("build", function(str)
+        local key = net.readTable().key
+        if key == nil then
+            Build = false
+        end
+    end)
+    
+    net.receive("move", function(str)
+        local key = net.readTable().key
+        if key == nil then
+            Move = false
+        end
+    end)
+        
+    hook.add("inputPressed", "", function(key)
+        if key == 15 and MenuOpen == false and BlockData != nil and Build == false and Move == false then
+            if table.count(AimEntity.data or {}) > 0 and AimEntity:getPos():getDistance(O:getPos()) < AimRange then
+                if AimEntity.data.drawntype.clr == Color(255, 255, 0, 200) then
+                    MenuOpen = not MenuOpen
+                    input.enableCursor(MenuOpen)
+                    MenuEntity = AimEntity
+                    Button = {}
+                end
+            end
+        elseif key == 15 and MenuOpen == true and Build == false and Move == false then
+            MenuOpen = not MenuOpen
+            input.enableCursor(MenuOpen)
+            MenuEntity = nil
+        elseif key == 107 and MenuOpen == true and Build == false and Move == false then
+            --check build buttons
+                for i = 1, table.count(BlockData) do
+                    local key = table.getKeys(BlockData)[i]
+                    if Button[key] then 
+                        local builddata = BlockData[key]
+                        local costcount = table.count(builddata.data.cost)
+                        local costaccess = 0
+                        for u = 1, costcount do
+                            local cur = table.getKeys(builddata.data.cost)[u]
+                            if builddata.data.cost[cur] <= (PlayerData.currency[cur] or 0) then
+                                costaccess = costaccess + 1
+                            end
+                        end
+                        if costaccess == costcount then
+                            Build = true
+                            MenuOpen = false
+                            input.enableCursor(MenuOpen)
+                            
+                            net.start("build")
+                            net.writeTable({key = key})
+                            net.send(owner()) 
+                            
+                            O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+                        else
+                            O:emitSound("buttons/button2.wav", 75, 150, 0.75, CHAN_AUTO)
+                        end
+                    end
+                end
+            --check move button
+                if Button.moved then
+                    Move = true
+                    MenuOpen = false
+                    input.enableCursor(MenuOpen)
+                    net.start("move")
+                    net.writeTable({ent = MenuEntity, type = "manual"})
+                    net.send(owner()) 
+                    O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+                end
+            --check sell button
+                if Button.sell then
+                    MenuOpen = false
+                    input.enableCursor(MenuOpen)
+                    net.start("sell")
+                    net.writeTable({ent = MenuEntity})
+                    net.send(owner()) 
+                end
+            --check upgrade buttons
+                local upgrades = MenuEntity.data.upgrades
+                if upgrades != nil then
+                    for i = 1, table.count(upgrades) do
+                        local key = table.getKeys(upgrades)[i]
+                        if Button[key] then   
+                            net.start("upgrade")
+                            net.writeTable({ent = MenuEntity, key = upgrades[key].key, modifer = upgrades[key].modifer, type = upgrades[key].type or "", cost = upgrades[key].cost or {}})
+                            net.send(owner()) 
+                        end
+                    end
+                end
+            --check research buttons
+                local type = MenuEntity.data.type
+                local research = BlockData[type].research
+                if research != nil then
+                    for i = 1, table.count(research) do
+                        local key = table.getKeys(research)[i]
+                        if Button[key] then   
+                            net.start("research")
+                            net.writeTable({ent = MenuEntity, key = key, type = type})
+                            net.send(owner()) 
+                        end
+                    end
+                end
+                
+        elseif key == 107 and MenuOpen == false and Build == false and Move == false then
+            local MOVED = (((AimEntity.data or {}).drawntype or {}).name or "") == "unit"
+            if MOVED and O:isValid() and O:getActiveWeapon():isValid() and O:getActiveWeapon():getClass() == "weapon_empty_hands" then
+                if table.count(AimEntity.data or {}) > 0 then
+                    Move = true
+                    MoveEnt = AimEntity
+                    net.start("move")
+                    net.writeTable({ent = MoveEnt, type = "auto"})
+                    net.send(owner()) 
+                    O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+                end
+            end
+        elseif key == 108 and MenuOpen == false and Build == true and Move == false then
+            Build = false
+            net.start("build")
+            net.writeTable({key = nil})
+            net.send(owner()) 
+            O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+        elseif key == 108 and MenuOpen == false and Build == false and Move == true then
+            Move = false
+            net.start("move")
+            net.writeTable({ent = nil})
+            net.send(owner()) 
+            O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+        end
+    end)
+    
+    hook.add("inputReleased", "", function(key)
+        if key == 107 and MenuOpen == false and Build == false and Move == true then
+            if O:isValid() and O:getActiveWeapon():isValid() and O:getActiveWeapon():getClass() == "weapon_empty_hands" and MoveEnt and MoveEnt:isValid() then
+                Move = false
+                net.start("move")
+                net.writeTable({ent = MoveEnt, type = "place"})
+                net.send(owner()) 
+                O:emitSound("buttons/button15.wav", 75, 150, 0.75, CHAN_AUTO)
+                MoveEnt = nil
+            end
+        end
+    end)
+    
+end
+
