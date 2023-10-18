@@ -1,4 +1,4 @@
---@name CamPod-v2.74
+--@name CamPod-v2.75
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -113,6 +113,12 @@ if SERVER then
         end
     end)
     
+    hook.add("KeyPress", "", function(ply, key)
+        net.start("AnimWeapon")
+        net.writeTable({key = key})
+        net.send(owner())
+    end)
+        
 else
     
     if player() == owner() then
@@ -177,8 +183,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.74"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: +ZOOM function on middle key mouse.")  
+            Ver = "v2.75"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: added weapon animation in CamHackMode")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
@@ -341,12 +347,46 @@ else
             writeKey(Data)
             
         end)
+                
+        AnimGlobalData = {
+            fire = {"fire", "fire2" , "fire3", "fire01", "fire02", "fire03", "fire04", "shoot1", "shoot2", "shoot3", "hitkill1", "throw"},
+            reload = {"reload", "start_reload", "reload1", "reload01", "altfire"},  
+        }
+        BaseView_Animation = {fire = nil, reload = nil}
         
         net.receive("setModel", function(str)
             try(
                 BaseView:setModel(net.readString() or "models/props_junk/PopCan01a.mdl"),
                 nil
             )
+            BaseView_Animation = {fire = nil, reload = nil}
+            local animdata = BaseView:getSequenceList()
+            --print(BaseView:getModel())
+            local loop = 1
+            BaseView_Animation.fire = table.keyFromValue(animdata, AnimGlobalData.fire[loop])
+            while BaseView_Animation.fire == nil and loop <= table.count(AnimGlobalData.fire) do
+                loop = loop + 1
+                BaseView_Animation.fire = table.keyFromValue(animdata, AnimGlobalData.fire[loop])
+            end
+            
+            local loop = 1
+            BaseView_Animation.reload = table.keyFromValue(animdata, AnimGlobalData.reload[loop])
+            while BaseView_Animation.reload == nil and loop <= table.count(AnimGlobalData.reload) do
+                loop = loop + 1
+                BaseView_Animation.reload = table.keyFromValue(animdata, AnimGlobalData.reload[loop])
+            end
+            
+        end)
+        
+        net.receive("AnimWeapon", function(str)
+            key = net.readTable().key
+            if BaseView and BaseView:isValid() then
+                if key == 1 then
+                    BaseView:setAnimation(BaseView_Animation.fire or 0, 0, 0.5)
+                elseif key == 8192 then
+                    BaseView:setAnimation(BaseView_Animation.reload or 0, 0, 0.75)
+                end
+            end
         end)
             
         hook.add("calcview", "camera", function(pos, ang, fov, znear, zfar)
@@ -374,13 +414,13 @@ else
                 Ply:setColor(Color(0, 0, 0, 0))
                 if Ply:isAlive() then
                     BaseView:setColor(Color(255, 255, 255, TransparentWeapon == true and 150 or 255)) 
-                else 
+                else  
                     BaseView:setColor(Color(255, 255, 255, 0)) 
                 end
                 
                 BaseView:setPos(EyePos) 
                 BaseView:setAngles(EyeAng)
-                                            
+                                                            
                 return view
             else
                 BaseView:setColor(Color(255, 255, 255, 0)) 
