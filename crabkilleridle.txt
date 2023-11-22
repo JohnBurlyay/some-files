@@ -1,10 +1,10 @@
---@name CrabKillerIdle
+--@name CrabKillerIdle-v0.51
 --@author JohnBurlyay
 --@shared
 
     O = owner()
     E = chip()
-    Ver = 0.5
+    Ver = 0.51
 
 if SERVER then
     
@@ -18,6 +18,9 @@ if SERVER then
             tree = 100,
             stone = 100,
             plasma = 100,
+            --chip = 100000,
+            --energy = 100000,
+            --mutagen = 10000,
         },
         globalbonus = {},
     }
@@ -35,7 +38,8 @@ if SERVER then
         return Holo[id]
     end
     
-    BuildHolo = holo(777, Model, Vector(7777, 7777, 7777), Angle(0, 0, 0), Vector(1, 1, 1), "models/wireframe", Color(255, 255, 255, 255), Holo[777])
+    BuildHolo = holo(7777, Model, Vector(7777, 7777, 7777), Angle(0, 0, 0), Vector(1, 1, 1), "models/wireframe", Color(255, 255, 255, 255), Holo[7777])
+    RangeHolo = holo(8888, "models/holograms/hq_torus_thin.mdl", Vector(7777, 7777, 7777), Angle(0, 0, 0), Vector(1, 1, 1), "models/alyx/emptool_glow", Color(255, 175, 50, 200), Holo[8888])
             
     Block = class("Block")
     
@@ -98,9 +102,45 @@ if SERVER then
         self.data.health = self.data.health - damage
         
         if self.data.health <= 0 then
-            if attacker.id != nil then
-                attacker.id.data.experience = math.min(attacker.id.data.experiencemax, attacker.id.data.experience + 10 + (PlayerData.globalbonus["Experience: "] or 0))
-            end
+            --if attacker.id != nil then
+                --attacker.id.data.experience = math.min(attacker.id.data.experiencemax, attacker.id.data.experience + self.data.experiencereward + (PlayerData.globalbonus["Experience: "] or 0))
+            --end
+                if self.data.enemy == true then
+                    local range = (attacker.id.data.range > 1 and (attacker.id.data.range + (PlayerData.globalbonus["Range: "] or 0)) or attacker.id.data.range) * MapSize
+                    local Find = find.inSphere(self.plate:localToWorld(Vector()), range, function(ent)
+                        if  
+                            ent:getModel() == Model and
+                            ent:getClass() == "prop_physics" and 
+                            ent:getOwner() == O and
+                            ent.id.data.job == "warrior"
+                        then
+                            return true
+                        end            
+                    end)
+                    local count = #Find
+                    local exp = math.round((self.data.experiencereward + (PlayerData.globalbonus["Experience: "] or 0)) / count)
+                    for i = 1, count do
+                        local ent = Find[i]
+                        ent.id.data.experience = math.min(ent.id.data.experiencemax, ent.id.data.experience + exp)
+                    end
+                else
+                    local Find = find.inSphere(self.plate:localToWorld(Vector()), 1 * MapSize, function(ent)
+                        if  
+                            ent:getModel() == Model and
+                            ent:getClass() == "prop_physics" and 
+                            ent:getOwner() == O and
+                            ent.id.data.job == "worker"
+                        then
+                            return true
+                        end            
+                    end)
+                    local count = #Find
+                    local exp = math.round((self.data.experiencereward + (PlayerData.globalbonus["Experience: "] or 0)) / count)
+                    for i = 1, count do
+                        local ent = Find[i]
+                        ent.id.data.experience = math.min(ent.id.data.experiencemax, ent.id.data.experience + exp)
+                    end
+                end
             
             self.data.health = 0
             self.data.active = true
@@ -144,6 +184,7 @@ if SERVER then
         self.data.reward = math.round(self.data.reward * (self.data.rewardmodifer or 1))
         self.data.tickvalue = 0
         self.data.health = self.data.maxhealth
+        self.data.experiencereward = self.data.experiencereward + self.data.experiencerewardmodifer
         self.data.level = self.data.level + (self.data.levelmodifer or 0)
         self.holo:setColor(Color(255, 255, 255, 255))
     end
@@ -251,7 +292,7 @@ if SERVER then
                 holomodel = {"models/props_combine/combine_tptimer.mdl"},
                 basematerial = "sprops/textures/hex_dark_bump",
                 name = "Base",
-                tickvaluemax = 1000,
+                tickvaluemax = 600,
                 funcname = "cooldown",
                 active = true,
                 income = 1,
@@ -514,6 +555,8 @@ if SERVER then
                 drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
                 cost = {plasma = 500},
                 description = "A simple enemy, for getting plasma resource. Can't be moved.",
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -545,6 +588,8 @@ if SERVER then
                 drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
                 cost = {plasma = 2000, tree = 500, stone = 500, energy = 500, chip = 100},
                 description = "A simple enemy, for getting plasma resource. Can't be moved.",
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -576,8 +621,10 @@ if SERVER then
                 impactsound = {snd = "physics/flesh/flesh_impact_bullet", num = 5},
                 drawntype = {name = "enemy", clr = Color(255, 100, 0, 200)},
                 cost = {plasma = 3000, tree = 750, stone = 750, energy = 2500, chip = 1000},
-                description = "A air enemy, for getting matagen resource. Can't be moved.",
+                description = "An air enemy, for getting matagen resource. Can't be moved.",
                 zposer = MapSize * 1.5,
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -731,6 +778,8 @@ if SERVER then
                 drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
                 cost = {tree = 500},
                 description = "A simple tree, for getting resources. Can't be moved.",
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -761,6 +810,8 @@ if SERVER then
                 drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
                 cost = {stone = 500},
                 description = "A simple stone, for getting resources. Can't be moved.",
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -791,6 +842,8 @@ if SERVER then
                 drawntype = {name = "resource", clr = Color(100, 255, 100, 200)},
                 cost = {stone = 1000, tree = 1000, chip = 500, plasma = 100},
                 description = "A simple energy structure, for getting resources. Can't be moved.",
+                experiencereward = 10,
+                experiencerewardmodifer = 1,
             },
             func = function(plate, level, self)
                 self:revive()
@@ -1054,8 +1107,8 @@ if SERVER then
                     if ent:getModel() == Model and ent:getClass() == "prop_physics" then return true end            
                 end)
                 
-                Holo[777]:setPos(pos)
-                Holo[777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
+                Holo[7777]:setPos(pos)
+                Holo[7777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
                 
                 if O:keyDown(1) then        
                     if #Find == 0 then
@@ -1065,7 +1118,7 @@ if SERVER then
                         net.writeTable({key = nil})
                         net.send(owner()) 
                         
-                        Holo[777]:setPos(Vector(7777, 7777, 7777))
+                        Holo[7777]:setPos(Vector(7777, 7777, 7777))
                         
                         local costcount = table.count(BlockData[BuildKey].data.cost)
                         for i = 1, costcount do
@@ -1086,8 +1139,8 @@ if SERVER then
                     if ent:getModel() == Model and ent:getClass() == "prop_physics" then return true end            
                 end)
                 
-                Holo[777]:setPos(pos)
-                Holo[777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
+                Holo[7777]:setPos(pos)
+                Holo[7777]:setColor(#Find == 0 and Color(0, 255, 0, 255) or Color(255, 0, 0, 255))
                 
                 if MoveType != "auto" then
                     if O:keyDown(1) or MoveType == "place" then   
@@ -1097,7 +1150,7 @@ if SERVER then
                             MoveEnt:setParent(E)
                             MoveEnt:emitSound("buttons/button19.wav", 75, 150, 0.75, CHAN_AUTO)
                             
-                            Holo[777]:setPos(Vector(7777, 7777, 7777))
+                            Holo[7777]:setPos(Vector(7777, 7777, 7777))
                             
                             net.start("move")
                             net.writeTable({ent = nil})
@@ -1108,6 +1161,21 @@ if SERVER then
                         end
                     end
                 end
+            end
+            
+        --show range
+            local aim = O:getEyeTrace().Entity
+            if aim.id then
+                if (aim.id.data.range or 0) > 0 then
+                    local size = (aim.id.data.range > 1 and (aim.id.data.range + (PlayerData.globalbonus["Range: "] or 0)) or aim.id.data.range) * MapSize * 2
+                    --local size = (aim.id.data.range + (PlayerData.globalbonus["Range: "] or 0)) * MapSize * 2
+                    Holo[8888]:setPos(aim:localToWorld(Vector())) 
+                    Holo[8888]:setSize(Vector(size, size, 5))
+                else
+                    Holo[8888]:setSize(Vector(0, 0, 0))
+                end
+            else
+                Holo[8888]:setSize(Vector(0, 0, 0))
             end
             
     end)
@@ -1143,7 +1211,7 @@ if SERVER then
         BuildKey = data.key
         if BuildKey == nil then
             Build = false
-            Holo[777]:setPos(Vector(7777, 7777, 7777))
+            Holo[7777]:setPos(Vector(7777, 7777, 7777))
         else
             Build = true
         end
@@ -1155,7 +1223,7 @@ if SERVER then
         MoveType = data.type
         if MoveEnt == nil then
             Move = false
-            Holo[777]:setPos(Vector(7777, 7777, 7777))
+            Holo[7777]:setPos(Vector(7777, 7777, 7777))
         else
             Move = true
         end
@@ -1262,8 +1330,9 @@ elseif CLIENT then
             local REWARD = (AimEntity.data.reward or 0) > 0 and true or false
             local BOOST = (AimEntity.data.boost or 0) > 0 and true or false
             local TIME = (AimEntity.data.time or 0) > 0 and true or false
+            local EXP_REWARD = (AimEntity.data.experiencereward or 0) > 0 and true or false
             
-            local size = Vector(InfoBarSize.x, InfoBarSize.y + (EXP and 25 or 0) + (HP and 25 or 0) + (TICK and 25 or 0) + (ATTACK and 25 or 0) + (INCOME and 25 or 0) + (REWARD and 25 or 0) + (RANGE and 25 or 0) + (TIME and 25 or 0) + (BOOST and 25 or 0))
+            local size = Vector(InfoBarSize.x, InfoBarSize.y + (EXP and 25 or 0) + (HP and 25 or 0) + (TICK and 25 or 0) + (ATTACK and 25 or 0) + (INCOME and 25 or 0) + (REWARD and 25 or 0) + (RANGE and 25 or 0) + (TIME and 25 or 0) + (BOOST and 25 or 0) + (EXP_REWARD and 25 or 0))
             
             render.setFont(Font18)
             render.setColor(Color(50, 100, 125, 200))
@@ -1284,7 +1353,7 @@ elseif CLIENT then
             
             render.setFont(Font20)
             
-            local y = 200
+            local y = 195
             if TICK then
                 y = y + 25
                 local delta = (AimEntity.data.tickvalue or 1) / (AimEntity.data.tickvaluemax or 1)
@@ -1379,6 +1448,11 @@ elseif CLIENT then
                 y = y + 25
                 render.setColor(Color(255, 255, 255, 200))
                 render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "Boost : " .. AimEntity.data.boost .. AimEntity.data.upgrades["Boost: "].text2, 0)
+            end
+            if EXP_REWARD then
+                y = y + 25
+                render.setColor(Color(255, 255, 255, 200))
+                render.drawText(ResX / 2 - InfoBarSize.x / 2 + 5, ResY / 2 + y, "experience given : " .. AimEntity.data.experiencereward, 0)
             end
         end
         
