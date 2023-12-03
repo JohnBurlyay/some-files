@@ -1,4 +1,4 @@
---@name CamPod-v2.75
+--@name CamPod-v2.76
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -183,7 +183,7 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.75"
+            Ver = "v2.76"
             print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: added weapon animation in CamHackMode")  
             
         function loadTextures() 
@@ -477,7 +477,7 @@ else
         hook.add("drawhud", "", function() 
             
             if not quotaCheck(0.95) then return end
-            
+
             render.setFilterMin(1) 
             render.setFilterMag(1)
             
@@ -736,16 +736,16 @@ else
                 render.setFont(FontName)
                 local plys = find.allPlayers()
                 for i = 1, #plys do
-                    local ply = plys[i]
-                    local obb = ply:obbSize()
-                    local dist = Ply:getPos():getDistance(ply:getPos())
-                    
+                    local ply = plys[i]                    
                     if    
                         (Ply != ply and Enable)
                         or
                         (owner() != ply and not Enable)
                     
                     then
+                        local obb = ply:obbSize()
+                        local dist = Ply:getPos():getDistance(ply:getPos())
+                        
                         --draw name
                         if WHname and dist > 500 then
                             local pos = (ply:getPos() + Vector(0, 0, obb[3])):toScreen()
