@@ -1,4 +1,4 @@
---@name SkinEditor-v1.24
+--@name SkinEditor-v1.25
 --@author JohnBurlyay
 --@model models/props_lab/huladoll.mdl
 --@shared
@@ -129,7 +129,7 @@ else
     
     if player() == owner() then
         
-        Ver = "1.24"    
+        Ver = "1.25"    
         Enable = false
         MatList = 0
         FaceList = 0
@@ -144,12 +144,14 @@ else
         Rotate = nil
         Cam = {yaw = 180, pitch = 0}
         baseY = 500
+        Range = 100
         
         ChangeLog = {
             "v1.0 - added the option to change 'Skins'",
             "v1.1 - added the option to change 'Bones', fixed some bugs",  
             "v1.2 - added the option to save presets, also added 'random' buttons. Now you can rotate camera.",   
-            "v1.24 - added MaterialRandom button. Fixed rendering of a large number of skin buttons.",   
+            "v1.24 - added MaterialRandom button. Fixed rendering of a large number of skin buttons. Added MouseWheel to camera funcs.",   
+            "v1.25 - fixed some problems.",  
         }
         
         font1 = render.createFont("DebugFixed", 24, 50, true)
@@ -164,9 +166,11 @@ else
         Faces = {"models/kleiner/walter_face", "models/humans/male/group02/eric_facemap", "models/alyx/alyx_faceandhair", "models/mossman/mossman_face", "models/police/barneyface", "models/breen/breen_face", "models/humans/male/group01/art_facemap", "models/humans/male/group03m/joe_facemap", "models/sanic/dad/kojima_face", "models/odessa/odessa_face", "models/gman/gman_facehirez", "models/magnusson/magnusson_face", "models/humans/male/group03/van_facemap", "models/chell/chell_rev2_head", "models/monk/grigori_head", "models/humans/female/group01/kanisha_cylmap", "models/eli/eli_tex4z", "models/humans/male/group01/erdim_cylmap", "models/humans/female/group01/joey_facemap", "models/humans/female/group01/kim_facemap", "models/humans/female/group01/chau_facemap", "models/humans/female/group01/naomi_facemap", "models/humans/female/group01/lakeetra_facemap", "models/humans/male/group01/ted_facemap", "models/humans/male/group01/sandro_facemap", "models/humans/male/group01/mike_facemap", "models/humans/male/group01/vance_facemap"}
         
         mat = material.create("UnlitGeneric")
-        mat:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/984488949584117773/984488989627150376/skineditor.png", function(_, _, _, _, layout)
-            layout(0, 0, 1024, 1024)
-        end)
+        --mat:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/984488949584117773/984488989627150376/skineditor.png", function(_, _, _, _, layout)
+            --layout(0, 0, 1024, 1024)
+        --end)
+        --mat:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/984488949584117773/984488989627150376/skineditor.png", nil, nil)
+        mat:setTexture("$basetexture", "gui/tool.png")
         
         local function save()
             local model = owner():getModel()
@@ -303,7 +307,7 @@ else
             if Enable then
                 local view = {
                     angles = player():localToWorldAngles(Angle(Cam.pitch + math.sin(timer.curtime() / 12) * 2, Cam.yaw + math.sin(timer.curtime() / 8) * 4, math.sin(timer.curtime() / 15))),
-                    origin = player():localToWorld(Vector(100 * math.sin(math.rad(-90 - Cam.yaw)), 100 * math.cos(math.rad(-90 - Cam.yaw)), 50 + Cam.pitch * 2)),
+                    origin = player():localToWorld(Vector(Range * math.sin(math.rad(-90 - Cam.yaw)), Range * math.cos(math.rad(-90 - Cam.yaw)), 50 + Cam.pitch * 2)),
                     --Vector(25 * math.sin(math.rad(120 * i)), 25 * math.cos(math.rad(120 * i)))
                     fov = fov,
                     drawviewer = true
@@ -945,6 +949,10 @@ else
                 Type = 1
                 Enable = not Enable
                 input.enableCursor(Enable)
+            elseif key == 112 and Enable == true then
+                Range = Range * 0.9
+            elseif key == 113 and Enable == true  then
+                Range = Range * 1.1
             elseif key == 107 and Enable then
                 local x, y = input.getCursorPos()
                 if Vector(x, y):withinAABox(Vector(scrnsize.x + 250, scrnsize.y - 400), Vector(scrnsize.x + 250, scrnsize.y - 400) + Vector(500, baseY)) == false then
