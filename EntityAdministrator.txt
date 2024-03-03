@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.81
+--@name EntityAdministrator-v0.82a
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -57,8 +57,10 @@ if SERVER then
             GraberEntity:setColor(Color(255, 255, 255, 0))
             wire.ports.Grab = 1
             Ent:setFrozen(false)
-            timer.simple(0.1, function() wire.create(GraberEntity, chip(), "Grab", "Grab") end)
-            timer.simple(0.25, function() GraberEntity["enable"] = 1 end)
+            if GraberEntity:isValid() then
+                timer.simple(0.1, function() wire.create(GraberEntity, chip(), "Grab", "Grab") end)
+                timer.simple(0.25, function() GraberEntity["enable"] = 1 end)
+            end
         end
     end
     
@@ -132,7 +134,6 @@ if SERVER then
     PropFunctions = {
         OnPhysgunFreezeProp = false,
         OnPhysgunFreezeVehicle = false,
-        
     }
     RemoteUse = {}
     DataTeleport = {
@@ -240,7 +241,7 @@ if SERVER then
         ["set NoDrag"] = function(Ent) Ent:setCollisionGroup(10) end,
         ["froze"] = function(Ent) Ent:setFrozen(true) end,
         ["unfroze"] = function(Ent) Ent:setFrozen(false) end,
-        ["toss prop"] = function(Ent) Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass()) end,
+        ["toss prop"] = function(Ent) Ent:applyForceCenter(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 250 + Vector(0, 0, 250)) * Ent:getMass()) Ent:emitSound("physics/wood/wood_plank_impact_soft" .. math.random(1, 3) .. ".wav", 100, 75, 1, CHAN_AUTO) end,
         ["break"] = function(Ent) Ent:breakEnt() end,
         ["break constraints"] = function(Ent) constraint.breakAll(Ent) end,
         ["make spherical"] = function(Ent) Ent:enableSphere(true, nil) end,
@@ -274,6 +275,7 @@ if SERVER then
             local mat = Ent:getMaterials()
             local P = prop.createCustom(data.pos, data.ang, convexes, false)
             P:setFrozen(data.frozen) 
+            P:setMass(50)
             Ent:remove()
             net.start("CustomProp+Material")
             net.writeTable({entID = P:entIndex(), mat = mat})
@@ -293,17 +295,14 @@ if SERVER then
     --player
         ["drop weapon"] = function(Ent) if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end,
         ["modelscale"] = function(Ent, func) Ent:setModelScale(tonumber(func)) end,    
-            
-            
-        ["toss player"] = function(Ent) Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20)) end,
+        ["toss player"] = function(Ent) Ent:setVelocity(((Ent:getPos() - owner():getPos()) / Ent:getPos():getDistance(owner():getPos()) * 25 + Vector(0, 0, 25)) * math.random(10, 20)) Ent:emitSound("physics/body/body_medium_impact_hard" .. math.random(1, 6) .. ".wav", 100, 75, 1, CHAN_AUTO) end,
         ["kill"] = function(Ent) Ent:applyDamage(999999, entity(127), entity(127)) end,
         ["strip weapons"] = function(Ent) Ent:stripWeapons() end,
         ["full heal"] = function(Ent) Ent:setHealth(Ent:getMaxHealth()) end,
         ["teleport to ACID"] = function(Ent) Ent:setPos(Vector(9350, 8495, -11500)) end,
         ["teleport to Vector(0)"] = function(Ent) Ent:setPos(Vector(0)) end,
         ["drop all weapons"] = function(Ent) for i = 1, table.count(Ent:getWeapons()) do if Ent:getActiveWeapon():isValid() then Ent:dropWeapon(Ent:getActiveWeapon(), nil, nil) end end end,
-        ["toss me"] = function(Ent) Ent:setVelocity(Vector(Ent:getVelocity()[1] * 0.75, Ent:getVelocity()[2] * 0.75, math.abs(Ent:getVelocity()[3]) + 400)) end,
-        
+        ["toss me"] = function(Ent) Ent:setVelocity(Vector(Ent:getVelocity()[1] * 0.75, Ent:getVelocity()[2] * 0.75, math.abs(Ent:getVelocity()[3]) + 400)) Ent:emitSound("physics/body/body_medium_impact_hard" .. math.random(1, 6) .. ".wav", 100, 75, 1, CHAN_AUTO) end,
         
         ["function [spawnpoint]"] = function(Ent) if table.count(PlayerFunctions.respawn[Ent:getSteamID()] or {}) <= 1 then PlayerFunctions.respawn[Ent:getSteamID()] = {pos = Ent:getPos(), id = Ent:getSteamID()} end end,
         ["remove function [spawnpoint]"] = function(Ent) PlayerFunctions.respawn[Ent:getSteamID()] = nil end,
@@ -451,8 +450,7 @@ if SERVER then
             wire.adjustOutputs(DataOutPuts.names, DataOutPuts.types)
             wire.ports["Ent" .. Ent:entIndex()] = txt
             wire.create(Ent, chip(), "String", "Ent" .. Ent:entIndex())
-        end,
-        
+        end,        
             
     }
         
@@ -461,18 +459,20 @@ if SERVER then
         local func = data.func
         local Ent = entity(data.id)
         
-        roped = false
-        if Function[func] != nil then
-            Function[func](Ent, func)
-        else
-            local subfunc = string.explode(":", func, nil)
-            Function[subfunc[1]](Ent, subfunc[2])
-        end        
-        
-        if roped == false then
-            LastEnt = Ent
-        else
-            LastEnt = nil
+        if Ent:isValid() then
+            roped = false
+            if Function[func] != nil then
+                Function[func](Ent, func)
+            else
+                local subfunc = string.explode(":", func, nil)
+                Function[subfunc[1]](Ent, subfunc[2])
+            end        
+            
+            if roped == false then
+                LastEnt = Ent
+            else
+                LastEnt = nil
+            end
         end
     end)
     
@@ -493,8 +493,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.81"
-        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +teleport functions, +player model scale.")   
+        Ver = "v0.82a"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +players list table, +some fixes.")   
         enableHud(nil, true)
         
         Data = {
@@ -502,6 +502,7 @@ elseif CLIENT then
                 "не надо трогать Жона",
                 "его пропы тоже =)"
             },
+            world = {},
             owner = {
                 "player functions =>",
                 "teleport to =>",
@@ -1043,9 +1044,7 @@ elseif CLIENT then
             ["isEffectFunctions"] = {value = false, buttonID = 1000, data = DataEffectFunctions, tree = "add effect =>"},
             ["isTextScreenFunctions"] = {value = false, buttonID = 1100, data = DataTextScreen, tree = "set text =>"},
             ["isTeleportFunctions"] = {value = false, buttonID = 1200, data = DataTeleport, tree = "teleport to =>"},
-            ["isModelScaleFunctions"] = {value = false, buttonID = 1300, buttonSlider = 1301, data = {"modelscale:"}, tree = "model scale ->", values = {min = 0, max = 5}, name = "=> set model scale <=", type = "slider", text = "Curent model scale : ",
-                func = function(ent) return ent:getModelScale() end,
-            },
+            ["isModelScaleFunctions"] = {value = false, buttonID = 1300, buttonSlider = 1301, data = {"modelscale:"}, tree = "model scale ->", values = {min = 0, max = 5}, name = "=> set model scale <=", type = "slider", text = "Curent model scale : ", func = function(ent) return ent:getModelScale() end},
         }
 
         local function getStorage()
@@ -1054,6 +1053,8 @@ elseif CLIENT then
                 data = table.copy(Data["john"])
             elseif Ent == owner() then
                 data = table.copy(Data["owner"])
+            elseif Ent == game.getWorld() then
+                data = table.copy(Data["world"])
             elseif Ent:getModel() == "models/props_building_details/storefront_template001a_bars.mdl" and Ent:getOwner() == nil then
                 data = table.copy(Data["jail"])
             elseif Data[string.replace(Ent:getClass(), " ", "_")] != nil then
@@ -1099,6 +1100,16 @@ elseif CLIENT then
             return value
         end
         
+        function insertPlayer(dat)
+            if #dat == 0 then
+                plys = find.allPlayers()
+                for i = 1, #plys do
+                    table.insert(dat, 1, i .. ". " .. plys[i]:getName()) 
+                end
+            end
+            return dat
+        end
+        
         timer.create("check trees", 1, 0, function()
             if checkTrees() == 0 then
                 closeTrees()
@@ -1112,7 +1123,7 @@ elseif CLIENT then
             end
             
             if Ent != nil then
-                if Ent:isValid() then
+                if Ent:isValid() or Ent == game.getWorld() then
                     local mouseX, mouseY = input.getCursorPos()
                     
                     render.setFont(Font1)
@@ -1124,14 +1135,15 @@ elseif CLIENT then
                            table.insert(data, 1, "set skin =>") 
                         end
                     end
-                    
+                    insertPlayer(data)
+
                     local x, y = ResX / 2 + 20, ResY / 2 - (ButtonSize.y * table.count(data) / 2)
                     render.setColor(BaseColor1 * 2)
                     render.drawRect(x, y, ButtonSize.x, ButtonSize.y)
                     render.setColor(BaseColor2 * 2)
                     render.drawRectOutline(x, y, ButtonSize.x, ButtonSize.y)
                     render.setColor(Color(255, 255, 255))
-                    render.drawText(x + ButtonSize.x / 2, y + 5, tostring(Ent), 1)
+                    render.drawText(x + ButtonSize.x / 2, y + 5, Ent == game.getWorld() and "Players list : " or tostring(Ent), 1)
                     render.setFont(Font3)
                     
                     if checkTrees() == 0 then
@@ -1278,6 +1290,10 @@ elseif CLIENT then
                     --print(Ply:getEyeTrace().Entity:getClass())
                     input.enableCursor(true)
                     Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
+                else
+                    Ent = game.getWorld()
+                    input.enableCursor(true)
+                    Ply:emitSound("buttons/button7.wav", 75, 125, 0.75, CHAN_AUTO)
                 end
             end
         end
@@ -1314,23 +1330,34 @@ elseif CLIENT then
         
         function unbind(data, i, key, ent)
             if ent[data[i]] != nil then
-                if Bind[ent[data[i]]].ent == ent then
-                    ent[data[i]] = nil
-                    Bind["key:" .. key] = nil
-                    Ply:emitSound("buttons/combine_button2.wav", 100, 150, 0.75, CHAN_AUTO)
+                if Bind[ent[data[i]]].ent != nil then
+                    if Bind[ent[data[i]]].ent == ent then
+                        ent[data[i]] = nil
+                        Bind["key:" .. key] = nil
+                        Ply:emitSound("buttons/combine_button2.wav", 100, 150, 0.75, CHAN_AUTO)
+                    end
                 end
             end
         end
             
         function checkButtons(data, type, key, ent, mouseX, mouseY)
             for i = 1, table.count(data) do
-                if Button[i] and not string.match(data[i], ">", nil) then
-                    if type == "func" then 
-                        sendData(data, i) 
-                    elseif type == "bind" then
-                        setBind(data, i, key, ent)
-                    elseif type == "unbind" then
-                        unbind(data, i, key, ent)
+                if Ent == game.getWorld() then
+                    if Button[i] and not string.match(data[i], ">", nil) then
+                        if type == "func" then 
+                            Ent = table.reverse(find.allPlayers())[i]
+                            Ply:emitSound("buttons/lightswitch2.wav", 75, 125, 0.75, CHAN_AUTO)
+                        end
+                    end
+                else
+                    if Button[i] and not string.match(data[i], ">", nil) then
+                        if type == "func" then 
+                            sendData(data, i) 
+                        elseif type == "bind" then
+                            setBind(data, i, key, ent)
+                        elseif type == "unbind" then
+                            unbind(data, i, key, ent)
+                        end
                     end
                 end
             end
@@ -1422,6 +1449,8 @@ elseif CLIENT then
                     if (Ent:getSkinCount() or 0) > 1 then
                        table.insert(data, 1, "set skin =>") 
                     end
+                    insertPlayer(data)
+                    
                     local mouseX, mouseY = input.getCursorPos()
                     
                     local isTrees = checkInputTrees()
@@ -1440,6 +1469,8 @@ elseif CLIENT then
                     if (Ent:getSkinCount() or 0) > 1 then
                        table.insert(data, 1, "set skin =>") 
                     end
+                    insertPlayer(data)
+                    
                     local mouseX, mouseY = input.getCursorPos()
                     
                     local isTrees = checkInputTrees()
@@ -1459,6 +1490,8 @@ elseif CLIENT then
                         if (Ent:getSkinCount() or 0) > 1 then
                            table.insert(data, 1, "set skin =>") 
                         end
+                        insertPlayer(data)
+                        
                         local mouseX, mouseY = input.getCursorPos()
                         
                         local isTrees = checkInputTrees()
@@ -1495,7 +1528,7 @@ if CLIENT then
                     if ent:getPhysicsObject():isValid() then
                         ent:setMeshMaterial(material.load(mat))
                         local tbl = ent:getPhysicsObject():getMesh()
-                        mesh.generateUV(tbl, 0.1)
+                        mesh.generateUV(tbl, 0.025)
                         mesh.generateNormals(tbl, true)
                         mesh.generateTangents(tbl)
                         ent:setMesh(mesh.createFromTable(tbl))
