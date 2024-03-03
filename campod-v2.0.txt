@@ -183,13 +183,14 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.76"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: added weapon animation in CamHackMode")  
+            Ver = "v2.77"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: textures moved to github.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
             MapSkin = material.create("UnlitGeneric")
-            Map:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/904019402960302100/904027914281029682/map1k.png", function(_, _, _, _, layout)
+            Map:setTextureURL("$basetexture", "https://raw.github.com/JohnBurlyay/images/main/map1k.png", function(_, _, _, _, layout)
+                
                 if layout then
                     layout(0, 0, 512, 512)
                 else
@@ -197,7 +198,7 @@ else
                     print("[ACP][c 255, 0, 0]: error loading Map texture!")
                 end
             end)
-            MapSkin:setTextureURL("$basetexture", "https://cdn.discordapp.com/attachments/1076105846473359360/1076105896112963614/mapskin.png", function(_, _, _, _, layout)
+            MapSkin:setTextureURL("$basetexture", "https://raw.github.com/JohnBurlyay/images/main/mapskin.png", function(_, _, _, _, layout)
                 if layout then
                     layout(0, 0, 512, 512)
                 else
