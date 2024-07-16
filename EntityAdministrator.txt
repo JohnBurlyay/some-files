@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.82a
+--@name EntityAdministrator-v0.84
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -82,9 +82,9 @@ if SERVER then
         if BaseProp:isValid() and Holo[1]:isValid() then
             local Props = BaseProp:getAllConstrained(nil)
             if #Props > 0 then
-                for i = 1, #Props do
+                for i = 1, math.max(25, #Props) do
                     local P = Props[i]
-                    if P:isValidPhys() and P != O and P != BaseProp then
+                    if P and P:isValidPhys() and P != O and P != BaseProp then
                         P:applyForceCenter(Vector(0, 0, 1))
                     end
                 end 
@@ -493,8 +493,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.82a"
-        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " +players list table, +some fixes.")   
+        Ver = "v0.84"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " huita fix!")   
         enableHud(nil, true)
         
         Data = {
