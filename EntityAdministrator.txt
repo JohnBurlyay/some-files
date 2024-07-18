@@ -1,4 +1,4 @@
---@name EntityAdministrator-v0.84
+--@name EntityAdministrator-v0.85
 --@author JohnBurlyay
 --@shared
 --@model models/cheeze/buttons2/deactivate.mdl
@@ -80,9 +80,10 @@ if SERVER then
     
     hook.add("tick", "", function()
         if BaseProp:isValid() and Holo[1]:isValid() then
-            local Props = BaseProp:getAllConstrained(nil)
+            local Props = BaseProp:getAllConstrained({Rope = true, Weld = true, Elastic = true, Axis = true})
+            --printTable(constraint.getTable(BaseProp))
             if #Props > 0 then
-                for i = 1, math.max(25, #Props) do
+                for i = 1, math.max(50, #Props) do
                     local P = Props[i]
                     if P and P:isValidPhys() and P != O and P != BaseProp then
                         P:applyForceCenter(Vector(0, 0, 1))
@@ -493,8 +494,8 @@ if SERVER then
 elseif CLIENT then
     
     if player() == owner() then
-        Ver = "v0.84"
-        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " huita fix!")   
+        Ver = "v0.85"
+        print("[EntAdmin][c 255, 155, 0]: loaded " .. Ver .. ". Last update: " .. " huita fix 2.0!")   
         enableHud(nil, true)
         
         Data = {
