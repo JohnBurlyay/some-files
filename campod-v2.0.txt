@@ -1,4 +1,4 @@
---@name CamPod-v2.76
+--@name CamPod-v2.78
 --@author JohnBurlyay
 --@shared
 --@model models/jaanus/wiretool/wiretool_input.mdl
@@ -60,17 +60,21 @@ if SERVER then
     
     hook.add("think", "", function()
         if Enable == true and Chair:isValid() then
+--[[
             if Chair:getPos() != Vector(0) then
                 Chair:setPos(Vector(0))
             end
-            
+]]
             if Ply:isValid() then
                 if Ply != nil and Ply != owner() then
+                    Chair:setPos(Ply:getPos():setZ(3500))
                     if E == 1 then
                         Ply:setEyeAngles(owner():getEyeAngles())
                     else
                         owner():setEyeAngles(Ply:getEyeAngles() or Angle())
                     end  
+                else
+                    Chair:setPos(Vector(0))
                 end
             end
         end
@@ -183,8 +187,8 @@ else
             BaseView:setColor(Color(255, 255, 255, 0))    
             BaseView:setAnimation("idle", nil, nil)
             
-            Ver = "v2.77"
-            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: textures moved to github.")  
+            Ver = "v2.78"
+            print("[ACP][c 255, 155, 0]: loaded " .. Ver .. ". Press [" .. input.getKeyName(MenuKey) .. "] to open/close menu. Last update: reworked campos for any map.")  
             
         function loadTextures() 
             Map = material.create("UnlitGeneric")
